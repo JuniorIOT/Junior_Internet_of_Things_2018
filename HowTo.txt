@@ -1,0 +1,61 @@
+
+
+We are using the Lora32u4 board with 868 mhz lora module and build-in lipo charger.
+Our board is a copy of the adafruit feather with lora, and we will use the adafruit documentation and samples.
+
+The very detailed information is located here: https://learn.adafruit.com/adafruit-feather-32u4-radio-with-lora-radio-module/downloads?view=all
+and the same info is formatted as a PDF here: https://cdn-learn.adafruit.com/downloads/pdf/adafruit-feather-32u4-radio-with-lora-radio-module.pdf
+If you have trouble, read page 50 and further in the pdf.
+
+
+Plug lipo into the board and connect board to USB power.
+--> red led lights up while the lipo is being charged. 
+
+Click the reset button; the white led now blinks slowly. This tells us that the bootloader is present on the chip.
+
+On page 41 of this document, read how to add the device to the Arduino IDE:
+- you need IDE version 1.8 or better: open your Arduino IDE, click help and read the version number
+--> if needed get newer IDE from http://www.arduino.cc/en/Main/Software
+- Add the board:
+  - 1. menu > file > preferences > click the icon next to board manager URLs, add a new line: https://adafruit.github.io/arduino-board-index/package_adafruit_index.json
+  - 2. menu > tools > Board: ... > boards manager > change the Type dropdown to "contributed" and search for 32u4, select the Adafruit AVR Boards, click the install button
+
+Install windows driver: https://github.com/adafruit/Adafruit_Windows_Drivers/releases/download/1.0.0.0/adafruit_drivers.exe
+
+Exit and re-open the IDE. Now, in the Arduino IDE menu, select tools, Boards and select the new option for Adafruit Feather 32u4
+
+If you then plug in your board into the USB and windows mentions "USB device not recognized", we do not worry about that. It will need to be found in Arduino IDE first, so just continue with next step:
+
+Now open the arduino IDE, open the example for blink, press control-u to upload it to the device; and now pay attention. Press the reset once compile is completed and the IDE is searching for your device. It should program your blink into the unit.
+After the first programming, it seems that it usually is no longer needed to press the reset.
+
+now look at schematic: http://www.pighixxx.com/test/wp-content/uploads/2017/04/feather_32u4_RFMxx_v1_1.png
+
+=---=--= Battery to serial - from adafruit instruction
+Practice: lets read the batery level
+Go to the battery example in the information page: https://learn.adafruit.com/adafruit-feather-32u4-radio-with-lora-radio-module/downloads?view=all#measuring-battery
+.. and copy the code into your program.
+
+#define VBATPIN A9   
+float measuredvbat = analogRead(VBATPIN);
+measuredvbat *= 2;    // we divided by 2, so multiply back
+measuredvbat *= 3.3;  // Multiply by 3.3V, our reference voltage
+measuredvbat /= 1024; // convert to voltage
+Serial.print("VBat: " ); Serial.println(measuredvbat);
+
+--> can you see how many volts the battery is while charging? And how much when disconnected?
+
+=-=--=-=-=-=- Radio send - from adafruit instruction
+Download latest libary zip file from http://www.airspayce.com/mikem/arduino/RadioHead/
+arduino IDE: menu > Sketch > include library > add Zip Library > browse to library zip in the /libraries subfolder
+
+Start a new arduino project, copy-paste the sample code from the adafruit instruction: https://learn.adafruit.com/adafruit-feather-32u4-radio-with-lora-radio-module/downloads?view=all#transmitter-example-code
+
+I have adjusted a few things; see github. When using two nodes both with the 'send' version, it appears that not all messages get received. 
+Can you see how many messages are received and how many times there is no answer? Think about why this happens.
+
+
+
+
+
+
