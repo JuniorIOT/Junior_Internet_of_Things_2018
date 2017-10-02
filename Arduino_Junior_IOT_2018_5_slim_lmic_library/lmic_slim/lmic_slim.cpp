@@ -1,4 +1,12 @@
-#include "lmic_slim.h"
+#include <lmic_slim.h>
+struct lmic_t LMIC;
+byte channelpointer = 0;
+extern  uint32_t  AESAUX[];
+extern  uint32_t  AESKEY[];
+#define AESkey ((uint8_t*)AESKEY)
+#define AESaux ((uint8_t*)AESAUX)
+uint32_t AESAUX[16/sizeof(uint32_t)];
+uint32_t AESKEY[11*16/sizeof(uint32_t)];
      
 void radio_init () {
     setopmode(0x00);                                                              // opmode SLEEP

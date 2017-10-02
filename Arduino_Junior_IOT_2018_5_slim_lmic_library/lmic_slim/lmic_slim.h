@@ -36,14 +36,6 @@ static const unsigned char channel[8][3] = {
   {0xD9,0x20,0x00}
 };
 
-
-extern  uint32_t  AESAUX[];
-extern  uint32_t  AESKEY[];
-#define AESkey ((uint8_t*)AESKEY)
-#define AESaux ((uint8_t*)AESAUX)
-uint32_t AESAUX[16/sizeof(uint32_t)];
-uint32_t AESKEY[11*16/sizeof(uint32_t)];
-
 struct lmic_t {
     uint8_t         nwkKey[16];       // network session key
     uint8_t         artKey[16];       // application router session key
@@ -56,7 +48,7 @@ struct lmic_t {
 };
 
 static uint8_t mydata[] = "Hello";
-byte channelpointer = 0;
+void writeReg (uint8_t addr, uint8_t data );
 
 void LMIC_setSession (uint32_t devaddr, uint8_t* nwkKey, uint8_t* artKey);
 void os_wlsbf4 (uint8_t* buf, uint32_t value);
@@ -71,16 +63,13 @@ static void AES_Mix_Collums();
 static void AES_Calculate_Round_Key(unsigned char Round, unsigned char *Round_Key);
 static void aes_appendMic (uint8_t* key, uint32_t devaddr, uint32_t seqno, int dndir, uint8_t* pdu, int len);
 static void micB0 (uint32_t devaddr, uint32_t seqno, int dndir, int len);
-
-struct lmic_t LMIC;
 void radio_init();
-static void setopmode (uint8_t mode);
-static void writeReg (uint8_t addr, uint8_t data );
+void setopmode (uint8_t mode);
 void hal_pin_nss (uint8_t val);
 uint8_t hal_spi (uint8_t out);
 static void rxlora ();
 static void configLoraModem (); 
-static void txlora ();
+void txlora ();
 int LMIC_setTxData2 (uint8_t* data, uint8_t dlen);
 static void configChannel ();
 static void writeBuf (uint8_t addr, uint8_t* buf, uint8_t len);
@@ -91,4 +80,3 @@ uint32_t os_aes (uint8_t mode, uint8_t* buf, uint16_t len);
 static void os_aes_cmac(uint8_t* buf, uint16_t len, uint8_t prepend_aux);
 void lmic_aes_encrypt(unsigned char *Data, unsigned char *Key);
 static void shift_left(uint8_t* buf, uint8_t len);
-
