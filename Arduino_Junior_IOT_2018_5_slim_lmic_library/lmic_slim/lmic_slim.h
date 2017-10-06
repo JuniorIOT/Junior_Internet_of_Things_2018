@@ -66,7 +66,6 @@ static void micB0 (uint32_t devaddr, uint32_t seqno, int dndir, int len);
 void radio_init();
 void setopmode (uint8_t mode);
 void hal_pin_nss (uint8_t val);
-uint8_t hal_spi (uint8_t out);
 static void rxlora ();
 static void configLoraModem (); 
 void txlora ();

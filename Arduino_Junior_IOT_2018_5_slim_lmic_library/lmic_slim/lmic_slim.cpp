@@ -1,4 +1,5 @@
 #include <lmic_slim.h>
+#include <SPI.h>
 struct lmic_t LMIC;
 byte channelpointer = 0;
 extern  uint32_t  AESAUX[];
@@ -8,7 +9,8 @@ extern  uint32_t  AESKEY[];
 uint32_t AESAUX[16/sizeof(uint32_t)];
 uint32_t AESKEY[11*16/sizeof(uint32_t)];
      
-void radio_init () {
+void radio_init () {	
+    SPI.begin();
     setopmode(0x00);                                                              // opmode SLEEP
     rxlora();                                                                 
     setopmode(0x00);                                                              // opmode SLEEP
@@ -20,31 +22,13 @@ static void setopmode (uint8_t mode) {
 
 static void writeReg (uint8_t addr, uint8_t data ) {
     hal_pin_nss(0);
-    hal_spi(addr | 0x80);
-    hal_spi(data);
+    SPI.transfer(addr | 0x80);
+    SPI.transfer(data);    
     hal_pin_nss(1);
 }
 
 void hal_pin_nss (uint8_t val) {
     digitalWrite(SS_pin, val);                                                    // nss pin = PB5
-}
-
-uint8_t hal_spi (uint8_t out) {                                                   // Emuleer een SPI interface met de RFM96
-  for(int i=0; i<8; i++)  
-  {
-      if (bitRead(out, 7-i)==1) {
-      PORTB = 0b00000001;                                                         // Een één versturen: MOSI hoog, dan CLK hoog, dan CLK laag
-      PORTB = 0b00000101;
-      PORTB = 0b00000001;
-      }
-      else {
-      PORTB = 0b00000000;                                                         // Een nul versturen: MOSI laag, dan CLK hoog, dan CLK laag
-      PORTB = 0b00000100;
-      PORTB = 0b00000000;
-      }
-  }
-  uint8_t res = 0x00;
-  return res;
 }
 
 static void rxlora () {                                                           // start LoRa receiver (time=LMIC.rxtime, timeout=LMIC.rxsyms, result=LMIC.frame[LMIC.dataLen])
