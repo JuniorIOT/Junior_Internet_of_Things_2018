@@ -8,9 +8,12 @@ extern  uint32_t  AESKEY[];
 #define AESaux ((uint8_t*)AESAUX)
 uint32_t AESAUX[16/sizeof(uint32_t)];
 uint32_t AESKEY[11*16/sizeof(uint32_t)];
+
+void spi_start() {
+    SPI.begin();
+}
      
 void radio_init () {	
-    SPI.begin();
     setopmode(0x00);                                                              // opmode SLEEP
     rxlora();                                                                 
     setopmode(0x00);                                                              // opmode SLEEP
@@ -22,9 +25,11 @@ static void setopmode (uint8_t mode) {
 
 static void writeReg (uint8_t addr, uint8_t data ) {
     hal_pin_nss(0);
-    SPI.transfer(addr | 0x80);
+    digitalWrite(LED_BUILTIN,HIGH);
+    SPI.transfer(addr);
     SPI.transfer(data);    
     hal_pin_nss(1);
+    digitalWrite(LED_BUILTIN,LOW);
 }
 
 void hal_pin_nss (uint8_t val) {
@@ -66,9 +71,9 @@ static void txlora () {                                                         
 
 static void writeBuf (uint8_t addr, uint8_t* buf, uint8_t len) {
     hal_pin_nss(0);
-    hal_spi(addr | 0x80);
+    SPI.transfer(addr);
     for (uint8_t i=0; i<len; i++) {
-        hal_spi(buf[i]);
+        SPI.transfer(buf[i]);
     }
     hal_pin_nss(1);
 }

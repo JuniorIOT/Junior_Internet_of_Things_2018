@@ -7,6 +7,7 @@
 
 void setup() {
     delay (5000);
+    spi_start();
     pinMode(SS_pin, OUTPUT);                                                                  
     pinMode(SCK_pin, OUTPUT);                                         
     pinMode(MOSI_pin, OUTPUT);

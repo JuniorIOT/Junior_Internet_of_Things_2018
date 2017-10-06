@@ -49,7 +49,7 @@ struct lmic_t {
 
 static uint8_t mydata[] = "Hello";
 void writeReg (uint8_t addr, uint8_t data );
-
+void spi_start();
 void LMIC_setSession (uint32_t devaddr, uint8_t* nwkKey, uint8_t* artKey);
 void os_wlsbf4 (uint8_t* buf, uint32_t value);
 void os_wmsbf4 (uint8_t* buf, uint32_t value);
