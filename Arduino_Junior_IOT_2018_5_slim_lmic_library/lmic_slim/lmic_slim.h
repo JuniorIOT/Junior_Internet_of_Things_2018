@@ -44,10 +44,10 @@ struct lmic_t {
     uint8_t         dataLen;          // 0 no data or zero length data, >0 byte count of data
     uint8_t         frame[64];
     uint8_t         pendTxLen;    
-    uint8_t         pendTxData[10];   // Let op, bij grotere payload ook deze array vergroten
+    uint8_t         pendTxData[40];   // Let op, bij grotere payload ook deze array vergroten
 };
 
-static uint8_t mydata[] = "Hello";
+static uint8_t mydata[40] = "Hello";
 void writeReg (uint8_t addr, uint8_t data );
 void spi_start();
 void LMIC_setSession (uint32_t devaddr, uint8_t* nwkKey, uint8_t* artKey);
