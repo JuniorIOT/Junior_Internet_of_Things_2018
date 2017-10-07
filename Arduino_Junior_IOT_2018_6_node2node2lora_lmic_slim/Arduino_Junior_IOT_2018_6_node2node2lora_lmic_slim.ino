@@ -180,7 +180,7 @@ void loopLora() {
       delay(1000);                                                                 // wacht op TX ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
       digitalWrite(LED_BUILTIN, LOW);
       setopmode(0x00);                                                             // opmode SLEEP
-      delay (5000);                                                               // Wacht 1 minuut
+      delay (60000);                                                               // Wacht 1 minuut
       Serial.println("Done lora");
 }
 
