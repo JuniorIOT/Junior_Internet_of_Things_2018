@@ -26,7 +26,7 @@ static void setopmode (uint8_t mode) {
 static void writeReg (uint8_t addr, uint8_t data ) {
     hal_pin_nss(0);
     digitalWrite(LED_BUILTIN,HIGH);
-    SPI.transfer(addr);
+    SPI.transfer(addr | 0x80);
     SPI.transfer(data);    
     hal_pin_nss(1);
     digitalWrite(LED_BUILTIN,LOW);
@@ -71,7 +71,7 @@ static void txlora () {                                                         
 
 static void writeBuf (uint8_t addr, uint8_t* buf, uint8_t len) {
     hal_pin_nss(0);
-    SPI.transfer(addr);
+    SPI.transfer(addr | 0x80);
     for (uint8_t i=0; i<len; i++) {
         SPI.transfer(buf[i]);
     }
