@@ -196,18 +196,18 @@ void doOneLora() {
   Serial.println("Loop Lora: Done lora");
 }
 
-void loopLora() {
-    Serial.println("Doing lora");
-      memcpy(mydata,buf,40);
-      LMIC_setTxData2(mydata, sizeof(mydata)-1);
-      radio_init ();                                                       
-      delay (10);
-      digitalWrite(LED_BUILTIN, HIGH);
-      txlora ();
-      delay(1000);                                                                 // wacht op TX ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
-      digitalWrite(LED_BUILTIN, LOW);
-      setopmode(0x00);                                                             // opmode SLEEP
-      delay (60000);                                                               // Wacht 1 minuut
-      Serial.println("Done lora");
-}
+//void loopLora() {
+//    Serial.println("Doing lora");
+//      memcpy(mydata,buf,40);
+//      LMIC_setTxData2(mydata, sizeof(mydata)-1);
+//      radio_init ();                                                       
+//      delay (10);
+//      digitalWrite(LED_BUILTIN, HIGH);
+//      txlora ();
+//      delay(1000);                                                                 // wacht op TX ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
+//      digitalWrite(LED_BUILTIN, LOW);
+//      setopmode(0x00);                                                             // opmode SLEEP
+//      delay (60000);                                                               // Wacht 1 minuut
+//      Serial.println("Done lora");
+//}
 
