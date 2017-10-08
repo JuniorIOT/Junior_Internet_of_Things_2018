@@ -29,37 +29,24 @@ uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   
-  //while (!Serial); // this blocks execute if not connected
-  delay(100);
-  Serial.begin(9600);
-  delay(100);
-
-  Serial.println("Feather LoRa TX Test!");  
-  digitalWrite(LEDPIN, !digitalRead(LEDPIN)); 
 }
 
 void loop() {
-  digitalWrite(LEDPIN, !digitalRead(LEDPIN)); 
-  
-  setupRadio();
-  doOneRadio();  // sends a radio messag eand will listen for return message for a certain time
-  
   // if not lora then radio
   if(ReceivedForLoraFromRadio) {
     ReceivedForLoraFromRadio = false;
+    setupLora();
+    loopLora();
   } else {
-    
+    setupRadio();
+    loopRadio();
   }
-  
-  //delay (5000);
-  setupLora();
-  doOneLora();
-  //delay (50000); // officially each 3 to 5 minutes one SF7 lora with 10-30 bytes payload
 }
 
-void doOneRadio() {
-  Serial.println("\nLoop radio: Doing radio");  
-    
+void loopRadio() {
+  Serial.println("Doing radio");  
+  digitalWrite(LEDPIN, !digitalRead(LEDPIN)); 
+  
   // preparing to send a message to everyone  
   float measuredvbat = analogRead(VBATPIN);
   measuredvbat *= 2;                  // we divided by 2, so multiply back
@@ -71,7 +58,7 @@ void doOneRadio() {
   Serial.println(" miliVolt");
   
   char radiopacket[40] = "Hello World #       Vbatt= #       mV  ";
-  int radiopacket_strlen=sprintf(radiopacket, "Radio message #%d 'Vbatt= %d mV' ",packetnum++,vbat);
+  int radiopacket_strlen=sprintf(radiopacket, "Hello World #%d Vbatt= %d mV ",packetnum++,vbat);
   Serial.print("Sending "); Serial.println(radiopacket);
   radiopacket[radiopacket_strlen] = 0; // last char was nulled by sprintf?
   
@@ -79,20 +66,20 @@ void doOneRadio() {
   rf95.send((uint8_t *)radiopacket, 40);
 
   // now, sending is done. start listening
-  Serial.println("Waiting for radio packet to complete..."); delay(10);
+  Serial.println("Waiting for packet to complete..."); delay(10);
   rf95.waitPacketSent();
   // Now wait for a reply  
   uint8_t len = sizeof(buf);
   
-  Serial.println("Waiting for radio reply..."); delay(10);
-  if (!rf95.waitAvailableTimeout(20000)) { Serial.println("No radio received in 20 sec, is there anyone around in same send settings?"); }
+  Serial.println("Waiting for reply..."); delay(10);
+  if (!rf95.waitAvailableTimeout(5000)) { Serial.println("Nothing received, is there anyone around?"); }
   else { 
     // a message was received
     if (!rf95.recv(buf, &len)) { Serial.println("Receive buffer is empty."); }
     else {
       // message has a length
-      RH_RF95::printBuffer("Received this radio message: ", buf, len);
-      Serial.print("Got reply:              [");
+      RH_RF95::printBuffer("Received: ", buf, len);
+      Serial.print("Got reply:                                 [");
       Serial.print((char*)buf);
       Serial.print("] RSSI: ");
       Serial.println(rf95.lastRssi(), DEC);    
@@ -110,7 +97,6 @@ void doOneRadio() {
 }
 
 void halt_stressed() {  
-  Serial.println("\nPanic. Halted.");  
   while(1) {
     digitalWrite(LEDPIN, HIGH);   
     delay(150);
@@ -120,12 +106,18 @@ void halt_stressed() {
 }   
 
 
-void setupRadio() {  
-  Serial.println("\nSetup radio");  
-  pinMode(RFM95_RST, OUTPUT);
+void setupRadio() {
+    pinMode(RFM95_RST, OUTPUT);
   digitalWrite(RFM95_RST, HIGH);
 
-  // hard reset
+  //while (!Serial); // this blocks execute if not connected
+  delay(100);
+  Serial.begin(9600);
+  delay(100);
+
+  Serial.println("Feather LoRa TX Test!");
+
+  // manual reset
   digitalWrite(RFM95_RST, LOW);
   delay(10);
   digitalWrite(RFM95_RST, HIGH);
@@ -144,7 +136,7 @@ void setupRadio() {
     //while (1);
     halt_stressed();
   }
-  Serial.print("Freq is set to: "); 
+  Serial.print("Set Freq to: "); 
   Serial.println(RF95_FREQ);
   
   // Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol, CRC on
@@ -152,48 +144,29 @@ void setupRadio() {
   // The default transmitter power is 13dBm, using PA_BOOST.
   // If you are using RFM95/96/97/98 modules which uses the PA_BOOST transmitter pin, then 
   // you can set transmitter powers from 5 to 23 dBm:
-  
-  //rf95.setTxPower(23, false);
-  rf95.setTxPower(13, false);   // is this TTN & TTNtracker intended spec?
+  rf95.setTxPower(23, false);
 }
 
 
 
 void setupLora() {
-  Serial.println("\nDSetup Lora");  
-  spi_start();
-  pinMode(SS_pin, OUTPUT);                                                                  
-  pinMode(SCK_pin, OUTPUT);                                         
-  pinMode(MOSI_pin, OUTPUT);    
-  digitalWrite(SCK_pin, LOW);                                                   // SCK low
-  digitalWrite(SS_pin, HIGH);                                                   // NSS high
-  delay(10);
-  writeReg(0x01, 0x08);
-  delay(10);
-  radio_init ();
-  delay(10);
-  uint8_t appskey[sizeof(APPSKEY)];
-  uint8_t nwkskey[sizeof(NWKSKEY)];
-  memcpy_P(appskey, APPSKEY, sizeof(APPSKEY));
-  memcpy_P(nwkskey, NWKSKEY, sizeof(NWKSKEY));
-  LMIC_setSession (DEVADDR, nwkskey, appskey);
-}
-
-void doOneLora() {
-  Serial.println("\nLoop Lora: Doing lora");
-  memcpy(mydata,buf,40);
-      Serial.print("Send buffer:              [");
-      Serial.print((char*)mydata);
-      Serial.println("]");
-  LMIC_setTxData2(mydata, sizeof(mydata)-1);
-  radio_init ();                                                       
-  delay (10);
-  //digitalWrite(LED_BUILTIN, HIGH);
-  txlora ();
-  delay(1000);                        // this is a simple wait with no checking for TX Ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
-  //digitalWrite(LED_BUILTIN, LOW);
-  setopmode(0x00);                     // opmode SLEEP
-  Serial.println("Loop Lora: Done lora");
+    delay (5000);
+    spi_start();
+    pinMode(SS_pin, OUTPUT);                                                                  
+    pinMode(SCK_pin, OUTPUT);                                         
+    pinMode(MOSI_pin, OUTPUT);    
+    digitalWrite(SCK_pin, LOW);                                                   // SCK low
+    digitalWrite(SS_pin, HIGH);                                                   // NSS high
+    delay(10);
+    writeReg(0x01, 0x08);
+    delay(10);
+    radio_init ();
+    delay(10);
+    uint8_t appskey[sizeof(APPSKEY)];
+    uint8_t nwkskey[sizeof(NWKSKEY)];
+    memcpy_P(appskey, APPSKEY, sizeof(APPSKEY));
+    memcpy_P(nwkskey, NWKSKEY, sizeof(NWKSKEY));
+    LMIC_setSession (DEVADDR, nwkskey, appskey);
 }
 
 void loopLora() {
