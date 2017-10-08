@@ -14,13 +14,13 @@ void spi_start() {
 }
      
 void radio_init () {	
-    setopmode(0x00);                                                              // opmode SLEEP
-    rxlora();                                                                 
-    setopmode(0x00);                                                              // opmode SLEEP
+    setopmode(0x00);  // opmode SLEEP
+    rxlora();     
+    setopmode(0x00);  // opmode SLEEP
 }
 
 static void setopmode (uint8_t mode) {
-      writeReg(0x01, 0x88 | mode);                                                //Register RegOpMode
+      writeReg(0x01, 0x88 | mode);                  //Register RegOpMode
 }
 
 static void writeReg (uint8_t addr, uint8_t data ) {
@@ -33,40 +33,41 @@ static void writeReg (uint8_t addr, uint8_t data ) {
 }
 
 void hal_pin_nss (uint8_t val) {
-    digitalWrite(SS_pin, val);                                                    // nss pin = PB5
+    digitalWrite(SS_pin, val);                      // nss pin = PB5
 }
 
-static void rxlora () {                                                           // start LoRa receiver (time=LMIC.rxtime, timeout=LMIC.rxsyms, result=LMIC.frame[LMIC.dataLen])
-    setopmode(0x01);                                                              // enter standby mode (warm up))
-    writeReg(0x23, 64);                                                           // Register LORARegPayloadMaxLength - set max payload size
-    writeReg(0x33, 0x67);                                                         // Register LORARegInvertIQ - use inverted I/Q signal (prevent mote-to-mote communication)
-    writeReg(0x1F, 0);                                                            // Register LORARegSymbTimeoutLsb - set symbol timeout (for single rx) - gedefinieerd op MINRX_SYMS
-    writeReg(0x39, 0x34);                                                         // Register LORARegSyncWord - set sync word
-    writeReg(0x40, 0x00|0x00|0xC0);                                               // Register RegDioMapping1 - configure DIO mapping DIO0=RxDone DIO1=RxTout DIO2=NOP
-    configLoraModem();                                                            // configure LoRa modem (cfg1, cfg2)
-    configChannel();                                                              // configure frequency
-    writeReg(0x0A, 0x08);                                                         // Register RegPaRamp - set PA ramp-up time 50 uSec, configure output power
-    writeReg(0x09, 0xFF);                                                         // Register RegPaConfig - maximum power   
-    writeReg(0x5A, 0x14);                                                         // Register RegPaDac - 0x04 is de default value. 0x07 = power boost. Alleen 2 bits worden gebruikt, daarom lezen van registerwaarde en gebruik bitwise-OR  
+static void rxlora () {                             // start LoRa receiver (time=LMIC.rxtime, timeout=LMIC.rxsyms, result=LMIC.frame[LMIC.dataLen])
+    setopmode(0x01);  // enter standby mode (warm up))
+    writeReg(0x23, 64);                             // Register LORARegPayloadMaxLength - set max payload size
+    writeReg(0x33, 0x67);                           // Register LORARegInvertIQ - use inverted I/Q signal (prevent mote-to-mote communication)
+    writeReg(0x1F, 0);                              // Register LORARegSymbTimeoutLsb - set symbol timeout (for single rx) - gedefinieerd op MINRX_SYMS
+    writeReg(0x39, 0x34);                           // Register LORARegSyncWord - set sync word
+    writeReg(0x40, 0x00|0x00|0xC0);                 // Register RegDioMapping1 - configure DIO mapping DIO0=RxDone DIO1=RxTout DIO2=NOP
+    configLoraModem();                              // configure LoRa modem (cfg1, cfg2)
+    configChannel();  // configure frequency
+    writeReg(0x0A, 0x08);                           // Register RegPaRamp - set PA ramp-up time 50 uSec, configure output power
+    writeReg(0x09, 0xFF);                           // Register RegPaConfig - maximum power   
+    writeReg(0x5A, 0x14);                           // Register RegPaDac - 0x04 is de default value. 0x07 = power boost. Alleen 2 bits worden gebruikt, daarom lezen van registerwaarde en gebruik bitwise-OR  
 }
 
-static void configLoraModem () {                                                  // configure LoRa modem (cfg1, cfg2)
-    writeReg(0x1D, 0x72);                                                         // Register LORARegModemConfig1 - BW=125 en Coding Rate=4/5  
-    writeReg(0x1E, 0x74);// C to 7 for SF7?? is it SF7 now?                       // Register LORARegModemConfig2 - SF =12 (bit 7..4) TxContinuousMode =0 normal mode (bit 3)  RxPayloadCrcOn = 1 CRC ON (bit 2)  SymbTimeout(9:8)=00 default (bit 1..0)
-    writeReg(0x26, 0x0C);                                                         // Register LORARegModemConfig3
+static void configLoraModem () {                    // configure LoRa modem (cfg1, cfg2)
+    writeReg(0x1D, 0x72);                           // Register LORARegModemConfig1 - BW=125 en Coding Rate=4/5  
+   // writeReg(0x1E, 0x74);// C to 7 for SF7?? is it SF7 now?                       // Register LORARegModemConfig2 - SF =12 (bit 7..4) TxContinuousMode =0 normal mode (bit 3)  RxPayloadCrcOn = 1 CRC ON (bit 2)  SymbTimeout(9:8)=00 default (bit 1..0)
+    writeReg(0x1E, 0xC4);// C to 7 for SF7?? is it SF7 now?                       // Register LORARegModemConfig2 - SF =12 (bit 7..4) TxContinuousMode =0 normal mode (bit 3)  RxPayloadCrcOn = 1 CRC ON (bit 2)  SymbTimeout(9:8)=00 default (bit 1..0)
+    writeReg(0x26, 0x0C);                           // Register LORARegModemConfig3
 }
 
-static void txlora () {                                                           // start transmitter (buf=LMIC.frame, len=LMIC.dataLen)
-    setopmode(0x01);                                                              // OPMODE_STANDBY enter standby mode (required for FIFO loading))
-    writeReg(0x39, 0x34);                                                         // Register LORARegSyncWord - set sync word LORA_MAC_PREAMBLE
-    writeReg(0x40, 0x40|0x30|0xC0);                                               // Register RegDioMapping1 - MAP_DIO0_LORA_TXDONE | MAP_DIO1_LORA_NOP|MAP_DIO2_LORA_NOP - set the IRQ mapping DIO0=TxDone DIO1=NOP DIO2=NOP
-    writeReg(0x12, 0xFF);                                                         // Register LORARegIrqFlags - clear all radio IRQ flags
-    writeReg(0x11, ~0x08);                                                        // Register LORARegIrqFlagsMask - IRQ_LORA_TXDONE_MASK mask all IRQs but TxDone
-    writeReg(0x0E, 0x00);                                                         // Register LORARegFifoTxBaseAddr - initialize the payload size and address pointers
-    writeReg(0x0D, 0x00);                                                         // Register LORARegFifoAddrPtr
-    writeReg(0x22, LMIC.dataLen);                                                 // Register LORARegPayloadLength payload length
-    writeBuf(0x00, LMIC.frame, LMIC.dataLen);                                     // Register RegFifo - download buffer to the radio FIFO
-    setopmode(0x03);                                                              // OPMODE_TX - now we actually start the transmission
+static void txlora () {                             // start transmitter (buf=LMIC.frame, len=LMIC.dataLen)
+    setopmode(0x01);  // OPMODE_STANDBY enter standby mode (required for FIFO loading))
+    writeReg(0x39, 0x34);                           // Register LORARegSyncWord - set sync word LORA_MAC_PREAMBLE
+    writeReg(0x40, 0x40|0x30|0xC0);                 // Register RegDioMapping1 - MAP_DIO0_LORA_TXDONE | MAP_DIO1_LORA_NOP|MAP_DIO2_LORA_NOP - set the IRQ mapping DIO0=TxDone DIO1=NOP DIO2=NOP
+    writeReg(0x12, 0xFF);                           // Register LORARegIrqFlags - clear all radio IRQ flags
+    writeReg(0x11, ~0x08);                          // Register LORARegIrqFlagsMask - IRQ_LORA_TXDONE_MASK mask all IRQs but TxDone
+    writeReg(0x0E, 0x00);                           // Register LORARegFifoTxBaseAddr - initialize the payload size and address pointers
+    writeReg(0x0D, 0x00);                           // Register LORARegFifoAddrPtr
+    writeReg(0x22, LMIC.dataLen);                   // Register LORARegPayloadLength payload length
+    writeBuf(0x00, LMIC.frame, LMIC.dataLen);       // Register RegFifo - download buffer to the radio FIFO
+    setopmode(0x03);  // OPMODE_TX - now we actually start the transmission
 }
 
 static void writeBuf (uint8_t addr, uint8_t* buf, uint8_t len) {
@@ -78,11 +79,11 @@ static void writeBuf (uint8_t addr, uint8_t* buf, uint8_t len) {
     hal_pin_nss(1);
 }
 
-static void configChannel () {                                                      // set frequency: basisstap synthesizer is 32 Mhz / (2 ^ 19)
-      channelpointer=LMIC.frame[10] & 0b00000111;                                   // Kies pseudorandom kanaal o.b.v. een byte uit de encrypted payload
-      writeReg(0x06, channel[channelpointer][0]);                                   // Wijzig freq: Register RegFrfMsb
-      writeReg(0x07, channel[channelpointer][1]);                                   // Register RegFrfMid
-      writeReg(0x08, channel[channelpointer][2]);                                   // Register RegFrfLsb
+static void configChannel () {                        // set frequency: basisstap synthesizer is 32 Mhz / (2 ^ 19)
+      channelpointer=LMIC.frame[10] & 0b00000111;     // Kies pseudorandom kanaal o.b.v. een byte uit de encrypted payload
+      writeReg(0x06, channel[channelpointer][0]);     // Wijzig freq: Register RegFrfMsb
+      writeReg(0x07, channel[channelpointer][1]);     // Register RegFrfMid
+      writeReg(0x08, channel[channelpointer][2]);     // Register RegFrfLsb
 }
 
 void LMIC_setSession (uint32_t devaddr, uint8_t* nwkKey, uint8_t* artKey) {
@@ -92,7 +93,7 @@ void LMIC_setSession (uint32_t devaddr, uint8_t* nwkKey, uint8_t* artKey) {
 }
 
 int LMIC_setTxData2 (uint8_t* data, uint8_t dlen) {
-    memcpy(LMIC.pendTxData, data, dlen);                                          //  copy data naar LMIC.pendTxData
+    memcpy(LMIC.pendTxData, data, dlen);            //  copy data naar LMIC.pendTxData
     LMIC.pendTxLen  = dlen;
     buildDataFrame();
     return 0;
@@ -104,10 +105,10 @@ static void buildDataFrame (void) {
     uint8_t flen = end + 5+dlen;
     LMIC.frame[0] = 0x40 | 0x00;
     LMIC.frame[5] = ( 0 | 0x80 | (end-8));
-    os_wlsbf4(LMIC.frame+1, LMIC.devaddr);                                        // Device address in LMIC.frame[1]...[4]
+    os_wlsbf4(LMIC.frame+1, LMIC.devaddr);          // Device address in LMIC.frame[1]...[4]
     LMIC.seqnoUp += 1;
-    os_wlsbf2(LMIC.frame+6, LMIC.seqnoUp-1);                                      // sequence number in LMIC.frame[6]...[7]
-    LMIC.frame[end] = 1;                                                          // LMIC.pendTxPort=1
+    os_wlsbf2(LMIC.frame+6, LMIC.seqnoUp-1);        // sequence number in LMIC.frame[6]...[7]
+    LMIC.frame[end] = 1;                            // LMIC.pendTxPort=1
     memcpy(LMIC.frame+end+1, LMIC.pendTxData, dlen);
     delay(50);
     aes_cipher(LMIC.artKey,LMIC.devaddr, LMIC.seqnoUp-1,0, LMIC.frame+end+1, dlen);
@@ -117,7 +118,7 @@ static void buildDataFrame (void) {
 }
 
 static void aes_appendMic (uint8_t* key, uint32_t devaddr, uint32_t seqno, int dndir, uint8_t* pdu, int len) {
-    micB0(devaddr, seqno, dndir, len);                                             // dndir is altijd 0
+    micB0(devaddr, seqno, dndir, len);               // dndir is altijd 0
     memcpy(AESkey,key,16);
     os_wmsbf4(pdu+len, os_aes(0x02, pdu, len));
 }
@@ -125,7 +126,7 @@ static void aes_appendMic (uint8_t* key, uint32_t devaddr, uint32_t seqno, int d
 static void micB0 (uint32_t devaddr, uint32_t seqno, int dndir, int len) {
     memset(AESaux,0,16);
     AESaux[0]  = 0x49;
-    AESaux[5]  = dndir?1:0;                                                        // dndir is altijd 0
+    AESaux[5]  = dndir?1:0;                          // dndir is altijd 0
     AESaux[15] = len;
     os_wlsbf4(AESaux+ 6,devaddr);
     os_wlsbf4(AESaux+10,seqno);
@@ -138,7 +139,7 @@ static void aes_cipher (uint8_t* key, uint32_t devaddr, uint32_t seqno, int dndi
     os_wlsbf4(AESaux+ 6,devaddr);
     os_wlsbf4(AESaux+10,seqno);
     memcpy(AESkey,key,16);
-    os_aes(0x04, payload, len);                                                    // AES_CTR =0x04
+    os_aes(0x04, payload, len);                      // AES_CTR =0x04
 }
 
 uint32_t os_aes (uint8_t mode, uint8_t* buf, uint16_t len) {

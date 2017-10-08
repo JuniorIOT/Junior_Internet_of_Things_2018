@@ -47,9 +47,11 @@ void loop() {
   
   // if not lora then radio
   if(ReceivedForLoraFromRadio) {
+    // use the radio message content for Lora
+    memcpy(mydata,buf,40);
     ReceivedForLoraFromRadio = false;
   } else {
-    
+    sprintf(mydata,"xx geen radio ontvangen xx");
   }
   
   //delay (5000);
@@ -183,7 +185,6 @@ void setupLora() {
 
 void doOneLora() {
   Serial.println("\nLoop Lora: Doing lora");
-  memcpy(mydata,buf,40);
       Serial.print("Send buffer:              [");
       Serial.print((char*)mydata);
       Serial.println("]");
