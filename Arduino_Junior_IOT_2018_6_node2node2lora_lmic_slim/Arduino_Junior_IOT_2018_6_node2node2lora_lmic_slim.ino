@@ -34,6 +34,7 @@ void setup() {
   Serial.begin(9600);
   delay(100);
 
+  delay(3000);  // tijdelijk even delay in de opstart om de monitor te openen - om error bij opstarten te vinden
   Serial.println("Feather LoRa TX Test!");  
   digitalWrite(LEDPIN, !digitalRead(LEDPIN)); 
 }
@@ -116,6 +117,7 @@ void halt_stressed() {
     delay(150);
     digitalWrite(LEDPIN, LOW);  
     delay(50);
+    Serial.print("x");  
   }
 }   
 
