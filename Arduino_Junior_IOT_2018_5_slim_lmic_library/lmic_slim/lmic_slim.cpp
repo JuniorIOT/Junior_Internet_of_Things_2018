@@ -25,11 +25,11 @@ static void setopmode (uint8_t mode) {
 
 static void writeReg (uint8_t addr, uint8_t data ) {
     hal_pin_nss(0);
-    digitalWrite(LED_BUILTIN,HIGH);
+    //digitalWrite(LED_BUILTIN,HIGH);
     SPI.transfer(addr | 0x80);
     SPI.transfer(data);    
     hal_pin_nss(1);
-    digitalWrite(LED_BUILTIN,LOW);
+    //digitalWrite(LED_BUILTIN,LOW);
 }
 
 void hal_pin_nss (uint8_t val) {

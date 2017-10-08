@@ -57,11 +57,11 @@ void loop() {
   //delay (5000);
   setupLora();
   doOneLora();
-  //delay (50000); // officially each 3 to 5 minutes one SF7 lora with 10-30 bytes payload
+  delay (20000); // officially each 3 to 5 minutes one SF7 lora with 10-30 bytes payload
 }
 
 void doOneRadio() {
-  Serial.println("\nLoop radio: Doing radio");  
+  Serial.println("\nDo one radio");  
     
   // preparing to send a message to everyone  
   float measuredvbat = analogRead(VBATPIN);
@@ -75,7 +75,7 @@ void doOneRadio() {
   
   char radiopacket[40] = "Hello World #       Vbatt= #       mV  ";
   int radiopacket_strlen=sprintf(radiopacket, "Radio message #%d 'Vbatt= %d mV' ",packetnum++,vbat);
-  Serial.print("Sending "); Serial.println(radiopacket);
+  Serial.print("radiopacket: "); Serial.println(radiopacket);
   radiopacket[radiopacket_strlen] = 0; // last char was nulled by sprintf?
   
   Serial.println("Sending..."); delay(10);
@@ -87,7 +87,7 @@ void doOneRadio() {
   // Now wait for a reply  
   uint8_t len = sizeof(buf);
   
-  Serial.println("Waiting for radio reply..."); delay(10);
+  Serial.println("Waiting for some other radio to reply..."); delay(10);
   if (!rf95.waitAvailableTimeout(20000)) { Serial.println("No radio received in 20 sec, is there anyone around in same send settings?"); }
   else { 
     // a message was received
@@ -109,7 +109,7 @@ void doOneRadio() {
   }
 
   // end loop
-  Serial.println("Done radio");  
+  Serial.println("Done one radio");  
 }
 
 void halt_stressed() {  
@@ -136,11 +136,11 @@ void setupRadio() {
   delay(10);
 
   if (!rf95.init()) {
-    Serial.println("LoRa radio init failed");
+    Serial.println("Radio init failed");
     //while (1);
     halt_stressed();
   }
-  Serial.println("LoRa radio init OK!");
+  Serial.println("Radio init OK!");
 
   // Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM
   if (!rf95.setFrequency(RF95_FREQ)) {
@@ -158,10 +158,8 @@ void setupRadio() {
   // you can set transmitter powers from 5 to 23 dBm:
   
   //rf95.setTxPower(23, false);
-  rf95.setTxPower(13, false);   // is this TTN & TTNtracker intended spec?
+  rf95.setTxPower(13, false);   // is 13 TTN & TTNtracker intended spec?
 }
-
-
 
 void setupLora() {
   Serial.println("\nDSetup Lora");  
@@ -184,7 +182,7 @@ void setupLora() {
 }
 
 void doOneLora() {
-  Serial.println("\nLoop Lora: Doing lora");
+  Serial.println("\nDo one lora");
       Serial.print("Send buffer:              [");
       Serial.print((char*)mydata);
       Serial.println("]");
@@ -196,21 +194,6 @@ void doOneLora() {
   delay(1000);                        // this is a simple wait with no checking for TX Ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
   //digitalWrite(LED_BUILTIN, LOW);
   setopmode(0x00);                     // opmode SLEEP
-  Serial.println("Loop Lora: Done lora");
+  Serial.println("Done one lora");
 }
-
-//void loopLora() {
-//    Serial.println("Doing lora");
-//      memcpy(mydata,buf,40);
-//      LMIC_setTxData2(mydata, sizeof(mydata)-1);
-//      radio_init ();                                                       
-//      delay (10);
-//      digitalWrite(LED_BUILTIN, HIGH);
-//      txlora ();
-//      delay(1000);                                                                 // wacht op TX ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
-//      digitalWrite(LED_BUILTIN, LOW);
-//      setopmode(0x00);                                                             // opmode SLEEP
-//      delay (60000);                                                               // Wacht 1 minuut
-//      Serial.println("Done lora");
-//}
 
