@@ -25,8 +25,10 @@ int16_t packetnum = 0;  // packet counter, we increment per xmission
 bool ReceivedForLoraFromRadio = false;
 // radio buf
 uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
-
+char * predata;
+  
 void setup() {
+  predata = (char *) malloc(40);
   pinMode(LED_BUILTIN, OUTPUT);
   
   //while (!Serial); // this blocks execute if not connected
@@ -51,7 +53,9 @@ void loop() {
     memcpy(mydata,buf,40);
     ReceivedForLoraFromRadio = false;
   } else {
-    sprintf(mydata,"xx geen radio ontvangen xx");
+    
+    sprintf(predata,"xx geen radio ontvangen xx");
+    memcpy(mydata, predata,40);
   }
   
   //delay (5000);

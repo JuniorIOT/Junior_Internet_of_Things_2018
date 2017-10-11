@@ -53,8 +53,10 @@ static void rxlora () {                             // start LoRa receiver (time
 static void configLoraModem () {                    // configure LoRa modem (cfg1, cfg2)
     writeReg(0x1D, 0x72);                           // Register LORARegModemConfig1 - BW=125 en Coding Rate=4/5  
    // writeReg(0x1E, 0x74);// C to 7 for SF7?? is it SF7 now?                       // Register LORARegModemConfig2 - SF =12 (bit 7..4) TxContinuousMode =0 normal mode (bit 3)  RxPayloadCrcOn = 1 CRC ON (bit 2)  SymbTimeout(9:8)=00 default (bit 1..0)
-    writeReg(0x1E, 0xC4);// C to 7 for SF7?? is it SF7 now?                       // Register LORARegModemConfig2 - SF =12 (bit 7..4) TxContinuousMode =0 normal mode (bit 3)  RxPayloadCrcOn = 1 CRC ON (bit 2)  SymbTimeout(9:8)=00 default (bit 1..0)
-    writeReg(0x26, 0x0C);                           // Register LORARegModemConfig3
+    
+	writeReg(0x1E, 0b10110100);// SF11 works                      // Register LORARegModemConfig2 - SF =12 (bit 7..4) TxContinuousMode =0 normal mode (bit 3)  RxPayloadCrcOn = 1 CRC ON (bit 2)  SymbTimeout(9:8)=00 default (bit 1..0)
+    
+	writeReg(0x26, 0x0C);                           // Register LORARegModemConfig3
 }
 
 static void txlora () {                             // start transmitter (buf=LMIC.frame, len=LMIC.dataLen)
