@@ -1,53 +1,16 @@
-#include <NMEAGPS.h>
-
-//#include <SoftwareSerial.h>
+//#include <SoftwareSerial.h>  // better use NeoSWSerial, they claim it is much lighter, misses less characters and that would be nice
 //SoftwareSerial ss(10, 11);
 //#define Serial1 ss
 
-             #include <NeoSWSerial.h>
-             NeoSWSerial gpsPort(10, 11);
-//---------------------------------------------------------------------
-//#define INTER_CHAR_TIME 50
-#define INTER_CHAR_TIME 0
+#include <NeoSWSerial.h>  // an issue with Leonardo-types is fixed in branch, yet to be merged. So you may need to remove all your NeoSWSerial libraries and add \libraries\NeoSWSerial-master-DamiaBranch.zip
+NeoSWSerial ss( 10, 11 );
 
-             #define GPS_PORT_NAME "NeoSWSerial(3,2)"
-//             #define DEBUG_PORT Serial
-////#include <GPSport.h>
-
+#include <NMEAGPS.h>
 static NMEAGPS  gps; // This parses the GPS characters
 
-//----------------------------------------------------------------
-//  Print the 32-bit integer degrees *as if* they were high-precision floats
 
-static void printL( Print & outs, int32_t degE7 );
-static void printL( Print & outs, int32_t degE7 )
-{
-  // Extract and print negative sign
-  if (degE7 < 0) {
-    degE7 = -degE7;
-    outs.print( '-' );
-  }
 
-  // Whole degrees
-  int32_t deg = degE7 / 10000000L;
-  outs.print( deg );
-  outs.print( '.' );
-
-  // Get fractional degrees
-  degE7 -= deg*10000000L;
-
-  // Print leading zeroes, if needed
-  int32_t factor = 1000000L;
-  while ((degE7 < factor) && (factor > 1L)){
-    outs.print( '0' );
-    factor /= 10L;
-  }
-  
-  // Print fractional degrees
-  outs.print( degE7 );
-}
-
-static void doSomeWork( const gps_fix & fix );
+//static void doSomeWork( const gps_fix & fix );
 static void doSomeWork( const gps_fix & fix )
 {
   //  This is the best place to do your time-consuming work, right after
@@ -60,38 +23,35 @@ static void doSomeWork( const gps_fix & fix )
 
   if (fix.valid.location) {
     if ( fix.dateTime.seconds < 10 )
-      Serial.print( '0' );
+      Serial.print( "0" );
     Serial.print( fix.dateTime.seconds );
-    Serial.print( ',' );
+    Serial.print(" datetime sec, ");
+    
+    Serial.print( fix.dateTime );
+    Serial.print(" datetime, ");
+    
 
     // Serial.print( fix.latitude(), 6 ); // floating-point display
-    // Serial.print( fix.latitudeL() ); // integer display
-    printL( Serial, fix.latitudeL() ); // prints int like a float
-    Serial.print( ',' );
+    Serial.print( fix.latitudeL() ); // integer display
+    Serial.print(" lat, ");
     // Serial.print( fix.longitude(), 6 ); // floating-point display
-    // Serial.print( fix.longitudeL() );  // integer display
-    printL( Serial, fix.longitudeL() ); // prints int like a float
-
-    Serial.print( ',' );
+    Serial.print( fix.longitudeL() );  // integer display
+    
+    Serial.print(" lon, ");
     if (fix.valid.satellites)
       Serial.print( fix.satellites );
 
-    Serial.print( ',' );
+    Serial.print(", ");
     Serial.print( fix.speed(), 6 );
     Serial.print( F(" kn = ") );
     Serial.print( fix.speed_mph(), 6 );
     Serial.print( F(" mph") );
-
   } else {
     // No valid location data yet!
-    Serial.print( '?' );
+    Serial.print( 'No valid location data yet!' );
   }
-
   Serial.println();
-
-} // doSomeWork
-
-//------------------------------------
+} 
 
 void setup()
 {
@@ -103,23 +63,22 @@ void setup()
   Serial.println( sizeof(gps.fix()) );
   Serial.print( F("NMEAGPS object size = ") );
   Serial.println( sizeof(gps) );
-  Serial.println( F("Looking for GPS device on " GPS_PORT_NAME) );
 
   #ifdef NMEAGPS_NO_MERGING
     Serial.println( F("Only displaying data from xxRMC sentences.\n  Other sentences may be parsed, but their data will not be displayed.") );
   #endif
-
   Serial.flush();
 
-  gpsPort.begin(9600);
+  ss.begin(9600);
 }
-
-//--------------------------
 
 void loop()
 {
-  
-  while (gps.available( gpsPort ))
+  while (gps.available( ss )) {
     doSomeWork( gps.read() );
 
+    //char c = gps.read();
+    ///Serial.print(c);
+    ///doSomeWork( c );
+  }
 }
