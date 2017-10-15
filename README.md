@@ -57,6 +57,7 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
 
 ```
 ## IOT TTN message format
+```
 Important: bytes 0 to 8 (nine bytes) are agreed format for TTNmapper.org who will ignore 
 any further bytes. They expect SF7 signal, which for more reasons is our default choise.
 
@@ -131,8 +132,10 @@ uint8_t  mydata[message_size];  // including byte[0]
   };
 }
 */
+```
 
 ## p2p message format
+```
 // byte 0            My ID, message type
       //  0b0000 0000
       //         nnnn - message type
@@ -148,3 +151,6 @@ uint8_t  mydata[message_size];  // including byte[0]
       //  0b0100      - My hit status (I think I was hit, now tell remote, sounding 'ouch' for 60 sec)
 // byte 8            Your ID, hey I am talkming to you
 // byte 9            Validator, secret hash (binary add) based on message content, GPS date, application secret salt from keys.h
+
+```
+
