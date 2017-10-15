@@ -2,12 +2,15 @@
 # GPS-Lora-Balloon-rfm95-TinyGPS
 
 ## Libraries required
-- TinyGPS       https://github.com/mikalhart/TinyGPS
-- arduino-lmic  https://github.com/matthijskooijman/arduino-lmic
+- tbd1       https://github.com/tbd1
+- tb21       https://github.com/tbd2
 
-## Lora location transmittor with TinyGPS and rfm95 for Kaasfabriek project
+## Lora location transmittor with GPS and rfm95 for Kaasfabriek project 2018
 ```
-  adjustment for fablab Kaasfabriek Junior IoT Baloon Challenge february 2017
+  previous iteration is located at the project 
+        for fablab Kaasfabriek Junior IoT Baloon Challenge february 2017
+
+  this set of folders is for #JuniorIOTchallenge2018
              met leerling teams bij fablab de Kaasfabriek in Alkmaar
                      deze software op het internet is natuurlijk geheim...
                                   ...anders kunnen ze makkelijk afkijken!
@@ -42,24 +45,90 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
      ╔═══════╗            ╬ RXD          GND ╬─black─60mm──┘ │           ///////
      ║       ║            ╬ RST          RST ╬x              │               │
      ║ (PPS) ╬x           ╬ GND          VCC ╬─red─48mm──────┘    3v   gnd   │
-     ║   RXD ╬──pink─15mm─╬ 2 tx          A3 ╬───white─20mm───┐  red48  │    │
-     ║   TXD ╬──brn─15mm──╬ 3 rx          A2 ╬──gray─16mm──┐  │  ┌─┘   blk60 │
-     ║   GND ╬─blk30──┐   ╬ 4             A1 ╬─pur─14───┐  │  │  │      └─┐  │
-    ┌╬   VCC ╬─red35┐ │   ╬ 5             A0 ╬──────┐ ╔═╬══╬══╬══╬══╬══╬══╬══╬═╗
-    │║       ║      │ │   ╬ 6       (led) 13*╬─────┐│ ║D2 D1 D0 3V D4 D3 GND ANT
-    │╚═══════╝     3v │   ╬ 7        MISO 12*╬────┐│└──pink─18mm────┐          ║
-    │                gnd  ╬ 8        MOSI 11*╬───┐│└──ora─20mm───┐  │ RFM95    ║
-    │                     ╬ 9             10 ╬─┐ └│──yel─23mm─┐  │  │ 3.3 volt ║
-    │ ┌─────────────┐     ║                  ║ │  └─grn─27─┐  │  │  │ (10 euro)║
-    └─┤ gps antenna │     ╚═══╬══╬══╬══╬══╬══╝ └──blue─22──│──│──│──│──┐       ║
+      
+      NOPE, the old is no longer used here. Up to tree new designs are needed 
+         (1) based on Lora32u4
+         (2) based on SodaQ ExPloRer
+         (3) based on Sodaq One
+
       └─────────────┘                                 ║    │  │  │  │  │       ║
                                                       ╚═╬══╬══╬══╬══╬══╬══╬══╬═╝
                                                       GND MI MO SCK NS RE D5 GND
-    GPS arduino RFM95       LIPO Protect
-    | |   | |    | |         ╔═══════╗        switch               ╔═════════╗
-    └─|───┴─|────┴─|─3x─red──╬3v   B+╬─┬─red17─╣/╠──red─lipo─30mm──╬+  1 CELL║
-      └─────┴──────┴3x─black─╬gnd  B-╬─│─┬─────────black─lipo─??mm─╬-  LIPO  ║
-                             ╚═══════╝ │ │                         ╚═════════╝
-                                      JST female connector
-                                      to LiPo charger with protect
+
 ```
+## IOT TTN message format
+Important: bytes 0 to 8 (nine bytes) are agreed format for TTNmapper.org who will ignore 
+any further bytes. They expect SF7 signal, which for more reasons is our default choise.
+
+const unsigned message_size = 12;  // including byte[0]
+uint8_t  mydata[message_size];  // including byte[0]
+-- start with TTNmapper defined format
+// byte 0, 1, 2      Latitude       3 bytes, -90 to +90 degrees, scaled to 0 - 16777215
+// byte 3, 4, 5      Longitude      3 bytes, -180 to + 180 degrees, scaled to 0 - 16777215
+// byte 6, 7         Altitude       2 bytes, in meters. 0 - 65025 meter
+// byte 8            GPS DoP        byte, in 0.1 values.  0 - 25.5 DoP
+// --- now our 'usual' values
+// byte 9            Arduino VCC    byte, 50ths, 0 - 5.10 volt -- secret atmel voltmeter
+// byte 10           cpu temp       byte, -100 - 155 deg C     -- secret atmel thermometer
+// byte 11           Charging V     byte, 50ths, 0 - 5.10 volt -- hard-wired into Lora32u4
+// -- OPTIONAL now our gameplay values
+// byte 12           Who am I       byte, my unique game ID 0 - 255
+// byte 13           action select  byte, multiple bit info
+      //  0b1000 0000 - I have received a radio 
+      //  0b0100 0000 - remote button #1 was pressed
+      //  0b0010 0000 - remote button #2 was pressed
+      //  0b0001 0000 - I have interpreted this as a hit type 1
+      //  0b0000 1000 - I have interpreted this as a hit type 2
+      //  0b0000
+
+
+
+      0000 - 
+      //  0b1000 0000 - my button #1 was pressed
+      //  0b0100 0000 - my button #2 was pressed
+// byte 11           
+
+// byte xx           time to fix    1 byte: any time with approx 10% accuracy 1 sec - 7 hours
+      // 0..60 sec  at 1 sec interval <==> values 0 .. 60 
+      // 1..10 min at 5 sec interval  <==> values 60 ..  168
+      // 10..60 min at 1 min interval <==> values 168 .. 218
+      // 1..7 hour at 10 min interval <==> values 218 ..254; 255 is "more than 7 hours"
+
+// THIS BYTE STRING NEEDS A DECODER FUNCTION IN TTN:
+/* * function Decoder (bytes) {
+  var _lat = ((bytes[0] << 16) + (bytes[1] << 8) + bytes[2]) / 16777215.0 * 180.0 - 90;
+  var _lng = ((bytes[3] << 16) + (bytes[4] << 8) + bytes[5]) / 16777215.0 * 360.0 - 180;
+  var _alt = (bytes[6] << 8) + bytes[7];
+  var _acc = bytes[8] / 10.0;
+  var _VCC = bytes[9] / 50;
+  var _tempCPU = bytes[10] -100;
+  var _time_to_fix_bin = bytes[11];
+  var _time_to_fix;
+  if (_time_to_fix_bin>=218) { _time_to_fix = 60*60+(_time_to_fix_bin-218)*600 }
+  else if (_time_to_fix_bin>=168) { _time_to_fix = 10*60+(_time_to_fix_bin-168)*60 }
+  else if (_time_to_fix_bin>=60) {  _time_to_fix = 60+(_time_to_fix_bin-60)*5 }
+  else  {_time_to_fix = _time_to_fix_bin }
+  
+      // 0..60 sec  at 1 sec interval <==> values 0 .. 60 
+      // 1..10 min at 5 sec interval  <==> values 60 ..  168
+      // 10..60 min at 1 min interval <==> values 168 .. 218
+      // 1..7 hour at 10 min interval <==> values 218 ..254; 255 means "more than 7 hours"
+      
+  var _inputHEX = bytes[0].toString(16)+' '+bytes[1].toString(16)+' '+bytes[2].toString(16)
+                  +' '+bytes[3].toString(16)+' '+bytes[4].toString(16)+' '+bytes[5].toString(16)
+                  +' '+bytes[6].toString(16)+' '+bytes[7].toString(16)+' '+bytes[8].toString(16)
+                  +' / '+bytes[9].toString(16)+' '+bytes[10].toString(16)+' '+bytes[11].toString(16);
+  return {
+    gps_lat: _lat,
+    gps_lng: _lng,
+    gps_alt: _alt,
+    gps_prec: _acc,
+    arduino_VCC: _VCC,
+    arduino_temp: _tempCPU,
+    time_to_fix: _time_to_fix,
+    payload: _inputHEX
+  };
+}
+*/
+
+## p2p message format
