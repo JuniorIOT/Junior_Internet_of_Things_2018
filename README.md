@@ -79,7 +79,7 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
     // byte 10           Arduino VCC    byte, 50ths, 0 - 5.10 volt -- secret atmel voltmeter
     // byte 11           cpu temp       byte, -100 - 155 deg C     -- secret atmel thermometer
     // byte 12           Charging V     byte, 50ths, 0 - 5.10 volt -- hard-wired into Lora32u4
-    // byte 13           myID
+    // byte 13           myID, dataset selector
           //  0b0000 0000
           //          nnn -   value 0-7 to tell which dataset
           //         0000 -   no additional data, this is just a GPS bleep. message ends here
@@ -88,10 +88,10 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
           //  0bnnnn      - value 0-31 my team ID
           
     // -- OPTIONAL set#1 environmental sensors values (not finalized)
-    // byte 14, 15        CO2           2 bytes, AD measurement directly from AD port
-    // byte 16, 17        Moisture      2 bytes, AD measurement directly from AD port
-    // byte 18, 19        Air Pressure  2 bytes, AD measurement directly from AD port
-    // byte 20, 21        O3            2 bytes, AD measurement directly from AD port
+    // byte 14, 15       CO2            2 bytes, AD measurement directly from AD port
+    // byte 16, 17       Moisture       2 bytes, AD measurement directly from AD port
+    // byte 18, 19       Air Pressure   2 bytes, AD measurement directly from AD port
+    // byte 20, 21       O3             2 bytes, AD measurement directly from AD port
 
     // -- OPTIONAL remote gameplay values
     // byte 14           Remote ID
