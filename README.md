@@ -61,35 +61,35 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
     Important: bytes 0 to 8 (nine bytes) are agreed format for TTNmapper.org who will ignore 
     any further bytes. They expect SF7 signal, which for more reasons is our default choise.
 
-    const unsigned message_size = 22;  // including byte[0]
-    uint8_t  mydata[message_size];  // including byte[0]
+    const unsigned message_size = 22;// including byte[0]
+    uint8_t  mydata[message_size];   // including byte[0]
+    
     -- start with TTNmapper defined format
     byte 0, 1, 2      Latitude       3 bytes, -90 to +90 degrees, scaled to 0 - 16777215
        note: earth circumfence is 6371 km; our data accuracy is 6371*1000/16777215 = 0.4 meter, 
                   which is much better than the GPS measurement accuracy of 2..3 meters
     byte 3, 4, 5      Longitude      3 bytes, -180 to + 180 degrees, scaled to 0 - 16777215
     byte 6, 7         Altitude       2 bytes, in meters. 0 - 65025 meter
-    byte 8            GPS DoP        byte, in 0.1 values.  0 - 25.5 DoP (usually called as meters)
+    byte 8            GPS DoP        byte, in 0.1 values.  0 - 25.5 DoP (commonly mentioned as meters)
+    
     -- now our 'regular' values
-    byte 9           My Compass     byte, degrees 0-180
-           0b0000 0000
-           0b00nn nnnn - value 0-63, My compass in approx 3 degree precision 
-                               compass values 0-179 --> (x+1)*63/180; values 1-63
-                               value 0 = no compass value
-                            Game rule: add 1.5 degree on each side of this 3 degree segment 
-                            A hit is when target is within this larger range and within 20 meters 
-           0b1000      - My button #1 
-           0b0100      - spare
+    byte 9            My Compass     byte, degrees 0-180
+          0b0000 0000
+            --nn nnnn Compass        Value 0-63, My compass in approx 3 degree precision 
+                                       compass values 0-179 --> (x+1)*63/180; values 1-63
+                                       value 0 = none compass value
+            1--- ---- My button #1 
+            -1-- ---- spare
     byte 10           Arduino VCC    byte, 50ths, 0 - 5.10 volt -- secret atmel voltmeter
     byte 11           cpu temp       byte, -100 - 155 deg C     -- secret atmel thermometer
     byte 12           Charging V     byte, 50ths, 0 - 5.10 volt -- hard-wired into Lora32u4
-    byte 13           myID, dataset selector
-           0b0000 0000
-                   nnn -   value 0-7 to tell which dataset
-                  0000 -   no additional data, this is just a GPS bleep. message ends here
-                  0001 -   our set#1 'environmental sensors' values
-                  1000 -   I have received a radio, will send remote gameplay values
-           0bnnnn      - value 0-31 my team ID
+    byte 13           myID, dataset
+          0b0000 0000
+            ---- -nnn Dataset Select Value 0-7 to tell which dataset
+            ---- 0000 None           No additional data, this is just a GPS bleep. message ends here
+            ---- 0001 Set#1          Supplying our set#1 'environmental sensors' values
+            ---- 1000 Radio          I have received a radio, will send remote gameplay values
+            nnnn ---- MyTeam ID      Value 0-31 my team ID
           
     -- OPTIONAL set#1 environmental sensors values (not finalized)
     byte 14, 15       CO2            2 bytes, AD measurement directly from AD port
@@ -98,20 +98,23 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
     byte 20, 21       O3             2 bytes, AD measurement directly from AD port
 
     -- OPTIONAL remote gameplay values
-    byte 14           Remote ID
-          //  0b0000 0000
-          //         nnnn - received radio strength 1 
-          //  0bnnnn      - value 0-31 Remote team ID
-    // byte 15, 16, 17   Remote Lat     3 bytes, -90 to +90 degrees, scaled to 0 - 16777215
-    // byte 18, 19, 20   Remote Longit  3 bytes, -180 to + 180 degrees, scaled to 0 - 16777215
-    // byte 21           Remote Compass     byte, degrees 0-180
-          //  0b0000 0000
-          //  0b00nn nnnn - value 0-63, remote compass in approx 3 degree precision 
-          //  0b1000      - Remote button #1 
-          //  0b0100      - My hit status (I was hit, have told remote, sounding 'ouch' for 60 sec)
+    byte 14           Remote ID 
+          0b0000 0000
+            ---- nnnn RadioSSN       Received radio strength 1 
+            nnnn ---- Remote ID      Value 0-31, Remote team ID
+    byte 15, 16, 17   Remote Lat     3 bytes, -90 to +90 degrees, scaled to 0 - 16777215
+    byte 18, 19, 20   Remote Longit  3 bytes, -180 to + 180 degrees, scaled to 0 - 16777215
+    byte 21           Distance       byte, meters 0-255
+    byte 22           Heading        byte, Remote compass and other 
+                                       Game rule: add 1.5 degree on each side of this 3 degree segment 
+                                       A hit is when target is within this larger range and within 20 meters 
+          0b0000 0000
+            --nn nnnn Compass        Value 0-63, remote compass in approx 3 degree precision 
+            10-- ---- Rem Btn#1      Remote button 1
+            01-- ---- Am I Hit       My hit status (I was hit, have told remote, sounding 'ouch' for 60 sec)
 
 
-    // THIS BYTE STRING NEEDS A DECODER FUNCTION IN TTN:
+    THIS BYTE STRING NEEDS A DECODER FUNCTION IN TTN:
     /* * function Decoder (bytes) {
       var _lat = ((bytes[0] << 16) + (bytes[1] << 8) + bytes[2]) / 16777215.0 * 180.0 - 90;
       var _lng = ((bytes[3] << 16) + (bytes[4] << 8) + bytes[5]) / 16777215.0 * 360.0 - 180;
@@ -140,21 +143,21 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
 
 ## p2p message format
 ```
-    // byte 0            My ID, message type
-          //  0b0000 0000
-          //         nnnn - message type
-          //         0001 - handshake #1, I am yelling out loud that I have fired
-          //         0010 - handshake #2, you have fired and here is my answer 
-          //  0bnnnn      - value 0-31 My team ID
-    // byte 1, 2, 3      My Lat         3 bytes, -90 to +90 degrees, scaled to 0 - 16777215
-    // byte 4, 5, 6      My Longit      3 bytes, -180 to + 180 degrees, scaled to 0 - 16777215
-    // byte 7            My Compass     byte, degrees 0-180
-          //  0b0000 0000
-          //  0b00nn nnnn - value 0-63, my compass*64/180; compass in approx 3 degree precision 
-          //  0b1000      - my button #1 
-          //  0b0100      - My hit status (I think I was hit, now tell remote, sounding 'ouch' for 60 sec)
-    // byte 8            Your ID, hey I am talkming to you
-    // byte 9            Validator, secret hash (binary add) based on message content, GPS date, application secret salt from keys.h
+    byte 0            My ID           My ID and message type
+          0b0000 0000
+            ---- nnnn Message type
+                 0001 Handshk msg#1  I am yelling out loud that I have fired
+                 0010 Handshk msg#2  you have fired and here is my answer 
+            nnnn ---- My ID          Value 0-31 My team ID
+    byte 1, 2, 3      My Latitude    3 bytes, -90 to +90 degrees, scaled to 0 - 16777215
+    byte 4, 5, 6      My Longitude   3 bytes, -180 to + 180 degrees, scaled to 0 - 16777215
+    byte 7            My Compass     
+          0b0000 0000
+            --nn nnnn My Heading     Value 0-63, my compass*64/180; compass in approx 3 degree precision 
+            1000 ---- My btn#1       My button #1 
+            0100 ---- Am I Hit       My hit status (I think I was hit, now tell remote, sounding 'ouch' for 60 sec)
+    byte 8            Remote ID      Your ID, hey I am talkming to you
+    byte 9            Validator      Secret hash (binary add) based on message content, GPS date, application secret salt from keys.h
 
 ```
 
