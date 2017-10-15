@@ -1,3 +1,7 @@
+// adjustments:
+// 20171010  Dennis - clarifications and improvements
+// 20171015  Marco, SF7 text formatting
+//
 #include <lmic_slim.h>
 #include <SPI.h>
 struct lmic_t LMIC;
@@ -14,9 +18,9 @@ void spi_start() {
 }
      
 void radio_init () {	
-    setopmode(0x00);  // opmode SLEEP
+    setopmode(0x00);                                // opmode SLEEP
     rxlora();     
-    setopmode(0x00);  // opmode SLEEP
+    setopmode(0x00);                                // opmode SLEEP
 }
 
 static void setopmode (uint8_t mode) {
@@ -52,15 +56,23 @@ static void rxlora () {                             // start LoRa receiver (time
 
 static void configLoraModem () {                    // configure LoRa modem (cfg1, cfg2)
     writeReg(0x1D, 0x72);                           // Register LORARegModemConfig1 - BW=125 en Coding Rate=4/5  
-   // writeReg(0x1E, 0x74);// C to 7 for SF7?? is it SF7 now?                       // Register LORARegModemConfig2 - SF =12 (bit 7..4) TxContinuousMode =0 normal mode (bit 3)  RxPayloadCrcOn = 1 CRC ON (bit 2)  SymbTimeout(9:8)=00 default (bit 1..0)
     
-	writeReg(0x1E, 0b10110100);// SF11 works                      // Register LORARegModemConfig2 - SF =12 (bit 7..4) TxContinuousMode =0 normal mode (bit 3)  RxPayloadCrcOn = 1 CRC ON (bit 2)  SymbTimeout(9:8)=00 default (bit 1..0)
+	writeReg(0x1E, 0b01110100);
+       // Register LORARegModemConfig2 
+       //          0b0000 0000
+       //            nnnn ----   Spreading Factor (bit 7..4)
+       //            0111 ----     7 = SF7    is the TTNmapper default
+       //            1011 ----    12 = SF12   tested
+       //            1100 ----    12 = SF12   tested & working
+       //            ---- 0---   TxContinuousMode =0 normal mode (bit 3)  
+       //            ---- -1--   RxPayloadCrcOn = 1 CRC ON (bit 2)  
+       //            ---- --00   SymbTimeout(9:8)=00 default (bit 1..0)
     
 	writeReg(0x26, 0x0C);                           // Register LORARegModemConfig3
 }
 
 static void txlora () {                             // start transmitter (buf=LMIC.frame, len=LMIC.dataLen)
-    setopmode(0x01);  // OPMODE_STANDBY enter standby mode (required for FIFO loading))
+    setopmode(0x01);                                // OPMODE_STANDBY enter standby mode (required for FIFO loading))
     writeReg(0x39, 0x34);                           // Register LORARegSyncWord - set sync word LORA_MAC_PREAMBLE
     writeReg(0x40, 0x40|0x30|0xC0);                 // Register RegDioMapping1 - MAP_DIO0_LORA_TXDONE | MAP_DIO1_LORA_NOP|MAP_DIO2_LORA_NOP - set the IRQ mapping DIO0=TxDone DIO1=NOP DIO2=NOP
     writeReg(0x12, 0xFF);                           // Register LORARegIrqFlags - clear all radio IRQ flags
@@ -69,7 +81,7 @@ static void txlora () {                             // start transmitter (buf=LM
     writeReg(0x0D, 0x00);                           // Register LORARegFifoAddrPtr
     writeReg(0x22, LMIC.dataLen);                   // Register LORARegPayloadLength payload length
     writeBuf(0x00, LMIC.frame, LMIC.dataLen);       // Register RegFifo - download buffer to the radio FIFO
-    setopmode(0x03);  // OPMODE_TX - now we actually start the transmission
+    setopmode(0x03);                                // OPMODE_TX - now we actually start the transmission
 }
 
 static void writeBuf (uint8_t addr, uint8_t* buf, uint8_t len) {
@@ -81,11 +93,11 @@ static void writeBuf (uint8_t addr, uint8_t* buf, uint8_t len) {
     hal_pin_nss(1);
 }
 
-static void configChannel () {                        // set frequency: basisstap synthesizer is 32 Mhz / (2 ^ 19)
-      channelpointer=LMIC.frame[10] & 0b00000111;     // Kies pseudorandom kanaal o.b.v. een byte uit de encrypted payload
-      writeReg(0x06, channel[channelpointer][0]);     // Wijzig freq: Register RegFrfMsb
-      writeReg(0x07, channel[channelpointer][1]);     // Register RegFrfMid
-      writeReg(0x08, channel[channelpointer][2]);     // Register RegFrfLsb
+static void configChannel () {                      // set frequency: basisstap synthesizer is 32 Mhz / (2 ^ 19)
+      channelpointer=LMIC.frame[10] & 0b00000111;   // Kies pseudorandom kanaal o.b.v. een byte uit de encrypted payload
+      writeReg(0x06, channel[channelpointer][0]);   // Wijzig freq: Register RegFrfMsb
+      writeReg(0x07, channel[channelpointer][1]);   // Register RegFrfMid
+      writeReg(0x08, channel[channelpointer][2]);   // Register RegFrfLsb
 }
 
 void LMIC_setSession (uint32_t devaddr, uint8_t* nwkKey, uint8_t* artKey) {
@@ -136,7 +148,7 @@ static void micB0 (uint32_t devaddr, uint32_t seqno, int dndir, int len) {
 
 static void aes_cipher (uint8_t* key, uint32_t devaddr, uint32_t seqno, int dndir, uint8_t* payload, int len) {
     memset(AESaux,0,16);
-    AESaux[0] = AESaux[15] = 1; // mode=cipher / dir=down / block counter=1
+    AESaux[0] = AESaux[15] = 1;                      // mode=cipher / dir=down / block counter=1
     AESaux[5] = dndir?1:0;
     os_wlsbf4(AESaux+ 6,devaddr);
     os_wlsbf4(AESaux+10,seqno);
@@ -236,7 +248,7 @@ static unsigned char AES_Sub_Byte(unsigned char Byte)
   unsigned char S_Byte;
   S_Row = ((Byte >> 4) & 0x0F);
   S_Collum = (Byte & 0x0F);
-  S_Byte = pgm_read_byte(&(S_Table [S_Row][S_Collum]));                 // let op: speciale leesinstructie omdat de tabel in PROGMEM staat
+  S_Byte = pgm_read_byte(&(S_Table [S_Row][S_Collum]));    // let op: speciale leesinstructie omdat de tabel in PROGMEM staat
   return S_Byte;
 }
 

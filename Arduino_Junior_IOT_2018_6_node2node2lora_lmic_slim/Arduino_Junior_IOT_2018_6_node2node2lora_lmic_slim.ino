@@ -21,14 +21,12 @@ RH_RF95 rf95(RFM95_CS, RFM95_INT);
 // example with battery
 #define VBATPIN A9
 #define LEDPIN LED_BUILTIN
-int16_t packetnum = 0;  // packet counter, we increment per xmission
-bool ReceivedForLoraFromRadio = false;
+int16_t packetnum = 0;  // packet counter, we increment per transmission
+bool ReceivedFromRadio = false;
 // radio buf
 uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
-char * predata;
-  
+
 void setup() {
-  predata = (char *) malloc(40);
   pinMode(LED_BUILTIN, OUTPUT);
   
   //while (!Serial); // this blocks execute if not connected
@@ -37,7 +35,7 @@ void setup() {
   delay(100);
 
   delay(3000);  // tijdelijk even delay in de opstart om de monitor te openen - om error bij opstarten te vinden
-  Serial.println("Feather LoRa TX Test!");  
+  Serial.println("Feather and Lora23u4 LoRa TX Test!");  
   digitalWrite(LEDPIN, !digitalRead(LEDPIN)); 
 }
 
@@ -47,15 +45,12 @@ void loop() {
   setupRadio();
   doOneRadio();  // sends a radio messag eand will listen for return message for a certain time
   
-  // if not lora then radio
-  if(ReceivedForLoraFromRadio) {
+  if(ReceivedFromRadio) {
     // use the radio message content for Lora
     memcpy(mydata,buf,40);
-    ReceivedForLoraFromRadio = false;
+    ReceivedFromRadio = false;
   } else {
-    
-    sprintf(predata,"xx geen radio ontvangen xx");
-    memcpy(mydata, predata,40);
+    sprintf(mydata,"xx geen radio ontvangen xx");
   }
   
   //delay (5000);
@@ -108,7 +103,7 @@ void doOneRadio() {
       //   -110 dBm  =  probably 200 meter in streets
       //   -120 dBm  =  not good
       //   -125 dBm  =  unusable 
-      ReceivedForLoraFromRadio = true; 
+      ReceivedFromRadio = true; 
     }
   }
 

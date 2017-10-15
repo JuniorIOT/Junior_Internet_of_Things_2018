@@ -8,7 +8,7 @@ NeoSWSerial ss( 10, 11 );
 #include <NMEAGPS.h>
 static NMEAGPS  gps; // This parses the GPS characters
 
-
+// output ==> 04 datetime sec, 561398704 datetime, 526326337 lat, 47384373 lon, 8, 1.067000 kn = 1.227881 mph
 
 //static void doSomeWork( const gps_fix & fix );
 static void doSomeWork( const gps_fix & fix )

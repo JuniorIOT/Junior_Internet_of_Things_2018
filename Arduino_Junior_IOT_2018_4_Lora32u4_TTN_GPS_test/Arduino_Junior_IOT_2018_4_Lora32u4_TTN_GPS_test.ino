@@ -1,113 +1,41 @@
 /*******************************************************************************
- * Copyright (c) 2015 Thomas Telkamp and Matthijs Kooijman
- *
- * Modified By DenniZr & Marco van Schagen for Junior IOT Challenge 2017
+ * Modified By DenniZr & Marco van Schagen for Junior IOT Challenge 2018
  * Modified By Marco van Schagen for Junior IOT Challenge 2018
  *******************************************************************************/ 
- // TODO: We will create a new TTN account 'Kaasfabriek' at some later day where our teams wil be building their stuff.
  
 //#define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
 
 #define VBATPIN A9
-#define LEDPIN 13
-#define GPS_TXD_PIN 13    // A0 = 14  A1 = 15 A2 = 16 A3 = 17
-#define GPS_RXD_PIN 12   
-
-//#include "LowPower.h"   // help to do power save on the arduino  https://github.com/rocketscream/Low-Power
-//#include <JeeLib.h>  // Include library containing low power functions
-//ISR(WDT_vect) { Sleepy::watchdogEvent(); } // Setup for low power waiting
+#define LEDPIN 13 
+#define TX_INTERVAL 60  // seconds between LoraWan messages
 
 //////////////////////////////////////////////
 // GPS libraries, mappings and things
 //////////////////////////////////////////////
-#include <SoftwareSerial.h> 
-#include <TinyGPS.h>
+//#include <SoftwareSerial.h> 
+//#include <TinyGPS.h>
+//SoftwareSerial ss(GPS_TXD_PIN, GPS_RXD_PIN);  // ss RX, TX --> gps TXD, RXD
+//TinyGPS gps;
 
-//SoftwareSerial ss(3, 2);  // ss RX, TX --> gps TXD, RXD
-SoftwareSerial ss(GPS_TXD_PIN, GPS_RXD_PIN);  // ss RX, TX --> gps TXD, RXD
-TinyGPS gps;
+#define GPS_TXD_PIN 11    // where we plugged in our GNSS GPS into Lora32u4
+#define GPS_RXD_PIN 10  
+
+#include <NeoSWSerial.h>  //  We now use NeoSWSerial for lower footprint end better performance than SoftwareSerial
+  // an issue with Leonardo-types is fixed in branch, yet to be merged into main version library. So you may need to remove all your NeoSWSerial libraries and add \libraries\NeoSWSerial-master-DamiaBranch.zip
+NeoSWSerial ss(10, 11);
+
+#include <NMEAGPS.h>       // We now use NmeaGps (or NeoGps) as it understands newer GNSS
+static NMEAGPS gps;    // This parses the GPS characters
+
 long gps_fix_count = 0;
 long gps_nofix_count = 0;
 
-//////////////////////////////////////////////
-// LMIC and RFM95 mapping and things
-//////////////////////////////////////////////
-#include <lmic.h>
-#include <hal/hal.h>
-const unsigned  TX_INTERVAL = 120;  // previously tested with 300=5 minutes; 15 hours battery time but many gps losses // transmit interval, 5 minutes is healthy according to TTN rules; however 60 sec is still very well possible (risk is getting the device blacklisted rest of day)
-//const dr_t LMIC_DR_sequence[] = {DR_SF10, DR_SF7, DR_SF7, DR_SF7, DR_SF7, DR_SF7, DR_SF9, DR_SF7, DR_SF7, DR_SF7, DR_SF7, DR_SF7 };      //void LMIC_setDrTxpow (dr_t dr, s1_t txpow)
-//const int  LMIC_DR_sequence_count = 12;
-//int  LMIC_DR_sequence_index = 0;
 
-// changed for feather_32u4_lora https://www.thethingsnetwork.org/forum/t/got-adafruit-feather-32u4-lora-radio-to-work-and-here-is-how/6863
-//const  lmic_pinmap lmic_pins = { .nss = 8, .rxtx = LMIC_UNUSED_PIN, .rst = 4, .dio = {7, 6, LMIC_UNUSED_PIN}, };
-const  lmic_pinmap lmic_pins = { .nss = 8, .rxtx = LMIC_UNUSED_PIN, .rst = 4, .dio = {7, 1, LMIC_UNUSED_PIN}, };
+//#include <SPI.h>  //MISO MOSI SCK stuff that was part of 2017 thing with rfm95
 
-const unsigned message_size = 12;  // including byte[0]
-uint8_t  mydata[message_size];  // including byte[0]
-// byte 0, 1, 2      Latitude       3 bytes: -90 to +90 degrees rescaled to 0 - 16777215
-// byte 3, 4, 5      Longitude      3 bytes: -180 to + 180 degrees rescaled to 0 - 16777215
-// byte 6, 7         Altitude       2 bytes: in meters. 0 - 65025 meter
-// byte 8            GPS DoP        1 byte: in 0.1 values.  0 - 25.5 DoP
-// byte 9            Arduino VCC    1 byte in 50ths Volt. 0 - 5.10 volt
-// byte 10           cpu temp       1 byte  value -100. -100 - 155 deg C
-// byte 11           time to fix    1 byte: special finction, 10% accuracy 1 sec - 7 hours
-      // 0..60 sec  at 1 sec interval <==> values 0 .. 60 
-      // 1..10 min at 5 sec interval  <==> values 60 ..  168
-      // 10..60 min at 1 min interval <==> values 168 .. 218
-      // 1..7 hour at 10 min interval <==> values 218 ..254; 255 is "more than 7 hours"
-
-// THIS BYTE STRING NEEDS A DECODER FUNCTION IN TTN:
-/* * function Decoder (bytes) {
-  var _lat = ((bytes[0] << 16) + (bytes[1] << 8) + bytes[2]) / 16777215.0 * 180.0 - 90;
-  var _lng = ((bytes[3] << 16) + (bytes[4] << 8) + bytes[5]) / 16777215.0 * 360.0 - 180;
-  var _alt = (bytes[6] << 8) + bytes[7];
-  var _acc = bytes[8] / 10.0;
-  var _VCC = bytes[9] / 50;
-  var _tempCPU = bytes[10] -100;
-  var _time_to_fix_bin = bytes[11];
-  var _time_to_fix;
-  if (_time_to_fix_bin>=218) { _time_to_fix = 60*60+(_time_to_fix_bin-218)*600 }
-  else if (_time_to_fix_bin>=168) { _time_to_fix = 10*60+(_time_to_fix_bin-168)*60 }
-  else if (_time_to_fix_bin>=60) {  _time_to_fix = 60+(_time_to_fix_bin-60)*5 }
-  else  {_time_to_fix = _time_to_fix_bin }
-  
-      // 0..60 sec  at 1 sec interval <==> values 0 .. 60 
-      // 1..10 min at 5 sec interval  <==> values 60 ..  168
-      // 10..60 min at 1 min interval <==> values 168 .. 218
-      // 1..7 hour at 10 min interval <==> values 218 ..254; 255 means "more than 7 hours"
-      
-  var _inputHEX = bytes[0].toString(16)+' '+bytes[1].toString(16)+' '+bytes[2].toString(16)
-                  +' '+bytes[3].toString(16)+' '+bytes[4].toString(16)+' '+bytes[5].toString(16)
-                  +' '+bytes[6].toString(16)+' '+bytes[7].toString(16)+' '+bytes[8].toString(16)
-                  +' / '+bytes[9].toString(16)+' '+bytes[10].toString(16)+' '+bytes[11].toString(16);
-  return {
-    gps_lat: _lat,
-    gps_lng: _lng,
-    gps_alt: _alt,
-    gps_prec: _acc,
-    arduino_VCC: _VCC,
-    arduino_temp: _tempCPU,
-    time_to_fix: _time_to_fix,
-    payload: _inputHEX
-  };
-}
-*/
-
-// // do not keep radio active to listen to return message in RX2. see https://github.com/matthijskooijman/arduino-lmic/blob/master/src/lmic/config.h
-//#define DISABLE_JOIN     // Uncomment this to disable all code related to joini
-#define DISABLE_PING     // Uncomment this to disable all code related to ping
-#define DISABLE_BEACONS  // Uncomment this to disable all code related to beacon tracking.// Requires ping to be disabled too 
-
-#include <SPI.h>  //MISO MOSI SCK stuff
-#include "keys.h"  // the personal keys to identify our own nodes
-
-static  osjob_t sendjob;
-
-// os_ interfaces for callbacks only used in over-the-air activation, so functions can be left empty here
-void  os_getArtEui (u1_t* buf) { }
-void  os_getDevEui (u1_t* buf) { }
-void  os_getDevKey (u1_t* buf) { } 
+#include <avr/pgmspace.h>
+#include <lmic_slim.h>     // the really cool micro-library, to replace our 2017 LMIC which filled 99% memory
+#include "keys.h"          // the personal keys to identify our own nodes, in a file outside GITHUB
 
 int TX_COMPLETE_was_triggered = 0;  // 20170220 added to allow full controll in main Loop
 
@@ -115,72 +43,76 @@ int TX_COMPLETE_was_triggered = 0;  // 20170220 added to allow full controll in 
 //// Kaasfabriek routines for gps
 ////////////////////////////////////////////
 
-void put_gpsvalues_into_sendbuffer(long l_lat, long l_lon, long l_alt, int hdopNumber) {    
-
+void put_gpsvalues_into_sendbuffer(long l_lat, long l_lon, long l_alt, int hdopNumber) {
   const double shift_lat =    90 * 1000000;        // range shift from -90M..90M into 0..180M
   const double max_old_lat = 180 * 1000000;        // max value for lat is now 180M
   const double max_3byte =        16777215;        // max value that fits in 3 bytes
   double lat_float = l_lat;                        // put the 4byte LONG into a more precise floating point to prevent round-off effect in calculation
   lat_float = (lat_float + shift_lat) * max_3byte / max_old_lat; // rescale into 3 byte integer range
-  uint32_t LatitudeBinary = lat_float;             // clips off anything after the decimal point
-  
-  //Serial.println(F("\n\nInto send buffer "));
-    
+  uint32_t LatitudeBinary = lat_float;             // clips off anything after the decimal point    
   const double shift_lon =   180 * 1000000;        // range shift from -180M..180M into 0..360M
   const double max_old_lon = 360 * 1000000;        // max value longitude is now 360M
   double lon_float = l_lon;                        // put the 4byte LONG into a precise floating point memory space
   lon_float = (lon_float + shift_lon) * max_3byte / max_old_lon; // rescale into 3 byte integer range
-  uint32_t LongitudeBinary = lon_float;             // clips off anything after the decimal point
-  
+  uint32_t LongitudeBinary = lon_float;             // clips off anything after the decimal point  
   uint16_t altitudeGps = l_alt/100;         // altitudeGps in meters, l_alt from tinyGPS is integer in centimeters
-  if (l_alt<0) altitudeGps=0;               // unsigned int wil not allow negative values and warps them to huge number, needs to be zero'ed
-  
+  if (l_alt<0) altitudeGps=0;               // unsigned int wil not allow negative values and warps them to huge number, needs to be zero'ed  
   uint8_t accuracy = hdopNumber/10;   // from TinyGPS horizontal dilution of precision in 100ths, TinyGPSplus seems the same in 100ths as per MNEMA string
   
   mydata[0] = ( LatitudeBinary >> 16 ) & 0xFF;
   mydata[1] = ( LatitudeBinary >> 8 ) & 0xFF;
   mydata[2] = LatitudeBinary & 0xFF;
-
   mydata[3] = ( LongitudeBinary >> 16 ) & 0xFF;
   mydata[4] = ( LongitudeBinary >> 8 ) & 0xFF;
   mydata[5] = LongitudeBinary & 0xFF;
-
   // altitudeGps in meters into unsigned int
   mydata[6] = ( altitudeGps >> 8 ) & 0xFF;
   mydata[7] = altitudeGps & 0xFF;
-
   // hdop in tenths of meter
   mydata[8] = accuracy & 0xFF;
-  
-//  Serial.print(F(" Mydata[]=[ "));
-//  for(int i=0; i<message_size; i++) {
-//    Serial.print(mydata[i], HEX); Serial.print(F(" "));
-//  }
-//  Serial.println(F("]"));
+//  Serial.print(F(" Mydata[]=[ "));  //  for(int i=0; i<message_size; i++) {  //    Serial.print(mydata[i], HEX); Serial.print(F(" "));  //  }  //  Serial.println(F("]"));
 }
 
-void process_gps_values() { 
-  // retrieve values from GPS library, and if valid put them into send buffer
-  // NOT USE the float numbers from library to keep memory as low as possible
+// 04 datetime sec, 561398704 datetime, 526326337 lat, 47384373 lon, 8, 1.067000 kn = 1.227881 mph
+void process_gps_values(const gps_fix & fix ) {   // constant pointer to fix object
+  //  This is the best place to do your time-consuming work, right after the RMC sentence was received.  If you do anything in "loop()",
+  //     you could cause GPS characters to be lost, and you will not get a good lat/lon.
+  //  For this example, we just print the lat/lon.  If you print too much, this routine will not get back to "loop()" in time to process
+  //     the next set of GPS data.
+
+  if (fix.valid.location) {
+    if ( fix.dateTime.seconds < 10 )
+      Serial.print( "0" );
+    Serial.print( fix.dateTime.seconds ); Serial.print(" datetime sec, ");
+    Serial.print( fix.dateTime ); Serial.print(" datetime, ");
+    
+    // Serial.print( fix.latitude(), 6 ); // floating-point display
+    Serial.print( fix.latitudeL() ); Serial.print(" lat, ");
+    // Serial.print( fix.longitude(), 6 ); // floating-point display
+    Serial.print( fix.longitudeL() ); Serial.print(" lon, ");
+    if (fix.valid.satellites)
+      Serial.print( fix.satellites );
+    Serial.print(", ");
+    Serial.print( fix.speed(), 6 );
+    Serial.print( F(" kn = ") );
+  } else {
+    // No valid location data yet!
+    Serial.print( 'No valid location data yet!' );
+  }
+  Serial.println();
+//////////// the old stuff is below this line
   long l_lat, l_lon, l_alt;
   unsigned long age; 
   int hdopNumber;  
   bool GPS_values_are_valid = true;
   
-  gps.get_position(&l_lat, &l_lon, &age);  // lat -90.0 .. 90.0 as a 4 byte float, lon -180 .. 180 as a 4 byte float, age in 1/1000 seconds as a 4 byte unsigned long
-  l_alt = gps.altitude();    // signed float altitude in meters
-  hdopNumber = gps.hdop();   // int 100ths of a meter
-
-//  // check if possibly invalid
-//  if (l_lat == TinyGPS::GPS_INVALID_ANGLE)    GPS_values_are_valid = false;
-//  if (l_lon == TinyGPS::GPS_INVALID_ANGLE)    GPS_values_are_valid = false;
-//  if (hdopNumber == TinyGPS::GPS_INVALID_HDOP) GPS_values_are_valid = false;
-//  if (age == TinyGPS::GPS_INVALID_AGE)         GPS_values_are_valid = false;
-//  
-//  if (l_alt == TinyGPS::GPS_INVALID_ALTITUDE)  GPS_values_are_valid = false;   // if alt, hdop remain giving errors, possibly the GPS character read misses every start few characters of every feed. Solution: make the code lighter so it returns quicker to character read. Or process a bit of buffer while doing other actions, see TinyGPS example.
-//
-//  // if valid, put into buffer
-//  if (GPS_values_are_valid) 
+  //gps.get_position(&l_lat, &l_lon, &age);  // lat -90.0 .. 90.0 as a 4 byte float, lon -180 .. 180 as a 4 byte float, age in 1/1000 seconds as a 4 byte unsigned long
+      l_lat = 526326337;
+      l_lon = 47384373;
+  //l_alt = gps.altitude();    // signed float altitude in meters
+      l_alt = 42;
+  //hdopNumber = gps.hdop();   // int 100ths of a meter
+      hdopNumber = 42;
     put_gpsvalues_into_sendbuffer( l_lat, l_lon, l_alt, hdopNumber);
 }
 
@@ -188,14 +120,22 @@ void gps_init() {
   Serial.print(F("GPS init: "));
     
   // load the send buffer with dummy location 0,0. This location 0,0 is recognized as dummy by TTN Mapper and will be ignored
-  put_gpsvalues_into_sendbuffer( 0, 0, 0, 0);
-  //put_gpsvalues_into_sendbuffer( 52632400, 4738800, 678, 2345); // Alkmaar
+  //put_gpsvalues_into_sendbuffer( 0, 0, 0, 0);
+  put_gpsvalues_into_sendbuffer( 52632400, 4738800, 678, 2345); // Alkmaar
   
   // GPS serial starting
   ss.begin(9600);   
-    // software serial with GPS module. Reviews tell us software serial is not best choice; 
-    // https://www.pjrc.com/teensy/td_libs_TinyGPS.html explains to use UART Serial or NewSoftSerial 
+  Serial.print( F("The NeoGps people are prowd to show their smallest possible size:\n") );
+  Serial.print( F("NeoGps, fix object size = ") ); Serial.println( sizeof(gps.fix()) );
+  Serial.print( F("NeoGps, NMEAGPS object size = ") ); Serial.println( sizeof(gps) );
 
+  #ifdef NMEAGPS_NO_MERGING
+    Serial.println( F("Only displaying data from xxRMC sentences.\n  Other sentences may be parsed, but their data will not be displayed.") );
+  #endif
+  
+  Serial.flush();
+  ss.begin(9600);
+  
   //gps_requestColdStart();  // DO NOT USE: it seems this does a FACTORY RESET and delays getting a solid fix
 //  gps_SetMode_gpsRfOn();
 //  gps_setStrings();
@@ -210,255 +150,195 @@ void gps_init() {
   //       so for now we keep in mode 4 OR experiment with powermodes instead of RF_off
   // gps_setNavMode(7); // 2=stationary, 3=pedestrian, 4=auto, 5=Sea, 6=airborne 1g, 7=air 2g, 8=air 4g -- with 6 no 2d fix supported
 //   gps_read_until_fix_or_timeout(30 * 60);  // after factory reset, time to first fix can be 15 minutes (or multiple).  gps needs to acquire full data which is sent out once every 15 minutes; sat data sent out once every 5 minutes
-gps_read_chars(200);
+//gps_read_chars(200);
   //gps_setPowerMode(2);
 }
-
-//void gps_read_until_fix_or_timeout(unsigned long timeOut) {
-//  Serial.print(F("\nGPS.."));
-//  
-//  unsigned long timeoutTime = millis() + timeOut * 1000;
-//  long gps_fix_count_old = gps_fix_count;
-//  
-//  while(gps_fix_count==gps_fix_count_old && millis() < timeoutTime) {
-//    gps_read_5sec();
-//  }
-//  
-//  if (gps_fix_count == gps_fix_count_old) {
-//    Serial.println(F("\nNO FIX"));
-//    gps_nofix_count++; // we want to know how many times no fix was found
-//  } else {
-//    Serial.println(F("\nFix"));
-//  }
-//}
     
-void gps_read_chars(int countdown) {
-  while (countdown > 0) {
-    if(ss.available()) {       
-      countdown--;
-      char c = ss.read();
-      Serial.write(c); 
-      if (gps.encode(c)) {   // Did a new valid sentence come in?
-        gps_fix_count++;
-        process_gps_values();
-        Serial.print(F(" [fix] ")); 
-      }
-    }
-  }
-}
-
-//void gps_read_5sec() {
-////  Serial.print(F("\nGPS fixes: "));
-////  Serial.print(gps_fix_count);
-////  Serial.print(F(" non-fixes: "));
-////  Serial.print(gps_nofix_count);
-////  Serial.println(F(". Reading GPS. "));
-//
-//  char c;
-//  long gps_fix_count_old = gps_fix_count;
-//  unsigned long startTime = millis();
-//  do {   
-//    while (ss.available()) {
-//      char c = ss.read();
-//      //#ifdef DEBUG
-//      Serial.write(c); 
-//      //#endif
-//      
-//      if (gps.encode(c)) { // Did a new valid sentence come in?
-//          gps_fix_count++;
-//          process_gps_values();
-//          Serial.print(F(" [fix] "));            
-//       }          
-//    }
-//  } while (millis() - startTime < 5000); // reading for 5 seconds
-//
-//  if (gps_fix_count == gps_fix_count_old) gps_nofix_count++; // we want to know how many times no fix was found
-//}
-
 //////////////////////////////////////////////////
-// Kaasfabriek routines for rfm95
+// Kaasfabriek routines for LMIC_slim for LoraWan
 ///////////////////////////////////////////////
 
 void do_send(){  
   // starting vesion was same as https://github.com/tijnonlijn/RFM-node/blob/master/template%20ttnmapper%20node%20-%20scheduling%20removed.ino
     
-    Serial.println(F("\ndo_send "));
-    // Check if there is not a current TX/RX job running
-    if (LMIC.opmode & OP_TXRXPEND) {
-        Serial.println(F("OP_TXRXPEND, no send"));
-    } else {
-        // Prepare upstream data transmission at the next possible time.
-
-        #ifdef DEBUG
-        Serial.println(F("  expected CA DA F? 83 5E 9? 0 ?? ??" ));  
-        Serial.println(F("    dummy 7F FF FF 7F FF FF 0 0 0" ));    
-        #endif  
-//        Serial.print(F(" Mydata[]=[ "));
-//        for(int i=0; i<message_size; i++) {
-//          Serial.print(mydata[i], HEX);  Serial.print(F(" "));
-//        }
-//        Serial.print(F("]"));
-//        
-//        Serial.print(F(" DR="));
-//        if ( LMIC_DR_sequence[LMIC_DR_sequence_index]==DR_SF7) Serial.print(F("DR_SF7")); 
-//        if ( LMIC_DR_sequence[LMIC_DR_sequence_index]==DR_SF8) Serial.print(F("DR_SF8")); 
-//        if ( LMIC_DR_sequence[LMIC_DR_sequence_index]==DR_SF9) Serial.print(F("DR_SF9")); 
-//        if ( LMIC_DR_sequence[LMIC_DR_sequence_index]==DR_SF10) Serial.print(F("DR_SF10")); 
-//        if ( LMIC_DR_sequence[LMIC_DR_sequence_index]==DR_SF11) Serial.print(F("DR_SF11")); 
-//        if ( LMIC_DR_sequence[LMIC_DR_sequence_index]==DR_SF12) Serial.print(F("DR_SF12")); 
-        
-        // Set data rate and transmit power for uplink (note: txpow seems to be ignored by the library)
-        // for the ttn mapper always use SF7. For Balloon, up to SF12 can be used, however that will require 60 minutes quiet time
-//        LMIC_setDrTxpow(LMIC_DR_sequence[LMIC_DR_sequence_index],14);   // void LMIC_setDrTxpow (dr_t dr, s1_t txpow)... Set data rate and transmit power. Should only be used if data rate adaptation is disabled.
-//        
-//        LMIC_DR_sequence_index = LMIC_DR_sequence_index + 1;
-//        if (LMIC_DR_sequence_index >= LMIC_DR_sequence_count) LMIC_DR_sequence_index=0;
-
-        // NOW SEND SOME DATA OUT
-        //  LMIC_setTxData2( LORAWAN_APP_PORT, LMIC.frame, LORAWAN_APP_DATA_SIZE, LORAWAN_CONFIRMED_MSG_ON );
-        LMIC_setTxData2(1, mydata, message_size, 0);   
-        Serial.println(F("- queued"));
-    }
-    // Next TX is scheduled after TX_COMPLETE event.
 }
 
-// event gets hooked into the system
-void onEvent (ev_t ev) {
-    Serial.print(F("\n\nEvent: "));
-    switch(ev) {
-        case EV_SCAN_TIMEOUT:
-            Serial.println(F("TIMEOUT"));
-            break;
-//        case EV_BEACON_FOUND:
-//            Serial.println(F("BF"));
-//            break;
-//        case EV_BEACON_MISSED:
-//            Serial.println(F("BM"));
-//            break;
-//        case EV_BEACON_TRACKED:
-//            Serial.println(F("BT"));
-//            break;
-//        case EV_JOINING:
-//            Serial.println(F("JG"));
-//            break;
-//        case EV_JOINED:
-//            Serial.println(F("J"));
-//            break;
-//        case EV_RFU1:
-//            Serial.println(F("RFU1"));
-//            break;
-//        case EV_JOIN_FAILED:
-//            Serial.println(F("JF"));
-//            break;
-//        case EV_REJOIN_FAILED:
-//            Serial.println(F("RJF"));
-//            break;
-        case EV_TXCOMPLETE:
-            Serial.println(F("EV_TXCOMPLETE"));
-            TX_COMPLETE_was_triggered = 1;  // 20170220 our custom code see https://github.com/tijnonlijn/RFM-node/blob/master/template%20ttnmapper%20node%20-%20scheduling%20removed.ino
-            
-            if (LMIC.txrxFlags & TXRX_ACK)
-              Serial.println(F("Rec ack"));
-            if (LMIC.dataLen) {
-              Serial.println(F("Rec "));
-              Serial.println(LMIC.dataLen);
-              Serial.println(F(" b"));
-            }
-       //     // Schedule next transmission   20170220 disabled the interrupt chain, now all controll in main Loop
-       //     os_setTimedCallback(&sendjob, os_getTime()+sec2osticks(TX_INTERVAL), do_send);
-            break;
-//        case EV_LOST_TSYNC:
-//            Serial.println(F("LTS"));
-//            break;
-        case EV_RESET:
-            Serial.println(F("RESET"));
-            break;
-//        case EV_RXCOMPLETE:
-//            // data received in ping slot
-//            Serial.println(F("RXCOMPL"));
-//            break;
-//        case EV_LINK_DEAD:
-//            Serial.println(F("LD"));
-//            break;
-//        case EV_LINK_ALIVE:
-//            Serial.println(F("LA"));
-//            break;
-         default:
-            Serial.println(F("Unk"));
-            break;
-    }
-}
-
-void lmic_init() {
-    // LMIC init
-    os_init();
-    
-    // Reset the MAC state. Session and pending data transfers will be discarded.
-    LMIC_reset();
-    LMIC_setClockError(MAX_CLOCK_ERROR * 1 / 100); // https://www.thethingsnetwork.org/forum/t/got-adafruit-feather-32u4-lora-radio-to-work-and-here-is-how/6863
-
-    // Set static session parameters. Instead of dynamically establishing a session
-    // by joining the network, precomputed session parameters are be provided.
-    #ifdef PROGMEM
-    // On AVR, these values are stored in flash and only copied to RAM
-    // once. Copy them to a temporary buffer here, LMIC_setSession will
-    // copy them into a buffer of its own again.
+void lmic_slim_init() {    
+    spi_start();
+    pinMode(SS_pin, OUTPUT);                                                                  
+    pinMode(SCK_pin, OUTPUT);                                         
+    pinMode(MOSI_pin, OUTPUT);
+    digitalWrite(SCK_pin, LOW);            // SCK low
+    digitalWrite(SS_pin, HIGH);            // NSS high
+    delay(10);
+    writeReg(0x01, 0x08);
+    delay(10);
+    radio_init ();
+    delay(10);
     uint8_t appskey[sizeof(APPSKEY)];
     uint8_t nwkskey[sizeof(NWKSKEY)];
     memcpy_P(appskey, APPSKEY, sizeof(APPSKEY));
     memcpy_P(nwkskey, NWKSKEY, sizeof(NWKSKEY));
-    LMIC_setSession (0x1, DEVADDR, nwkskey, appskey);
-    #else
-    // If not running an AVR with PROGMEM, just use the arrays directly
-    LMIC_setSession (0x1, DEVADDR, NWKSKEY, APPSKEY);
-    #endif
+    LMIC_setSession (DEVADDR, nwkskey, appskey);
+    
+    //LMIC_setDrTxpow(DR_SF7,14);   // void LMIC_setDrTxpow (dr_t dr, s1_t txpow)... Set data rate and transmit power. Should only be used if data rate adaptation is disabled.
+}
 
-    #if defined(CFG_eu868)
-    // Set up the channels used by the Things Network, which corresponds
-    // to the defaults of most gateways. Without this, only three base
-    // channels from the LoRaWAN specification are used, which certainly
-    // works, so it is good for debugging, but can overload those
-    // frequencies, so be sure to configure the full frequency range of
-    // your network here (unless your network autoconfigures them).
-    // Setting up channels should happen after LMIC_setSession, as that
-    // configures the minimal channel set.
-    // NA-US channels 0-71 are configured automatically
-    LMIC_setupChannel(0, 868100000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
-    LMIC_setupChannel(1, 868300000, DR_RANGE_MAP(DR_SF12, DR_SF7B), BAND_CENTI);      // g-band
-    LMIC_setupChannel(2, 868500000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
-    LMIC_setupChannel(3, 867100000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
-    LMIC_setupChannel(4, 867300000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
-    LMIC_setupChannel(5, 867500000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
-    LMIC_setupChannel(6, 867700000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
-    LMIC_setupChannel(7, 867900000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
-    LMIC_setupChannel(8, 868800000, DR_RANGE_MAP(DR_FSK,  DR_FSK),  BAND_MILLI);      // g2-band
-    // TTN defines an additional channel at 869.525Mhz using SF9 for class B
-    // devices' ping slots. LMIC does not have an easy way to define set this
-    // frequency and support for class B is spotty and untested, so this
-    // frequency is not configured here.
-    #elif defined(CFG_us915)
-    // NA-US channels 0-71 are configured automatically
-    // but only one group of 8 should (a subband) should be active
-    // TTN recommends the second sub band, 1 in a zero based count.
-    // https://github.com/TheThingsNetwork/gateway-conf/blob/master/US-global_conf.json
-    LMIC_selectSubBand(1);
-    #endif
+void setupLora() {
+  Serial.println("\nDSetup Lora");  
+  spi_start();
+  pinMode(SS_pin, OUTPUT);                                                                  
+  pinMode(SCK_pin, OUTPUT);                                         
+  pinMode(MOSI_pin, OUTPUT);    
+  digitalWrite(SCK_pin, LOW);                                                   // SCK low
+  digitalWrite(SS_pin, HIGH);                                                   // NSS high
+  delay(10);
+  writeReg(0x01, 0x08);
+  delay(10);
+  radio_init ();
+  delay(10);
+  uint8_t appskey[sizeof(APPSKEY)];
+  uint8_t nwkskey[sizeof(NWKSKEY)];
+  memcpy_P(appskey, APPSKEY, sizeof(APPSKEY));
+  memcpy_P(nwkskey, NWKSKEY, sizeof(NWKSKEY));
+  LMIC_setSession (DEVADDR, nwkskey, appskey);
+}
 
-    // Disable data rate adaptation - per http://platformio.org/lib/show/842/IBM%20LMIC%20framework%20v1.51%20for%20Arduino
-    //      and http://www.developpez.net/forums/attachments/p195381d1450200851/environnements-developpement/delphi/web-reseau/reseau-objet-connecte-lorawan-delphi/lmic-v1.5.pdf/
-    //LMIC_setAdrMode(0);     // Enable or disable data rate adaptation. Should be turned off if the device is mobile
-    // Disable link check validation
-    LMIC_setLinkCheckMode(0);  //Enable/disable link check validation. Link check mode is enabled by default and is used to periodically verify network connectivity. Must be called only if a session is established.
-    // Disable beacon tracking
-    //LMIC_disableTracking ();  // Disable beacon tracking. The beacon will be no longer tracked and, therefore, also pinging will be disabled.
-    // Stop listening for downstream data (periodical reception)
-    //LMIC_stopPingable();  //Stop listening for downstream data. Periodical reception is disabled, but beacons will still be tracked. In order to stop tracking, the beacon a call to LMIC_disableTracking() is required
+void doOneLora() {
+  Serial.println("\nDo one lora");
+      Serial.print("Send buffer:              [");
+      Serial.print((char*)mydata);
+      Serial.println("]");
+  LMIC_setTxData2(mydata, sizeof(mydata)-1);
+  radio_init ();                                                       
+  delay (10);
+  //digitalWrite(LED_BUILTIN, HIGH);
+  txlora ();
+  delay(1000);                        // this is a simple wait with no checking for TX Ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
+  //digitalWrite(LED_BUILTIN, LOW);
+  setopmode(0x00);                     // opmode SLEEP
+  Serial.println("Done one lora");
+}
 
-    // TTN uses SF9 for its RX2 window.
-    LMIC.dn2Dr = DR_SF9;
+//////////////////////////////////////////////////
+// Kaasfabriek routines for RFM95 radio to radio 
+///////////////////////////////////////////////
 
-    // Set data rate and transmit power for uplink (note: txpow seems to be ignored by the library)
-    LMIC_setDrTxpow(DR_SF7,14);   // void LMIC_setDrTxpow (dr_t dr, s1_t txpow)... Set data rate and transmit power. Should only be used if data rate adaptation is disabled.
+// radiohead radio 2 radio
+#include <RH_RF95.h>  
+/* for feather32u4 */  // this is what we use in Junior IOT Challenge 2018 by Dataschrift & Kaasfabriek Alkmaar 
+#define RFM95_CS 8
+#define RFM95_RST 4
+#define RFM95_INT 7
+// Change to 434.0 or other frequency, must match RX's freq!
+// You can dial in the frequency you want the radio to communicate on, such as 915.0, 434.0 or 868.0 or any number really. Different countries/ITU Zones have different ISM bands so make sure you're using those or if you are licensed, those frequencies you may use
+#define RF95_FREQ 868.0   // this is what we use in Junior IOT Challenge 2018 by Dataschrift & Kaasfabriek Alkmaar 
+// Singleton instance of the radio driver
+RH_RF95 rf95(RFM95_CS, RFM95_INT);
+
+int16_t packetnum = 0;  // packet counter, we increment per transmission
+bool ReceivedFromRadio = false;
+// radio buf
+uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
+
+void doOneRadio() {
+  Serial.println("\nDo one radio");  
+    
+  // preparing to send a message to everyone  
+  float measuredvbat = analogRead(VBATPIN);
+  measuredvbat *= 2;                  // we divided by 2, so multiply back
+  measuredvbat *= 3.3;                // Multiply by 3.3V, our reference voltage
+  measuredvbat /= 1024;               // convert to voltage
+  int vbat = measuredvbat * 1000;     // convert to mV
+  Serial.print("VBat: " ); 
+  Serial.print(vbat);
+  Serial.println(" miliVolt");
+  
+  char radiopacket[40] = "Hello World #       Vbatt= #       mV  ";
+  int radiopacket_strlen=sprintf(radiopacket, "Radio message #%d 'Vbatt= %d mV' ",packetnum++,vbat);
+  Serial.print("radiopacket: "); Serial.println(radiopacket);
+  radiopacket[radiopacket_strlen] = 0; // last char was nulled by sprintf?
+  
+  Serial.println("Sending..."); delay(10);
+  rf95.send((uint8_t *)radiopacket, 40);
+
+  // now, sending is done. start listening
+  Serial.println("Waiting for radio packet to complete..."); delay(10);
+  rf95.waitPacketSent();
+  // Now wait for a reply  
+  uint8_t len = sizeof(buf);
+  
+  Serial.println("Waiting for some other radio to reply..."); delay(10);
+  if (!rf95.waitAvailableTimeout(20000)) { Serial.println("No radio received in 20 sec, is there anyone around in same send settings?"); }
+  else { 
+    // a message was received
+    if (!rf95.recv(buf, &len)) { Serial.println("Receive buffer is empty."); }
+    else {
+      // message has a length
+      RH_RF95::printBuffer("Received this radio message: ", buf, len);
+      Serial.print("Got reply:              [");
+      Serial.print((char*)buf);
+      Serial.print("] RSSI: ");
+      Serial.println(rf95.lastRssi(), DEC);    
+      // RSSI values, indication for Wifi: http://www.metageek.com/training/resources/understanding-rssi.html
+      //   -45 dBm  =  60 cm distance
+      //   -110 dBm  =  probably 200 meter in streets
+      //   -120 dBm  =  not good
+      //   -125 dBm  =  unusable 
+      ReceivedFromRadio = true; 
+    }
+  }
+
+  // end loop
+  Serial.println("Done one radio");  
+}
+
+void halt_stressed() {  
+  Serial.println("\nPanic. Halted.");  
+  while(1) {
+    digitalWrite(LEDPIN, HIGH);   
+    delay(150);
+    digitalWrite(LEDPIN, LOW);  
+    delay(50);
+    Serial.print("x");  
+  }
+}   
+
+void setupRadio() {  
+  Serial.println("\nSetup radio");  
+  pinMode(RFM95_RST, OUTPUT);
+  digitalWrite(RFM95_RST, HIGH);
+
+  // hard reset
+  digitalWrite(RFM95_RST, LOW);
+  delay(10);
+  digitalWrite(RFM95_RST, HIGH);
+  delay(10);
+
+  if (!rf95.init()) {
+    Serial.println("Radio init failed");
+    //while (1);
+    halt_stressed();
+  }
+  Serial.println("Radio init OK!");
+
+  // Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM
+  if (!rf95.setFrequency(RF95_FREQ)) {
+    Serial.println("setFrequency failed");
+    //while (1);
+    halt_stressed();
+  }
+  Serial.print("Freq is set to: "); 
+  Serial.println(RF95_FREQ);
+  
+  // Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol, CRC on
+
+  // The default transmitter power is 13dBm, using PA_BOOST.
+  // If you are using RFM95/96/97/98 modules which uses the PA_BOOST transmitter pin, then 
+  // you can set transmitter powers from 5 to 23 dBm:
+  
+  //rf95.setTxPower(23, false);
+  rf95.setTxPower(13, false);   // is 13 TTN & TTNtracker intended spec?
 }
 
 
@@ -470,8 +350,7 @@ double GetTemp(void) { //http://playground.arduino.cc/Main/InternalTemperatureSe
   unsigned int wADC;
   double t;
   
-  // The internal temperature has to be used with the internal reference of 1.1V.
-  //ATmega32U4 has 2.56V ref instead of 1.1?
+  // The internal temperature has to be used with the internal reference of 1.1V. ATmega32U4 has 2.56V ref instead of 1.1?
   // Set the internal reference and mux.
   ADMUX = (_BV(REFS1) | _BV(REFS0) | _BV(MUX3));
   ADCSRA |= _BV(ADEN);  // enable the ADC
@@ -504,7 +383,7 @@ double GetTemp(void) { //http://playground.arduino.cc/Main/InternalTemperatureSe
 //  return result;
 //}
 
-long readVcc() { 
+long readVcc() {
   long result;
   float measuredvbat = analogRead(VBATPIN);
     // devide by 1024 to convert to voltage
@@ -524,20 +403,14 @@ void put_VCC_and_Temp_into_sendbuffer() {
   uint8_t vcc_bin = vcc /20 ;  // rescale 0-5100 milli volt into 0 - 255 values
   mydata[9] = vcc_bin;
   #ifdef DEBUG
-  Serial.print(F("Vcc="));
-  Serial.print(vcc);
-  Serial.print(F(" mV. vcc_bin="));
-  Serial.print(vcc_bin);
+  Serial.print(F("Vcc=")); Serial.print(vcc); Serial.print(F(" mV. vcc_bin=")); Serial.print(vcc_bin);
   #endif
 
   double temperature = GetTemp();
   uint8_t temperature_bin = temperature + 100;   // rescale -100 to 155 into 0 - 255 values
   mydata[10] = temperature_bin;
   #ifdef DEBUG
-  Serial.print(F(" Temp="));
-  Serial.print(temperature);
-  Serial.print(F(" bin="));
-  Serial.println(temperature_bin);
+  Serial.print(F(" Temp=")); Serial.print(temperature); Serial.print(F(" bin=")); Serial.println(temperature_bin);
   #endif
 }
 
@@ -560,10 +433,7 @@ void put_TimeToFix_into_sendbuffer(int TimeToFix_Seconds) {  // time to fix onto
       
   mydata[11] = TimeToFix_bin;
   #ifdef DEBUG
-  Serial.print(F("TTF="));
-  Serial.print(TimeToFix_Seconds);
-  Serial.print(F(" sec. bin="));
-  Serial.print(TimeToFix_bin);
+  Serial.print(F("TTF=")); Serial.print(TimeToFix_Seconds); Serial.print(F(" sec. bin=")); Serial.print(TimeToFix_bin);
   #endif
 }
 
@@ -571,42 +441,36 @@ void put_TimeToFix_into_sendbuffer(int TimeToFix_Seconds) {  // time to fix onto
 ///////////////////////////////////////////////
 //  arduino init and main
 ///////////////////////////////////////////
-
 unsigned long device_startTime;
 bool has_sent_allready = false; 
 
 void setup() {
   pinMode(LEDPIN, OUTPUT);
-    delay(1000);  // https://www.thethingsnetwork.org/forum/t/got-adafruit-feather-32u4-lora-radio-to-work-and-here-is-how/6863
-    
-    //Serial.begin(115200);   // whether 9600 or 115200; the gps feed shows repeated char and cannot be interpreted, setting high value to release system time
-    //delay(100);
-    Serial.begin(9600);
-    delay(100);
+  delay(1000);  // https://www.thethingsnetwork.org/forum/t/got-adafruit-feather-32u4-lora-radio-to-work-and-here-is-how/6863
   
-    Serial.print(F("\n Starting\ndevice:")); Serial.println(myDeviceName); 
-    Serial.println();
-    device_startTime = millis();
+  Serial.begin(115200);   // whether 9600 or 115200; the gps feed shows repeated char and cannot be interpreted, setting high value to release system time
+  delay(100);
 
-    gps_init();
-    //put_gpsvalues_into_sendbuffer( 52632400, 4738800, 678, 2345);
-    
-    Serial.println(F("\nlmic init"));
-    lmic_init();  
- 
-    Serial.println(F("\ninit values"));
-    put_VCC_and_Temp_into_sendbuffer();
-    Serial.println(F("\nempty message"));
-    do_send();
-    Serial.println(F("Wait.."));  
-    while (TX_COMPLETE_was_triggered == 0) {
-      os_runloop_once();     // system picks up just the first job from all scheduled jobs, needed for the scheduled and interrupt tasks
-    }
-    TX_COMPLETE_was_triggered = 0;
-    Serial.println(F("TX_COMPL in init"));
+  Serial.print(F("\n Starting\ndevice:")); Serial.println(myDeviceName); Serial.println();
+  device_startTime = millis();
 
-    //gps_read_until_fix_or_timeout(60 * 60);  // after factory reset, time to first fix can be 15 minutes (or multiple).  gps needs to acquire full data which is sent out once every 15 minutes; sat data sent out once every 5 minutes
+  gps_init(); put_gpsvalues_into_sendbuffer( 52632400, 4738800, 678, 2345);
+  
+  Serial.println(F("\nlmic init"));
+  lmic_slim_init();  
 
+  Serial.println(F("\ninit values"));
+  put_VCC_and_Temp_into_sendbuffer();    
+
+  Serial.println(F("\nSend one lorawan message as part of system init"));
+  LMIC_setTxData2(mydata, sizeof(mydata)-1);
+  radio_init();                                                       
+  delay (10);
+  txlora();
+  delay(1000);                    // wacht op TX ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
+  setopmode(0x00);                // opmode SLEEP
+
+  //gps_read_until_fix_or_timeout(60 * 60);  // after factory reset, time to first fix can be 15 minutes (or multiple).  gps needs to acquire full data which is sent out once every 15 minutes; sat data sent out once every 5 minutes
 }
 
 void loop() {
@@ -622,17 +486,31 @@ void loop() {
     Time_till_now = (millis() - device_startTime) / 1000 ; // only the first message tells the world the device boot time till first fix/send
   }
   put_TimeToFix_into_sendbuffer( Time_till_now );
+
+  // some radio  
+  setupRadio();
+  doOneRadio();  // sends a radio message and will listen for return message for a certain time
+  if(ReceivedFromRadio) {
+    // use the radio message content for Lora
+    memcpy(mydata,buf,40);
+    ReceivedFromRadio = false;
+  } else {
+    sprintf(mydata,"xx geen radio ontvangen xx");
+  }  
   
-  Serial.println(F("\nSend"));
-  do_send();
-  Serial.println(F("Wait.."));  
-  while (TX_COMPLETE_was_triggered == 0) {
-    os_runloop_once();     // system picks up just the first job from all scheduled jobs, needed for the scheduled and interrupt tasks
-  }
-  TX_COMPLETE_was_triggered = 0;
-  Serial.println(F("TX_COMPL"));
-  
+  // Some Gps
+  while (gps.available( ss )) {
+    process_gps_values( gps.read() ); }
+  // and maybe once more  
+  while (gps.available( ss )) {
+    process_gps_values( gps.read() ); }
+    
  
+  Serial.println(F("\nSend one LoraWan"));
+  //do_send();  
+  setupLora();
+  doOneLora();
+  
   Serial.print(F("\nSleep"));
   //=--=-=---=--=-=--=-=--=  START SLEEP HERE -=-=--=-=-=-=-==-=-=-
 
@@ -658,5 +536,6 @@ void loop() {
   
   Serial.println(F("Wake"));
 }
+
 
 
