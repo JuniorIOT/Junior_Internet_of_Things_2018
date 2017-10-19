@@ -3,7 +3,7 @@
  * Modified By Marco van Schagen for Junior IOT Challenge 2018
  *******************************************************************************/ 
  
-//#define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
+#define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
 
 #define VBATPIN A9
 #define LEDPIN 13 
@@ -29,8 +29,8 @@ static NMEAGPS gps;    // This parses the GPS characters
 
 long gps_fix_count = 0;
 long gps_nofix_count = 0;
-
-
+unsigned long gps_last_time = millis();
+unsigned long gps_gets_time = 5000;
 //#include <SPI.h>  //MISO MOSI SCK stuff that was part of 2017 thing with rfm95
 
 #include <avr/pgmspace.h>
@@ -498,13 +498,12 @@ void loop() {
     sprintf(mydata,"xx geen radio ontvangen xx");
   }  
   
-  // Some Gps
-  while (gps.available( ss )) {
-    process_gps_values( gps.read() ); }
-  // and maybe once more  
-  while (gps.available( ss )) {
-    process_gps_values( gps.read() ); }
+  // Some Gps and give it the time it should get
+  gps_last_time = millis();
+  while (ss.available() > 0 && (millis() - gps_last_time < gps_gets_time)) {
     
+    process_gps_values( gps.read() ); }
+  
  
   Serial.println(F("\nSend one LoraWan"));
   //do_send();  
