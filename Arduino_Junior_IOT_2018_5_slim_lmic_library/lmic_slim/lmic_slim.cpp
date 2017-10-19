@@ -57,7 +57,7 @@ static void rxlora () {                             // start LoRa receiver (time
 static void configLoraModem () {                    // configure LoRa modem (cfg1, cfg2)
     writeReg(0x1D, 0x72);                           // Register LORARegModemConfig1 - BW=125 en Coding Rate=4/5  
     
-	writeReg(0x1E, 0b01110100);
+	writeReg(0x1E, 0b11000100);
        // Register LORARegModemConfig2 
        //          0b0000 0000
        //            nnnn ----   Spreading Factor (bit 7..4)
