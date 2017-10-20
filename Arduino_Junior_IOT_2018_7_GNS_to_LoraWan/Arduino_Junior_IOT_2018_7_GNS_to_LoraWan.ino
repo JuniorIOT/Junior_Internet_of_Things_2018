@@ -178,9 +178,12 @@ void lmic_slim_init() {
   memcpy_P(appskey, APPSKEY, sizeof(APPSKEY));
   memcpy_P(nwkskey, NWKSKEY, sizeof(NWKSKEY));
   LMIC_setSession (DEVADDR, nwkskey, appskey);
-  LMIC_LORARegModemConfig2 (0b10110100);  
+  LMIC_LORARegModemConfig2 (0b11000100);  
 // LORARegModemConfig2 0b11000100  // SF12 works
 // LORARegModemConfig2 0b10110100  // SF11 works
+// LORARegModemConfig2 0b10100100  // SF10 
+// LORARegModemConfig2 0b10010100  // SF9 
+// LORARegModemConfig2 0b10000100  // SF8 
 // LORARegModemConfig2 0b01110100  // SF7 official setting
        // Register LORARegModemConfig2 
        //          0b0000 0000
@@ -532,6 +535,9 @@ void loop() {
   //=--=-=---=--=-=--=-=--=  SLEEP IS COMPLETED HERE -=-=--=-=-=-=-==-=-=-
   
   Serial.println(F("Wake"));
+  delay(30000); //temp fix to at least delay a bit
+  delay(30000); //temp fix to at least delay a bit
+  delay(30000); //temp fix to at least delay a bit
 }
 
 
