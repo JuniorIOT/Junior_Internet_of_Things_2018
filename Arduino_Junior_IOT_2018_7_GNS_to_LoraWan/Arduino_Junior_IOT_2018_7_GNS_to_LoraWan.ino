@@ -12,11 +12,6 @@
 //////////////////////////////////////////////
 // GPS libraries, mappings and things
 //////////////////////////////////////////////
-//#include <SoftwareSerial.h> 
-//#include <TinyGPS.h>
-//SoftwareSerial ss(GPS_TXD_PIN, GPS_RXD_PIN);  // ss RX, TX --> gps TXD, RXD
-//TinyGPS gps;
-
 #define GPS_FIX_HDOP
 #define GPS_TXD_PIN 11    // where we plugged in our GNSS GPS into Lora32u4
 #define GPS_RXD_PIN 10  
@@ -36,13 +31,45 @@ long gps_fix_count = 0;
 long gps_nofix_count = 0;
 unsigned long gps_last_time = millis();
 unsigned long gps_gets_time = 5000;
-//#include <SPI.h>  //MISO MOSI SCK stuff that was part of 2017 thing with rfm95
+
 
 #include <avr/pgmspace.h>
 #include <lmic_slim.h>     // the really cool micro-library, to replace our 2017 LMIC which filled 99% memory
 #include "keys.h"          // the personal keys to identify our own nodes, in a file outside GITHUB
 
 int TX_COMPLETE_was_triggered = 0;  // 20170220 added to allow full controll in main Loop
+
+//--------------Table of contents------------//
+//////////////////////////////////////////////////////////
+//// Kaasfabriek routines for gps
+////////////////////////////////////////////
+void put_gpsvalues_into_sendbuffer(long l_lat, long l_lon, long l_alt, int hdopNumber);
+void process_gps_values(const gps_fix & fix );
+void gps_init();
+//////////////////////////////////////////////////
+// Kaasfabriek routines for LMIC_slim for LoraWan
+///////////////////////////////////////////////
+void setupLora();
+void doOneLora();
+//////////////////////////////////////////////////
+// Kaasfabriek routines for RFM95 radio to radio 
+///////////////////////////////////////////////
+void doOneRadio();
+void halt_stressed();
+void setupRadio();
+///////////////////////////////////////////////
+//  some other measurements
+///////////////////////////////////////////
+double GetTemp(void);
+long readVcc();
+void put_TimeToFix_into_sendbuffer(int TimeToFix_Seconds);
+///////////////////////////////////////////////
+//  arduino init and main
+///////////////////////////////////////////
+void setup();
+void loop();
+//--------------Table of contents------------//
+
 
 //////////////////////////////////////////////////////////
 //// Kaasfabriek routines for gps
@@ -158,33 +185,6 @@ void gps_init() {
 //////////////////////////////////////////////////
 // Kaasfabriek routines for LMIC_slim for LoraWan
 ///////////////////////////////////////////////
-
-void do_send(){  
-  // starting vesion was same as https://github.com/tijnonlijn/RFM-node/blob/master/template%20ttnmapper%20node%20-%20scheduling%20removed.ino
-    
-}
-
-void lmic_slim_init() {    
-    spi_start();
-    pinMode(SS_pin, OUTPUT);                                                                  
-    pinMode(SCK_pin, OUTPUT);                                         
-    pinMode(MOSI_pin, OUTPUT);
-    digitalWrite(SCK_pin, LOW);            // SCK low
-    digitalWrite(SS_pin, HIGH);            // NSS high
-    delay(10);
-    writeReg(0x01, 0x08);
-    delay(10);
-    radio_init ();
-    delay(10);
-    uint8_t appskey[sizeof(APPSKEY)];
-    uint8_t nwkskey[sizeof(NWKSKEY)];
-    memcpy_P(appskey, APPSKEY, sizeof(APPSKEY));
-    memcpy_P(nwkskey, NWKSKEY, sizeof(NWKSKEY));
-    LMIC_setSession (DEVADDR, nwkskey, appskey);
-    
-    //LMIC_setDrTxpow(DR_SF7,14);   // void LMIC_setDrTxpow (dr_t dr, s1_t txpow)... Set data rate and transmit power. Should only be used if data rate adaptation is disabled.
-}
-
 void setupLora() {
   Serial.println("\nDSetup Lora");  
   spi_start();
@@ -203,6 +203,7 @@ void setupLora() {
   memcpy_P(appskey, APPSKEY, sizeof(APPSKEY));
   memcpy_P(nwkskey, NWKSKEY, sizeof(NWKSKEY));
   LMIC_setSession (DEVADDR, nwkskey, appskey);
+     //LMIC_setDrTxpow(DR_SF7,14);   // void LMIC_setDrTxpow (dr_t dr, s1_t txpow)... Set data rate and transmit power. Should only be used if data rate adaptation is disabled.
 }
 
 void doOneLora() {
@@ -213,10 +214,10 @@ void doOneLora() {
   LMIC_setTxData2(mydata, sizeof(mydata)-1);
   radio_init ();                                                       
   delay (10);
-  digitalWrite(LED_BUILTIN, HIGH);
+  //digitalWrite(LED_BUILTIN, HIGH);
   txlora ();
-                          // this is a simple wait with no checking for TX Ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
-  digitalWrite(LED_BUILTIN, LOW);
+  delay(1000);             // this is a simple wait with no checking for TX Ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
+  //digitalWrite(LED_BUILTIN, LOW);
   setopmode(0x00);                     // opmode SLEEP
   Serial.println("Done one lora");
 }
@@ -458,17 +459,13 @@ void setup() {
   gps_init(); put_gpsvalues_into_sendbuffer( 52632400, 4738800, 678, 2345);
   
   Serial.println(F("\nlmic init"));
-  lmic_slim_init();  
+  setupLora();
 
   Serial.println(F("\ninit values"));
   put_VCC_and_Temp_into_sendbuffer();    
 
   Serial.println(F("\nSend one lorawan message as part of system init"));
-  LMIC_setTxData2(mydata, sizeof(mydata)-1);
-  radio_init();                                                       
-  delay (10);
-  txlora();
-  delay(1000);                    // wacht op TX ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
+  doOneLora();
   setopmode(0x00);                // opmode SLEEP
 
   //gps_read_until_fix_or_timeout(60 * 60);  // after factory reset, time to first fix can be 15 minutes (or multiple).  gps needs to acquire full data which is sent out once every 15 minutes; sat data sent out once every 5 minutes
@@ -511,7 +508,7 @@ void loop() {
   
  
   Serial.println(F("\nSend one LoraWan"));
-  //do_send();  
+  
   setupLora();
   doOneLora();
   
