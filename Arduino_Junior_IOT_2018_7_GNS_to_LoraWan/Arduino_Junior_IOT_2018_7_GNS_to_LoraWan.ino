@@ -3,7 +3,7 @@
  * Modified By Marco van Schagen for Junior IOT Challenge 2018
  *******************************************************************************/ 
  
-#define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
+//#define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
 
 #define VBATPIN A9
 #define LEDPIN 13 
@@ -17,15 +17,20 @@
 //SoftwareSerial ss(GPS_TXD_PIN, GPS_RXD_PIN);  // ss RX, TX --> gps TXD, RXD
 //TinyGPS gps;
 
+#define GPS_FIX_HDOP
 #define GPS_TXD_PIN 11    // where we plugged in our GNSS GPS into Lora32u4
 #define GPS_RXD_PIN 10  
+#ifndef GPS_FIX_HDOP
+  #error GPS_FIX_HDOP must be defined in GPSfix_cfg.h!
+#endif
 
 #include <NeoSWSerial.h>  //  We now use NeoSWSerial for lower footprint end better performance than SoftwareSerial
   // an issue with Leonardo-types is fixed in branch, yet to be merged into main version library. So you may need to remove all your NeoSWSerial libraries and add \libraries\NeoSWSerial-master-DamiaBranch.zip
-NeoSWSerial ss(10, 11);
+NeoSWSerial ss(GPS_RXD_PIN, GPS_TXD_PIN);
 
 #include <NMEAGPS.h>       // We now use NmeaGps (or NeoGps) as it understands newer GNSS
 static NMEAGPS gps;    // This parses the GPS characters
+
 
 long gps_fix_count = 0;
 long gps_nofix_count = 0;
@@ -79,42 +84,38 @@ void process_gps_values(const gps_fix & fix ) {   // constant pointer to fix obj
   //     you could cause GPS characters to be lost, and you will not get a good lat/lon.
   //  For this example, we just print the lat/lon.  If you print too much, this routine will not get back to "loop()" in time to process
   //     the next set of GPS data.
-
+  long l_lat, l_lon, l_alt;
+  unsigned long age; 
+  int hdopNumber;  
+  bool GPS_values_are_valid = true;
+  
   if (fix.valid.location) {
-    Serial.println("Checking fix");
     if ( fix.dateTime.seconds < 10 )
       Serial.print( "0" );
     Serial.print( fix.dateTime.seconds ); Serial.print(" datetime sec, ");
     Serial.print( fix.dateTime ); Serial.print(" datetime, ");
     
     // Serial.print( fix.latitude(), 6 ); // floating-point display
-    Serial.print( fix.latitudeL() ); Serial.print(" lat, ");
+    l_lat = fix.latitudeL();
+    Serial.print( l_lat  ); Serial.print(" lat, ");
     // Serial.print( fix.longitude(), 6 ); // floating-point display
-    Serial.print( fix.longitudeL() ); Serial.print(" lon, ");
+    l_lon = fix.longitudeL();
+    Serial.print( l_lon ); Serial.print(" lon, ");
     if (fix.valid.satellites)
       Serial.print( fix.satellites );
     Serial.print(", ");
     Serial.print( fix.speed(), 6 );
     Serial.print( F(" kn = ") );
+    hdopNumber = fix.hdop;
+    l_alt = fix.alt.whole;
+    
   } else {
     // No valid location data yet!
     Serial.print( 'No valid location data yet!' );
   }
   Serial.println();
-//////////// the old stuff is below this line
-  long l_lat, l_lon, l_alt;
-  unsigned long age; 
-  int hdopNumber;  
-  bool GPS_values_are_valid = true;
   
-  //gps.get_position(&l_lat, &l_lon, &age);  // lat -90.0 .. 90.0 as a 4 byte float, lon -180 .. 180 as a 4 byte float, age in 1/1000 seconds as a 4 byte unsigned long
-      l_lat = 526326337;
-      l_lon = 47384373;
-  //l_alt = gps.altitude();    // signed float altitude in meters
-      l_alt = 42;
-  //hdopNumber = gps.hdop();   // int 100ths of a meter
-      hdopNumber = 42;
-    put_gpsvalues_into_sendbuffer( l_lat, l_lon, l_alt, hdopNumber);
+  put_gpsvalues_into_sendbuffer( l_lat, l_lon, l_alt, hdopNumber);
 }
 
 void gps_init() {
@@ -125,7 +126,6 @@ void gps_init() {
   put_gpsvalues_into_sendbuffer( 52632400, 4738800, 678, 2345); // Alkmaar
   
   // GPS serial starting
-  ss.begin(9600);   
   Serial.print( F("The NeoGps people are prowd to show their smallest possible size:\n") );
   Serial.print( F("NeoGps, fix object size = ") ); Serial.println( sizeof(gps.fix()) );
   Serial.print( F("NeoGps, NMEAGPS object size = ") ); Serial.println( sizeof(gps) );
@@ -213,10 +213,10 @@ void doOneLora() {
   LMIC_setTxData2(mydata, sizeof(mydata)-1);
   radio_init ();                                                       
   delay (10);
-  //digitalWrite(LED_BUILTIN, HIGH);
+  digitalWrite(LED_BUILTIN, HIGH);
   txlora ();
-  delay(1000);                        // this is a simple wait with no checking for TX Ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
-  //digitalWrite(LED_BUILTIN, LOW);
+                          // this is a simple wait with no checking for TX Ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
+  digitalWrite(LED_BUILTIN, LOW);
   setopmode(0x00);                     // opmode SLEEP
   Serial.println("Done one lora");
 }
@@ -504,9 +504,9 @@ void loop() {
   }
   // Some Gps and give it the time it should get
   gps_last_time = millis();
-  while (ss.available() > 0 && (millis() - gps_last_time < gps_gets_time)) {
+  while (millis() - gps_last_time < gps_gets_time) {
     
-    process_gps_values( gps.read() ); 
+    while(gps.available(ss))process_gps_values( gps.read() ); 
   }
   
  
@@ -519,7 +519,7 @@ void loop() {
   //=--=-=---=--=-=--=-=--=  START SLEEP HERE -=-=--=-=-=-=-==-=-=-
 
   unsigned long processedTime = millis() - startTime;
-  long sleeptime = 0;//TX_INTERVAL  - (processedTime / 1000);
+  long sleeptime = 0;TX_INTERVAL  - (processedTime / 1000);
   if ( sleeptime < 0 ) sleeptime = 0;
 //  Serial.print(" TX_INTERVAL=" );
 //  Serial.print(TX_INTERVAL);
