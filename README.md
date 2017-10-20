@@ -35,13 +35,6 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
                             ║                 ║ USB to serial programmer
                             ║3.3 TX RX GND 5V ║ while programming, power comes
                             ╚══╬══╬══╬══╬══╬══╝ from external supply to get
-                               x  │  │  │  x    enough current for GPS
-                               ┌──│──┘  │
-                               │  │  x  │      ARDUINO pro mini
-                          ╔═╬══╬══╬══╬══╬══╬═╗ 8Mhz 32kb                 ///////
-      GPS unit            ║ G TX RX VCC GND B║ 3.3 volt                  helical
-      NEO-6M              ║                  ║            gnd            868Mhz
-      3.3 volt            ╬ TXD          RAW ╬x            │ 3v          antenna
      ╔═══════╗            ╬ RXD          GND ╬─black─60mm──┘ │           ///////
      ║       ║            ╬ RST          RST ╬x              │               │
      ║ (PPS) ╬x           ╬ GND          VCC ╬─red─48mm──────┘    3v   gnd   │
@@ -83,7 +76,10 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
     byte 10           Arduino VCC    byte, 50ths, 0 - 5.10 volt -- secret atmel voltmeter
     byte 11           cpu temp       byte, -100 - 155 deg C     -- secret atmel thermometer
     byte 12           Charging V     byte, 50ths, 0 - 5.10 volt -- hard-wired into Lora32u4
-    byte 13           myID, dataset
+    
+    byte 13, 14, 15   prevLatitude   3 bytes, ...
+    byte 16, 17, 18   prevLongitude  3 bytes,    ... to detect dark spots
+    byte 19           myID, dataset
           0b0000 0000
             ---- -nnn Dataset Select Value 0-7 to tell which dataset
             ---- 0000 None           No additional data, this is just a GPS bleep. message ends here
@@ -92,20 +88,20 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
             nnnn ---- MyTeam ID      Value 0-31 my team ID
           
     -- OPTIONAL set#1 environmental sensors values (not finalized)
-    byte 14, 15       CO2            2 bytes, AD measurement directly from AD port
-    byte 16, 17       Moisture       2 bytes, AD measurement directly from AD port
-    byte 18, 19       Air Pressure   2 bytes, AD measurement directly from AD port
-    byte 20, 21       O3             2 bytes, AD measurement directly from AD port
+    byte 21, 22       CO2            2 bytes, AD measurement directly from AD port
+    byte 23, 24       Moisture       2 bytes, AD measurement directly from AD port
+    byte 25, 26       Air Pressure   2 bytes, AD measurement directly from AD port
+    byte 27, 28       O3             2 bytes, AD measurement directly from AD port
 
-    -- OPTIONAL remote gameplay values
-    byte 14           Remote ID 
+    -- OPTIONAL remote gameplay values instead of sensor data
+    byte 21           Remote ID 
           0b0000 0000
             ---- nnnn RadioSSN       Received radio strength 1 
             nnnn ---- Remote ID      Value 0-31, Remote team ID
-    byte 15, 16, 17   Remote Lat     3 bytes, -90 to +90 degrees, scaled to 0 - 16777215
-    byte 18, 19, 20   Remote Longit  3 bytes, -180 to + 180 degrees, scaled to 0 - 16777215
-    byte 21           Distance       byte, meters 0-255
-    byte 22           Heading        byte, Remote compass and other 
+    byte 22, 23, 24   Remote Lat     3 bytes, -90 to +90 degrees, scaled to 0 - 16777215
+    byte 25, 26, 27   Remote Longit  3 bytes, -180 to + 180 degrees, scaled to 0 - 16777215
+    byte 28           Distance       byte, meters 0-255
+    byte 29           Heading        byte, Remote compass and other 
                                        Game rule: add 1.5 degree on each side of this 3 degree segment 
                                        A hit is when target is within this larger range and within 20 meters 
           0b0000 0000
@@ -146,8 +142,8 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
     byte 0            My ID           My ID and message type
           0b0000 0000
             ---- nnnn Message type
-                 0001 Handshk msg#1  I am yelling out loud that I have fired
-                 0010 Handshk msg#2  you have fired and here is my answer 
+            ---- 0001 Handshk msg#1  I am yelling out loud that I have fired
+            ---- 0010 Handshk msg#2  you have fired and here is my answer 
             nnnn ---- My ID          Value 0-31 My team ID
     byte 1, 2, 3      My Latitude    3 bytes, -90 to +90 degrees, scaled to 0 - 16777215
     byte 4, 5, 6      My Longitude   3 bytes, -180 to + 180 degrees, scaled to 0 - 16777215
