@@ -12,11 +12,6 @@
 //////////////////////////////////////////////
 // GPS libraries, mappings and things
 //////////////////////////////////////////////
-//#include <SoftwareSerial.h> 
-//#include <TinyGPS.h>
-//SoftwareSerial ss(GPS_TXD_PIN, GPS_RXD_PIN);  // ss RX, TX --> gps TXD, RXD
-//TinyGPS gps;
-
 #define GPS_FIX_HDOP
 #define GPS_TXD_PIN 11    // where we plugged in our GNSS GPS into Lora32u4
 #define GPS_RXD_PIN 10  
