@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Modified By DenniZr & Marco van Schagen for Junior IOT Challenge 2018
+ * Modified By DenniZr & Marco van Schagen for Junior IOT - Smart City Challenge 2018  #juniorIOTchallenge2018
  * Modified By Marco van Schagen for Junior IOT Challenge 2018
  *******************************************************************************/ 
  
