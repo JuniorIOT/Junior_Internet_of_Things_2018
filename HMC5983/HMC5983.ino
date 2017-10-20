@@ -9,8 +9,8 @@
 int HMC5983_X_byte0, HMC5983_X_byte1, HMC5983_X_value;
 int HMC5983_Y_byte0, HMC5983_Y_byte1, HMC5983_Y_value;
 int HMC5983_Z_byte0, HMC5983_Z_byte1, HMC5983_Z_value;
-float heading, headingDegrees, headingFiltered, geo_magnetic_declination_deg;
 float X_milliGauss,Y_milliGauss,Z_milliGauss;
+float heading, headingDegrees, headingFiltered, geo_magnetic_declination_deg;
 #define IIC_HMC5983_address 0x1E //I2C 7bit address of HMC5883
 void setup(){
 
