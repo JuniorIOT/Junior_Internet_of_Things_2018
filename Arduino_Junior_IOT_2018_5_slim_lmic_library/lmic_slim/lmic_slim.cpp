@@ -55,14 +55,20 @@ static void rxlora () {                             // start LoRa receiver (time
 }
 
 static void configLoraModem () {                    // configure LoRa modem (cfg1, cfg2)
-    writeReg(0x1D, 0x72);                           // Register LORARegModemConfig1 - BW=125 en Coding Rate=4/5  
+    writeReg(0x1D, 0x72);                           // Register LORARegModemConfig1 - BW=125 en Coding Rate=4/5   --> looking at my basestation, this is what all accepted nodes use
+
+// Dennis I have added in example 7 a few lines:
+//       //#define LORARegModemConfig2 0b11000100  // SF12 works
+//        //#define LORARegModemConfig2 0b10110100  // SF11 works
+//        #define LORARegModemConfig2 0b01110100  // SF7 official setting
     
-	writeReg(0x1E, 0b11000100);
+	//writeReg(0x1E, 0b10110100);
+	writeReg(0x1E, LORARegModemConfig2);
        // Register LORARegModemConfig2 
        //          0b0000 0000
        //            nnnn ----   Spreading Factor (bit 7..4)
        //            0111 ----     7 = SF7    is the TTNmapper default
-       //            1011 ----    12 = SF12   tested
+       //            1011 ----    11 = SF11   tested
        //            1100 ----    12 = SF12   tested & working
        //            ---- 0---   TxContinuousMode =0 normal mode (bit 3)  
        //            ---- -1--   RxPayloadCrcOn = 1 CRC ON (bit 2)  

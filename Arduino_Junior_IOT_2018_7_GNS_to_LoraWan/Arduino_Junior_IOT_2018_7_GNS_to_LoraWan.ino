@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Modified By DenniZr & Marco van Schagen for Junior IOT Challenge 2018
+ * Modified By DenniZr & Marco van Schagen for Junior IOT - Smart City Challenge 2018 #juniorIOTchallenge2018
  * Modified By Marco van Schagen for Junior IOT Challenge 2018
  *******************************************************************************/ 
  
@@ -36,13 +36,34 @@ long gps_fix_count = 0;
 long gps_nofix_count = 0;
 unsigned long gps_last_time = millis();
 unsigned long gps_gets_time = 5000;
+
+//////////////////////////////////////////////
+// LoraWan libraries, mappings and things
+//////////////////////////////////////////////
+
 //#include <SPI.h>  //MISO MOSI SCK stuff that was part of 2017 thing with rfm95
+
+//#define LORARegModemConfig2 0b11000100  // SF12 works
+//#define LORARegModemConfig2 0b10110100  // SF11 works
+#define LORARegModemConfig2 0b01110100  // SF7 official setting
+       // Register LORARegModemConfig2 
+       //          0b0000 0000
+       //            nnnn ----   Spreading Factor (bit 7..4)
+       //            0111 ----     7 = SF7    is the TTNmapper default
+       //            1011 ----    11 = SF11   tested
+       //            1100 ----    12 = SF12   tested & working
+       //            ---- 0---   TxContinuousMode =0 normal mode (bit 3)  
+       //            ---- -1--   RxPayloadCrcOn = 1 CRC ON (bit 2)  
+       //            ---- --00   SymbTimeout(9:8)=00 default (bit 1..0)
+      // Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms. 
+      // with 30-50 bytes: SF12 = 2 seconds, SF10 = 0,5 sec, SF8 = 120 msec, SF7= 70 msec. One device has 30 seconds per day airtime.
 
 #include <avr/pgmspace.h>
 #include <lmic_slim.h>     // the really cool micro-library, to replace our 2017 LMIC which filled 99% memory
 #include "keys.h"          // the personal keys to identify our own nodes, in a file outside GITHUB
 
 int TX_COMPLETE_was_triggered = 0;  // 20170220 added to allow full controll in main Loop
+uint8_t  myLoraWanData[40];  // including byte[0]
 
 //////////////////////////////////////////////////////////
 //// Kaasfabriek routines for gps
@@ -64,18 +85,18 @@ void put_gpsvalues_into_sendbuffer(long l_lat, long l_lon, long l_alt, int hdopN
   if (l_alt<0) altitudeGps=0;               // unsigned int wil not allow negative values and warps them to huge number, needs to be zero'ed  
   uint8_t accuracy = hdopNumber/10;   // from TinyGPS horizontal dilution of precision in 100ths, TinyGPSplus seems the same in 100ths as per MNEMA string
   
-  mydata[0] = ( LatitudeBinary >> 16 ) & 0xFF;
-  mydata[1] = ( LatitudeBinary >> 8 ) & 0xFF;
-  mydata[2] = LatitudeBinary & 0xFF;
-  mydata[3] = ( LongitudeBinary >> 16 ) & 0xFF;
-  mydata[4] = ( LongitudeBinary >> 8 ) & 0xFF;
-  mydata[5] = LongitudeBinary & 0xFF;
+  myLoraWanData[0] = ( LatitudeBinary >> 16 ) & 0xFF;
+  myLoraWanData[1] = ( LatitudeBinary >> 8 ) & 0xFF;
+  myLoraWanData[2] = LatitudeBinary & 0xFF;
+  myLoraWanData[3] = ( LongitudeBinary >> 16 ) & 0xFF;
+  myLoraWanData[4] = ( LongitudeBinary >> 8 ) & 0xFF;
+  myLoraWanData[5] = LongitudeBinary & 0xFF;
   // altitudeGps in meters into unsigned int
-  mydata[6] = ( altitudeGps >> 8 ) & 0xFF;
-  mydata[7] = altitudeGps & 0xFF;
+  myLoraWanData[6] = ( altitudeGps >> 8 ) & 0xFF;
+  myLoraWanData[7] = altitudeGps & 0xFF;
   // hdop in tenths of meter
-  mydata[8] = accuracy & 0xFF;
-//  Serial.print(F(" Mydata[]=[ "));  //  for(int i=0; i<message_size; i++) {  //    Serial.print(mydata[i], HEX); Serial.print(F(" "));  //  }  //  Serial.println(F("]"));
+  myLoraWanData[8] = accuracy & 0xFF;
+//  Serial.print(F(" myLoraWanData[]=[ "));  //  for(int i=0; i<message_size; i++) {  //    Serial.print(myLoraWanData[i], HEX); Serial.print(F(" "));  //  }  //  Serial.println(F("]"));
 }
 
 // 04 datetime sec, 561398704 datetime, 526326337 lat, 47384373 lon, 8, 1.067000 kn = 1.227881 mph
@@ -118,8 +139,8 @@ void process_gps_values(const gps_fix & fix ) {   // constant pointer to fix obj
   put_gpsvalues_into_sendbuffer( l_lat, l_lon, l_alt, hdopNumber);
 }
 
-void gps_init() {
-  Serial.print(F("GPS init: "));
+void gps_init() {  
+  Serial.print(F("GPS init"));
     
   // load the send buffer with dummy location 0,0. This location 0,0 is recognized as dummy by TTN Mapper and will be ignored
   //put_gpsvalues_into_sendbuffer( 0, 0, 0, 0);
@@ -159,63 +180,41 @@ void gps_init() {
 // Kaasfabriek routines for LMIC_slim for LoraWan
 ///////////////////////////////////////////////
 
-void do_send(){  
-  // starting vesion was same as https://github.com/tijnonlijn/RFM-node/blob/master/template%20ttnmapper%20node%20-%20scheduling%20removed.ino
-    
-}
-
-void lmic_slim_init() {    
-    spi_start();
-    pinMode(SS_pin, OUTPUT);                                                                  
-    pinMode(SCK_pin, OUTPUT);                                         
-    pinMode(MOSI_pin, OUTPUT);
-    digitalWrite(SCK_pin, LOW);            // SCK low
-    digitalWrite(SS_pin, HIGH);            // NSS high
-    delay(10);
-    writeReg(0x01, 0x08);
-    delay(10);
-    radio_init ();
-    delay(10);
-    uint8_t appskey[sizeof(APPSKEY)];
-    uint8_t nwkskey[sizeof(NWKSKEY)];
-    memcpy_P(appskey, APPSKEY, sizeof(APPSKEY));
-    memcpy_P(nwkskey, NWKSKEY, sizeof(NWKSKEY));
-    LMIC_setSession (DEVADDR, nwkskey, appskey);
-    
-    //LMIC_setDrTxpow(DR_SF7,14);   // void LMIC_setDrTxpow (dr_t dr, s1_t txpow)... Set data rate and transmit power. Should only be used if data rate adaptation is disabled.
-}
-
-void setupLora() {
-  Serial.println("\nDSetup Lora");  
+void lmic_slim_init() {  
+  Serial.println("\nlmic_slim_init");   
   spi_start();
   pinMode(SS_pin, OUTPUT);                                                                  
   pinMode(SCK_pin, OUTPUT);                                         
-  pinMode(MOSI_pin, OUTPUT);    
-  digitalWrite(SCK_pin, LOW);                                                   // SCK low
-  digitalWrite(SS_pin, HIGH);                                                   // NSS high
+  pinMode(MOSI_pin, OUTPUT);
+  digitalWrite(SCK_pin, LOW);            // SCK low
+  digitalWrite(SS_pin, HIGH);            // NSS high
   delay(10);
   writeReg(0x01, 0x08);
   delay(10);
-  radio_init ();
+  radio_init();  // that is in the LMIC_slim library
   delay(10);
   uint8_t appskey[sizeof(APPSKEY)];
   uint8_t nwkskey[sizeof(NWKSKEY)];
   memcpy_P(appskey, APPSKEY, sizeof(APPSKEY));
   memcpy_P(nwkskey, NWKSKEY, sizeof(NWKSKEY));
   LMIC_setSession (DEVADDR, nwkskey, appskey);
+  
+  //LMIC_setDrTxpow(DR_SF7,14);   // void LMIC_setDrTxpow (dr_t dr, s1_t txpow)... Set data rate and transmit power. Should only be used if data rate adaptation is disabled.
 }
 
-void doOneLora() {
+void doOneLoraWan() {
   Serial.println("\nDo one lora");
-      Serial.print("Send buffer:              [");
-      Serial.print((char*)mydata);
-      Serial.println("]");
-  LMIC_setTxData2(mydata, sizeof(mydata)-1);
-  radio_init ();                                                       
+  Serial.print("Send buffer:              [");
+  Serial.print((char*)myLoraWanData);
+  Serial.println("]");
+  LMIC_setTxData2(myLoraWanData, sizeof(myLoraWanData)-1);
+  radio_init();                                                       
   delay (10);
   digitalWrite(LED_BUILTIN, HIGH);
-  txlora ();
-                          // this is a simple wait with no checking for TX Ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
+  txlora();
+                          // this is a simple wait with no checking for TX Ready. 
+                          // Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms. 
+                          // with 30-50 bytes: SF12 = 2 seconds, SF10 = 0,5 sec, SF8 = 120 msec, SF7= 70 msec. One device has 30 seconds per day airtime.
   digitalWrite(LED_BUILTIN, LOW);
   setopmode(0x00);                     // opmode SLEEP
   Serial.println("Done one lora");
@@ -402,14 +401,14 @@ long readVcc() {
 void put_VCC_and_Temp_into_sendbuffer() {
   long vcc = readVcc();
   uint8_t vcc_bin = vcc /20 ;  // rescale 0-5100 milli volt into 0 - 255 values
-  mydata[9] = vcc_bin;
+  myLoraWanData[9] = vcc_bin;
   #ifdef DEBUG
   Serial.print(F("Vcc=")); Serial.print(vcc); Serial.print(F(" mV. vcc_bin=")); Serial.print(vcc_bin);
   #endif
 
   double temperature = GetTemp();
   uint8_t temperature_bin = temperature + 100;   // rescale -100 to 155 into 0 - 255 values
-  mydata[10] = temperature_bin;
+  myLoraWanData[10] = temperature_bin;
   #ifdef DEBUG
   Serial.print(F(" Temp=")); Serial.print(temperature); Serial.print(F(" bin=")); Serial.println(temperature_bin);
   #endif
@@ -432,7 +431,7 @@ void put_TimeToFix_into_sendbuffer(int TimeToFix_Seconds) {  // time to fix onto
   
   uint8_t TimeToFix_bin = TimeToFix_Calculate;  // this can contain the values 0..255,
       
-  mydata[11] = TimeToFix_bin;
+  myLoraWanData[11] = TimeToFix_bin;
   #ifdef DEBUG
   Serial.print(F("TTF=")); Serial.print(TimeToFix_Seconds); Serial.print(F(" sec. bin=")); Serial.print(TimeToFix_bin);
   #endif
@@ -452,7 +451,7 @@ void setup() {
   Serial.begin(115200);   // whether 9600 or 115200; the gps feed shows repeated char and cannot be interpreted, setting high value to release system time
   delay(100);
 
-  Serial.print(F("\n Starting\ndevice:")); Serial.println(myDeviceName); Serial.println();
+  Serial.print(F("\n Starting\ndevice:")); Serial.println(DEVADDR); Serial.println();
   device_startTime = millis();
 
   gps_init(); put_gpsvalues_into_sendbuffer( 52632400, 4738800, 678, 2345);
@@ -464,7 +463,7 @@ void setup() {
   put_VCC_and_Temp_into_sendbuffer();    
 
   Serial.println(F("\nSend one lorawan message as part of system init"));
-  LMIC_setTxData2(mydata, sizeof(mydata)-1);
+  LMIC_setTxData2(myLoraWanData, sizeof(myLoraWanData)-1);
   radio_init();                                                       
   delay (10);
   txlora();
@@ -474,7 +473,8 @@ void setup() {
   //gps_read_until_fix_or_timeout(60 * 60);  // after factory reset, time to first fix can be 15 minutes (or multiple).  gps needs to acquire full data which is sent out once every 15 minutes; sat data sent out once every 5 minutes
 }
 
-boolean radioActive = false;
+boolean radioActive = false;  // this name is for radio, not LoraWan
+boolean loraWannaBe = false;
 
 void loop() {
   digitalWrite(LEDPIN, !digitalRead(LEDPIN)); 
@@ -496,24 +496,22 @@ void loop() {
     doOneRadio();  // sends a radio message and will listen for return message for a certain time
     if(ReceivedFromRadio) {
       // use the radio message content for Lora
-      memcpy(mydata,buf,40);
+      memcpy(myLoraWanData,buf,40);
       ReceivedFromRadio = false;
     } else {
-      sprintf(mydata,"xx geen radio ontvangen xx");
+      sprintf(myLoraWanData,"xx geen radio ontvangen xx");
     }  
   }
   // Some Gps and give it the time it should get
   gps_last_time = millis();
-  while (millis() - gps_last_time < gps_gets_time) {
-    
+  while (millis() - gps_last_time < gps_gets_time) {    
     while(gps.available(ss))process_gps_values( gps.read() ); 
   }
   
  
   Serial.println(F("\nSend one LoraWan"));
-  //do_send();  
-  setupLora();
-  doOneLora();
+  lmic_slim_init();
+  doOneLoraWan();
   
   Serial.print(F("\nSleep"));
   //=--=-=---=--=-=--=-=--=  START SLEEP HERE -=-=--=-=-=-=-==-=-=-
