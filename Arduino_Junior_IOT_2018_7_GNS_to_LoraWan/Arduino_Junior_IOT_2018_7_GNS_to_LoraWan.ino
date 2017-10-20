@@ -43,21 +43,6 @@ unsigned long gps_gets_time = 5000;
 
 //#include <SPI.h>  //MISO MOSI SCK stuff that was part of 2017 thing with rfm95
 
-//#define LORARegModemConfig2 0b11000100  // SF12 works
-//#define LORARegModemConfig2 0b10110100  // SF11 works
-#define LORARegModemConfig2 0b01110100  // SF7 official setting
-       // Register LORARegModemConfig2 
-       //          0b0000 0000
-       //            nnnn ----   Spreading Factor (bit 7..4)
-       //            0111 ----     7 = SF7    is the TTNmapper default
-       //            1011 ----    11 = SF11   tested
-       //            1100 ----    12 = SF12   tested & working
-       //            ---- 0---   TxContinuousMode =0 normal mode (bit 3)  
-       //            ---- -1--   RxPayloadCrcOn = 1 CRC ON (bit 2)  
-       //            ---- --00   SymbTimeout(9:8)=00 default (bit 1..0)
-      // Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms. 
-      // with 30-50 bytes: SF12 = 2 seconds, SF10 = 0,5 sec, SF8 = 120 msec, SF7= 70 msec. One device has 30 seconds per day airtime.
-
 #include <avr/pgmspace.h>
 #include <lmic_slim.h>     // the really cool micro-library, to replace our 2017 LMIC which filled 99% memory
 #include "keys.h"          // the personal keys to identify our own nodes, in a file outside GITHUB
@@ -198,7 +183,22 @@ void lmic_slim_init() {
   memcpy_P(appskey, APPSKEY, sizeof(APPSKEY));
   memcpy_P(nwkskey, NWKSKEY, sizeof(NWKSKEY));
   LMIC_setSession (DEVADDR, nwkskey, appskey);
-  
+  LMIC_LORARegModemConfig2 (0b10110100);  
+// LORARegModemConfig2 0b11000100  // SF12 works
+// LORARegModemConfig2 0b10110100  // SF11 works
+// LORARegModemConfig2 0b01110100  // SF7 official setting
+       // Register LORARegModemConfig2 
+       //          0b0000 0000
+       //            nnnn ----   Spreading Factor (bit 7..4)
+       //            0111 ----     7 = SF7    is the TTNmapper default
+       //            1011 ----    11 = SF11   tested
+       //            1100 ----    12 = SF12   tested & working
+       //            ---- 0---   TxContinuousMode =0 normal mode (bit 3)  
+       //            ---- -1--   RxPayloadCrcOn = 1 CRC ON (bit 2)  
+       //            ---- --00   SymbTimeout(9:8)=00 default (bit 1..0)
+      // Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms. 
+      // with 30-50 bytes: SF12 = 2 seconds, SF10 = 0,5 sec, SF8 = 120 msec, SF7= 70 msec. One device has 30 seconds per day airtime.
+
   //LMIC_setDrTxpow(DR_SF7,14);   // void LMIC_setDrTxpow (dr_t dr, s1_t txpow)... Set data rate and transmit power. Should only be used if data rate adaptation is disabled.
 }
 

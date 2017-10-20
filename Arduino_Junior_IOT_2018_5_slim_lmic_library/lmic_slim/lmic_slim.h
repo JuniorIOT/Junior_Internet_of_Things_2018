@@ -45,12 +45,14 @@ struct lmic_t {
     uint8_t         frame[64];
     uint8_t         pendTxLen;    
     uint8_t         pendTxData[40];   // Let op, bij grotere payload ook deze array vergroten
+    uint8_t         LORARegModemConfig2;  
 };
 
 static uint8_t mydata[40] = "Hello";
 void writeReg (uint8_t addr, uint8_t data );
 void spi_start();
 void LMIC_setSession (uint32_t devaddr, uint8_t* nwkKey, uint8_t* artKey);
+void LMIC_LORARegModemConfig2 (uint8_t LORARegModemConfig2);
 void os_wlsbf4 (uint8_t* buf, uint32_t value);
 void os_wmsbf4 (uint8_t* buf, uint32_t value);
 void os_wlsbf2 (uint8_t* buf, uint16_t value);

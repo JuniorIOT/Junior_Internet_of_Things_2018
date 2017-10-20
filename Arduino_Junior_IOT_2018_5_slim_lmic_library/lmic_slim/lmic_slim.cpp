@@ -63,7 +63,7 @@ static void configLoraModem () {                    // configure LoRa modem (cfg
 //        #define LORARegModemConfig2 0b01110100  // SF7 official setting
     
 	//writeReg(0x1E, 0b10110100);
-	writeReg(0x1E, LORARegModemConfig2);
+	writeReg(0x1E, LMIC.LORARegModemConfig2);
        // Register LORARegModemConfig2 
        //          0b0000 0000
        //            nnnn ----   Spreading Factor (bit 7..4)
@@ -110,6 +110,9 @@ void LMIC_setSession (uint32_t devaddr, uint8_t* nwkKey, uint8_t* artKey) {
     LMIC.devaddr = devaddr;
     memcpy(LMIC.nwkKey, nwkKey, 16);
     memcpy(LMIC.artKey, artKey, 16);
+}
+void LMIC_LORARegModemConfig2 (uint8_t LORARegModemConfig2) {
+    LMIC.LORARegModemConfig2 = LORARegModemConfig2;
 }
 
 int LMIC_setTxData2 (uint8_t* data, uint8_t dlen) {
