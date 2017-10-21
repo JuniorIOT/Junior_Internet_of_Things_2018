@@ -51,7 +51,7 @@ unsigned long last_lora_time = millis(); // last time lorawan ran
 //// Kaasfabriek routines for gps
 ////////////////////////////////////////////
 void put_gpsvalues_into_sendbuffer(long l_lat, long l_lon, long l_alt, int hdopNumber);
-void process_gps_values(const gps_fix & fix );
+//void process_gps_values(const gps_fix & fix );
 void gps_init();
 //////////////////////////////////////////////////
 // Kaasfabriek routines for LMIC_slim for LoraWan
@@ -124,13 +124,13 @@ void process_gps_values(const gps_fix & fix ) {   // constant pointer to fix obj
   int hdopNumber;  
   bool GPS_values_are_valid = true;
   
-  if (fix.valid.location) {
+  if (fix.valid.location && fix.dateTime.seconds > 0) {
     if ( fix.dateTime.seconds < 10 )
       Serial.print( "0" );
     Serial.print( fix.dateTime.seconds ); Serial.print(" datetime sec, ");
     Serial.print( fix.dateTime ); Serial.print(" datetime, ");
     
-    // Serial.print( fix.latitude(), 6 ); // floating-point display
+    Serial.print( fix.latitude(), 6 ); // floating-point display
     l_lat = fix.latitudeL();
     Serial.print( l_lat  ); Serial.print(" lat, ");
     // Serial.print( fix.longitude(), 6 ); // floating-point display
@@ -143,14 +143,15 @@ void process_gps_values(const gps_fix & fix ) {   // constant pointer to fix obj
     Serial.print( F(" kn = ") );
     hdopNumber = fix.hdop;
     l_alt = fix.alt.whole;
-    
+    Serial.println();
   } else {
     // No valid location data yet!
-    Serial.print( 'No valid location data yet!' );
+    //Serial.println( "No valid location data yet!" );
   }
-  Serial.println();
+  
   
   put_gpsvalues_into_sendbuffer( l_lat, l_lon, l_alt, hdopNumber);
+  
 }
 
 void gps_init() {  
@@ -501,7 +502,7 @@ void setup() {
   txlora();
   delay(1000);                    // wacht op TX ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
   setopmode(0x00);                // opmode SLEEP
-
+  last_lora_time = millis();
   //gps_read_until_fix_or_timeout(60 * 60);  // after factory reset, time to first fix can be 15 minutes (or multiple).  gps needs to acquire full data which is sent out once every 15 minutes; sat data sent out once every 5 minutes
 }
 
@@ -512,7 +513,7 @@ void loop() {
   digitalWrite(LEDPIN, !digitalRead(LEDPIN)); 
   unsigned long startTime = millis();
   
-  Serial.println(F("\nValues"));
+  //Serial.println(F("\nValues"));
   put_VCC_and_Temp_into_sendbuffer();
   
   int Time_till_now = (millis() - startTime) / 1000 ; 
@@ -534,13 +535,14 @@ void loop() {
       sprintf(myLoraWanData,"xx geen radio ontvangen xx");
     }  
   }
-  // Some Gps and give it the time it should get
-  gps_last_time = millis();
-  while (millis() - gps_last_time < gps_gets_time) {    
-    while(gps.available(ss))process_gps_values( gps.read() ); 
+  if (ss.available()) {
+    gps.available(ss);
+    process_gps_values( gps.read()); 
   }
+    
+ 
   
-  if((millis() - last_lora_time) > (TX_INTERVAL * 1000)) {
+  if((millis() - last_lora_time) > (TX_INTERVAL * 1000L)) {
     last_lora_time = millis();
     Serial.println(F("\nSend one LoraWan"));
     lmic_slim_init();
