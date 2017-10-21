@@ -5,37 +5,6 @@
  
 //#define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
 
-//--------------Table of contents------------//
-//////////////////////////////////////////////////////////
-//// Kaasfabriek routines for gps
-////////////////////////////////////////////
-void put_gpsvalues_into_sendbuffer(long l_lat, long l_lon, long l_alt, int hdopNumber);
-void process_gps_values(const gps_fix & fix );
-void gps_init();
-//////////////////////////////////////////////////
-// Kaasfabriek routines for LMIC_slim for LoraWan
-///////////////////////////////////////////////
-void setupLora();
-void doOneLora();
-//////////////////////////////////////////////////
-// Kaasfabriek routines for RFM95 radio to radio 
-///////////////////////////////////////////////
-void doOneRadio();
-void halt_stressed();
-void setupRadio();
-///////////////////////////////////////////////
-//  some other measurements
-///////////////////////////////////////////
-double GetTemp(void);
-long readVcc();
-void put_TimeToFix_into_sendbuffer(int TimeToFix_Seconds);
-///////////////////////////////////////////////
-//  arduino init and main
-///////////////////////////////////////////
-void setup();
-void loop();
-//--------------Table of contents------------//
-
 
 #define VBATPIN A9
 #define LEDPIN 13 
@@ -77,6 +46,38 @@ unsigned long gps_gets_time = 5000;
 int TX_COMPLETE_was_triggered = 0;  // 20170220 added to allow full controll in main Loop
 uint8_t  myLoraWanData[40];  // including byte[0]
 unsigned long last_lora_time = millis(); // last time lorawan ran
+//--------------Table of contents------------//
+//////////////////////////////////////////////////////////
+//// Kaasfabriek routines for gps
+////////////////////////////////////////////
+void put_gpsvalues_into_sendbuffer(long l_lat, long l_lon, long l_alt, int hdopNumber);
+void process_gps_values(const gps_fix & fix );
+void gps_init();
+//////////////////////////////////////////////////
+// Kaasfabriek routines for LMIC_slim for LoraWan
+///////////////////////////////////////////////
+void setupLora();
+void doOneLora();
+//////////////////////////////////////////////////
+// Kaasfabriek routines for RFM95 radio to radio 
+///////////////////////////////////////////////
+void doOneRadio();
+void halt_stressed();
+void setupRadio();
+///////////////////////////////////////////////
+//  some other measurements
+///////////////////////////////////////////
+double GetTemp(void);
+long readVcc();
+void put_TimeToFix_into_sendbuffer(int TimeToFix_Seconds);
+///////////////////////////////////////////////
+//  arduino init and main
+///////////////////////////////////////////
+void setup();
+void loop();
+//--------------Table of contents------------//
+
+
 
 //////////////////////////////////////////////////////////
 //// Kaasfabriek routines for gps
