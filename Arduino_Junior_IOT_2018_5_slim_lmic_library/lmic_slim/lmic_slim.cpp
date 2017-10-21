@@ -55,12 +55,8 @@ static void rxlora () {                             // start LoRa receiver (time
 }
 
 static void configLoraModem () {                    // configure LoRa modem (cfg1, cfg2)
-    writeReg(0x1D, 0x72);                           // Register LORARegModemConfig1 - BW=125 en Coding Rate=4/5   --> looking at my basestation, this is what all accepted nodes use
-
-// Dennis I have added in example 7 a few lines:
-//       //#define LORARegModemConfig2 0b11000100  // SF12 works
-//        //#define LORARegModemConfig2 0b10110100  // SF11 works
-//        #define LORARegModemConfig2 0b01110100  // SF7 official setting
+    //writeReg(0x1D, 0x72);                           // Register LORARegModemConfig1 - BW=125 en Coding Rate=4/5   --> looking at my basestation, this is what all accepted nodes use
+    writeReg(0x1D, LMIC.LORARegModemConfig1);   // normal is 0x72 BW=125 en Coding Rate=4/5
     
 	//writeReg(0x1E, 0b10110100);
 	writeReg(0x1E, LMIC.LORARegModemConfig2);
@@ -74,7 +70,8 @@ static void configLoraModem () {                    // configure LoRa modem (cfg
        //            ---- -1--   RxPayloadCrcOn = 1 CRC ON (bit 2)  
        //            ---- --00   SymbTimeout(9:8)=00 default (bit 1..0)
     
-	writeReg(0x26, 0x0C);                           // Register LORARegModemConfig3
+	//writeReg(0x26, 0x0C);                           // Register LORARegModemConfig3
+    writeReg(0x26, LMIC.LORARegModemConfig3);  
 }
 
 static void txlora () {                             // start transmitter (buf=LMIC.frame, len=LMIC.dataLen)
@@ -100,7 +97,8 @@ static void writeBuf (uint8_t addr, uint8_t* buf, uint8_t len) {
 }
 
 static void configChannel () {                      // set frequency: basisstap synthesizer is 32 Mhz / (2 ^ 19)
-      channelpointer=LMIC.frame[10] & 0b00000111;   // Kies pseudorandom kanaal o.b.v. een byte uit de encrypted payload
+      //channelpointer=LMIC.frame[10] & 0b00000111;   // Kies pseudorandom kanaal o.b.v. een byte uit de encrypted payload
+      channelpointer=(LMIC.frame[10] + millis()) & 0b00000111;   // Kies pseudorandom kanaal o.b.v. millis()
       writeReg(0x06, channel[channelpointer][0]);   // Wijzig freq: Register RegFrfMsb
       writeReg(0x07, channel[channelpointer][1]);   // Register RegFrfMid
       writeReg(0x08, channel[channelpointer][2]);   // Register RegFrfLsb
@@ -111,8 +109,10 @@ void LMIC_setSession (uint32_t devaddr, uint8_t* nwkKey, uint8_t* artKey) {
     memcpy(LMIC.nwkKey, nwkKey, 16);
     memcpy(LMIC.artKey, artKey, 16);
 }
-void LMIC_LORARegModemConfig2 (uint8_t LORARegModemConfig2) {
+void LMIC_LORARegModemConfig (uint8_t LORARegModemConfig1, uint8_t LORARegModemConfig2, uint8_t LORARegModemConfig3) {
+    LMIC.LORARegModemConfig1 = LORARegModemConfig1;
     LMIC.LORARegModemConfig2 = LORARegModemConfig2;
+    LMIC.LORARegModemConfig3 = LORARegModemConfig3;
 }
 
 int LMIC_setTxData2 (uint8_t* data, uint8_t dlen) {

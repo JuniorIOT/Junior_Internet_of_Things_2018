@@ -26,14 +26,14 @@ static const PROGMEM unsigned char S_Table[16][16] = {
 
 // tabel voor zendfrequenties KPN en TTN LORA netwerk
 static const unsigned char channel[8][3] = {
-  {0xD8,0xC6,0x66},
-  {0xD8,0xD3,0x33},
-  {0xD8,0xE0,0x00},
-  {0xD8,0xEC,0xCC},
-  {0xD8,0xF9,0x99},
-  {0xD9,0x06,0x66},
-  {0xD9,0x13,0x33},
-  {0xD9,0x20,0x00}
+  {0xD8,0xC6,0x66},  // channel 0
+  {0xD8,0xD3,0x33},  // channel 1
+  {0xD8,0xE0,0x00},  // channel 2
+  {0xD8,0xEC,0xCC},  // channel 3
+  {0xD8,0xF9,0x99},  // channel 4
+  {0xD9,0x06,0x66},  // channel 5
+  {0xD9,0x13,0x33},  // channel 6
+  {0xD9,0x20,0x00}   // channel 7
 };
 
 struct lmic_t {
@@ -45,14 +45,16 @@ struct lmic_t {
     uint8_t         frame[64];
     uint8_t         pendTxLen;    
     uint8_t         pendTxData[40];   // Let op, bij grotere payload ook deze array vergroten
+    uint8_t         LORARegModemConfig1;  
     uint8_t         LORARegModemConfig2;  
+    uint8_t         LORARegModemConfig3;  
 };
 
 static uint8_t mydata[40] = "Hello";
 void writeReg (uint8_t addr, uint8_t data );
 void spi_start();
 void LMIC_setSession (uint32_t devaddr, uint8_t* nwkKey, uint8_t* artKey);
-void LMIC_LORARegModemConfig2 (uint8_t LORARegModemConfig2);
+void LMIC_LORARegModemConfig (uint8_t LORARegModemConfig1, uint8_t LORARegModemConfig2, uint8_t LORARegModemConfig3);
 void os_wlsbf4 (uint8_t* buf, uint32_t value);
 void os_wmsbf4 (uint8_t* buf, uint32_t value);
 void os_wlsbf2 (uint8_t* buf, uint16_t value);
