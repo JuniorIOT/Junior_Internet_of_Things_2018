@@ -8,7 +8,7 @@
 
 #define VBATPIN A9
 #define LEDPIN 13 
-#define TX_INTERVAL 60  // seconds between LoraWan messages
+#define LORAWAN_TX_INTERVAL 60  // seconds between LoraWan messages
 
 //////////////////////////////////////////////
 // GPS libraries, mappings and things
@@ -68,14 +68,14 @@ void setupRadio();
 //  some other measurements
 ///////////////////////////////////////////
 double GetTemp(void);
-long readVcc();
+long readVbat();
 void put_TimeToFix_into_sendbuffer(int TimeToFix_Seconds);
 ///////////////////////////////////////////////
 //  arduino init and main
 ///////////////////////////////////////////
 void setup();
 void loop();
-//--------------Table of contents------------//
+//--------------/Table of contents------------//
 
 
 
@@ -251,7 +251,7 @@ void doOneLoraWan() {
   //digitalWrite(LED_BUILTIN, HIGH);
   digitalWrite(LEDPIN, !digitalRead(LEDPIN));
   txlora();
-  delay(2000);           // this is a simple wait with no checking for TX Ready. 
+  delay(200);           // this is a simple wait with no checking for TX Ready. Sdjust this for your SF.
                           // Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms. 
                           // with 30-50 bytes: SF12 = 2 seconds, SF10 = 0,5 sec, SF8 = 120 msec, SF7= 70 msec. One device has 30 seconds per day airtime.
   //digitalWrite(LED_BUILTIN, LOW);
@@ -285,11 +285,7 @@ void doOneRadio() {
   Serial.println("\nDo one radio");  
     
   // preparing to send a message to everyone  
-  float measuredvbat = analogRead(VBATPIN);
-  measuredvbat *= 2;                  // we divided by 2, so multiply back
-  measuredvbat *= 3.3;                // Multiply by 3.3V, our reference voltage
-  measuredvbat /= 1024;               // convert to voltage
-  int vbat = measuredvbat * 1000;     // convert to mV
+  long vbat = readVbat();     // convert to mV
   Serial.print("VBat: " ); 
   Serial.print(vbat);
   Serial.println(" miliVolt");
@@ -423,7 +419,7 @@ double GetTemp(void) { //http://playground.arduino.cc/Main/InternalTemperatureSe
 //  return result;
 //}
 
-long readVcc() {
+long readVbat() {
   long result;
   float measuredvbat = analogRead(VBATPIN);
     // devide by 1024 to convert to voltage
@@ -432,18 +428,18 @@ long readVcc() {
     // *1000 to get milliVolt
   measuredvbat *= 6600 / 1024;         
   result = measuredvbat;
-//  Serial.print(F("Vcc=") ); 
-//  Serial.print(result);
-//  Serial.println(F("mV"));
+  Serial.print(F("Vbat=") ); 
+  Serial.print(result);
+  Serial.println(F(" miliVolt"));
   return result;
 }
 
-void put_VCC_and_Temp_into_sendbuffer() {
-  long vcc = readVcc();
-  uint8_t vcc_bin = vcc /20 ;  // rescale 0-5100 milli volt into 0 - 255 values
-  myLoraWanData[9] = vcc_bin;
+void put_Volts_and_Temp_into_sendbuffer() {
+  long vbat = readVbat();
+  uint8_t vbat_bin = vbat /20 ;  // rescale 0-5100 milli volt into 0 - 255 values
+  myLoraWanData[9] = vbat_bin;
   #ifdef DEBUG
-  Serial.print(F("Vcc=")); Serial.print(vcc); Serial.print(F(" mV. vcc_bin=")); Serial.print(vcc_bin);
+  Serial.print(F("Vbat=")); Serial.print(vbat); Serial.print(F(" mV. vbat_bin=")); Serial.print(vbat_bin);
   #endif
 
   double temperature = GetTemp();
@@ -500,14 +496,14 @@ void setup() {
   lmic_slim_init();  
 
   Serial.println(F("\ninit values"));
-  put_VCC_and_Temp_into_sendbuffer();    
+  put_Volts_and_Temp_into_sendbuffer();    
 
   Serial.println(F("\nSend one lorawan message as part of system init"));
   LMIC_setTxData2(myLoraWanData, sizeof(myLoraWanData)-1);
   radio_init();                                                       
   delay (10);
   txlora();
-  delay(1000);                    // wacht op TX ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
+  delay(200);                    // wacht op TX ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
   setopmode(0x00);                // opmode SLEEP
   last_lora_time = millis();
   //gps_read_until_fix_or_timeout(60 * 60);  // after factory reset, time to first fix can be 15 minutes (or multiple).  gps needs to acquire full data which is sent out once every 15 minutes; sat data sent out once every 5 minutes
@@ -517,23 +513,33 @@ boolean radioActive = false;  // this name is for radio, not LoraWan
 boolean loraWannaBe = false;
 
 void loop() {
+  Serial.println(F("\n==== Loop starts. "));
   digitalWrite(LEDPIN, !digitalRead(LEDPIN)); 
-  unsigned long startTime = millis();
-  
-  //Serial.println(F("\nValues"));
-  put_VCC_and_Temp_into_sendbuffer();
-  
-  int Time_till_now = (millis() - startTime) / 1000 ; 
-  if (!has_sent_allready) {
-    has_sent_allready = true;
-    Time_till_now = (millis() - device_startTime) / 1000 ; // only the first message tells the world the device boot time till first fix/send
-  }
-  put_TimeToFix_into_sendbuffer( Time_till_now );
 
-  // some radio  
+  ////// GPS pre-loop //////////////
+  Serial.println(F("\nGPS 1 "));
+  // first we want to know GPS coordinates - we do accept a long delay if needed, even before listening to radio
+  unsigned long gps_listen_startTime = millis();  
+  //now listen to gps till fix or time-out, once gps has a fix, the refresh should be ready within 2 data reads = less than 3 sec
+  // gps read command:
+  if (ss.available()) {
+    gps.available(ss);
+    process_gps_values( gps.read()); 
+  }
+  // put gps values into send buffer
+  int gps_listen_time_till_now = (millis() - gps_listen_startTime) / 1000 ; 
+  put_TimeToFix_into_sendbuffer( gps_listen_time_till_now );
+
+  ////////// Radio  ///////////
+  Serial.println(F("\nRadio listen? "));
+  // now listen a long time for a radio message which we may want to act on, or for a keypress on our side 
+  // time needs to be long enough not to miss a radio, we do not worry about GPS as it will keep fix as long as powered
   if(radioActive) {
     setupRadio();
+//while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L)) {
+    // next command is not what we want to do
     doOneRadio();  // sends a radio message and will listen for return message for a certain time
+    
     if(ReceivedFromRadio) {
       // use the radio message content for Lora
       memcpy(myLoraWanData,buf,PAYLOADSIZE);
@@ -541,29 +547,42 @@ void loop() {
     } else {
       sprintf(myLoraWanData,"xx geen radio ontvangen xx");
     }  
+  } else {
+    //not listening to radio at all, we may as well use delay for a bit 
+    Serial.print(F("\nWe need to delay a bit before lorawan: ")); Serial.print(LORAWAN_TX_INTERVAL); Serial.print(F(" sec."));
+    while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L)) {
+      delay(5000);   
+      Serial.print(F("."));
+    }
   }
+  // we keep doing this part until it is time to send one LORAWAN TX to the worl
+
+  ////////// Now we need to send a LORAWAN update to the world  ///////////
+  Serial.println(F("\nPrepare to send a LORAWAN update"));
+  // collect values for message now  
+  Serial.println(F("collect values for message"));
+  put_Volts_and_Temp_into_sendbuffer();
+  // gps
+  gps_listen_startTime = millis();  
+  //now listen to gps till fix or time-out, once gps has a fix, the refresh should be ready within 2 data reads = less than 3 sec
+  // gps read command:
   if (ss.available()) {
     gps.available(ss);
     process_gps_values( gps.read()); 
   }
+  // put gps values into send buffer
+   gps_listen_time_till_now = (millis() - gps_listen_startTime) / 1000 ; 
+  put_TimeToFix_into_sendbuffer( gps_listen_time_till_now );
+
+  // LORAWAN:
+  // switch the LMIC antenna to LoraWan mode
+  last_lora_time = millis();
+  Serial.println(F("\nTime or button press tells us to send one LoraWan"));
+  lmic_slim_init();
+  doOneLoraWan();    
   
-  if((millis() - last_lora_time) > (TX_INTERVAL * 1000L)) {
-    last_lora_time = millis();
-    Serial.println(F("\nSend one LoraWan"));
-    lmic_slim_init();
-    doOneLoraWan();    
-  }
-  
-//  Serial.println(F("Wake"));
-//  delay(60000); //temp fix to at least delay a bit
-//  delay(60000); //temp fix to at least delay a bit
-//  delay(60000); //temp fix to at least delay a bit
-//  delay(60000); //temp fix to at least delay a bit
-//  delay(60000); //temp fix to at least delay a bit
-//  delay(60000); //temp fix to at least delay a bit
-//  delay(60000); //temp fix to at least delay a bit
-//  delay(60000); //temp fix to at least delay a bit
-//  delay(60000); //temp fix to at least delay a bit
+  /////////// Loop again  //////////////
+  Serial.println(F("End of loop. "));
 }
 
 
