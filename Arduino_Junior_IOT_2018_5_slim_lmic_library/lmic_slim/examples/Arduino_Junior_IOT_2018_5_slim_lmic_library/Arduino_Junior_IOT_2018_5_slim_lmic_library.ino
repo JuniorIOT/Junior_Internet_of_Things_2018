@@ -2,6 +2,7 @@
 
 // LoRa credentials
 #include "keys.h"
+#define PAYLOADSIZE 6
 
 #include <lmic_slim.h>
 
@@ -23,6 +24,24 @@ void setup() {
     memcpy_P(appskey, APPSKEY, sizeof(APPSKEY));
     memcpy_P(nwkskey, NWKSKEY, sizeof(NWKSKEY));
     LMIC_setSession (DEVADDR, nwkskey, appskey);
+    LMIC_LORARegModemConfig2 (0b11000100);  
+// LORARegModemConfig2 0b11000100  // SF12 works
+// LORARegModemConfig2 0b10110100  // SF11 works
+// LORARegModemConfig2 0b10100100  // SF10 
+// LORARegModemConfig2 0b10010100  // SF9 
+// LORARegModemConfig2 0b10000100  // SF8 
+// LORARegModemConfig2 0b01110100  // SF7 official setting
+       // Register LORARegModemConfig2 
+       //          0b0000 0000
+       //            nnnn ----   Spreading Factor (bit 7..4)
+       //            0111 ----     7 = SF7    is the TTNmapper default
+       //            1011 ----    11 = SF11   tested
+       //            1100 ----    12 = SF12   tested & working
+       //            ---- 0---   TxContinuousMode =0 normal mode (bit 3)  
+       //            ---- -1--   RxPayloadCrcOn = 1 CRC ON (bit 2)  
+       //            ---- --00   SymbTimeout(9:8)=00 default (bit 1..0)
+      // Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms. 
+      // with 30-50 bytes: SF12 = 2 seconds, SF10 = 0,5 sec, SF8 = 120 msec, SF7= 70 msec. One device has 30 seconds per day airtime.
 }
 
 void loop() {

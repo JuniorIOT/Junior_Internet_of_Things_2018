@@ -2,6 +2,10 @@
 #include <avr/pgmspace.h>
 #define byte uint8_t
 #include "pins.h"
+#ifndef PAYLOADSIZE
+#define PAYLOADSIZE 40
+#endif
+
 static unsigned char State[4][4];
 
 // tabel voor encryptie
@@ -44,7 +48,7 @@ struct lmic_t {
     uint8_t         dataLen;          // 0 no data or zero length data, >0 byte count of data
     uint8_t         frame[64];
     uint8_t         pendTxLen;    
-    uint8_t         pendTxData[40];   // Let op, bij grotere payload ook deze array vergroten
+    uint8_t         pendTxData[PAYLOADSIZE];   // Let op, bij grotere payload ook deze array vergroten
     uint8_t         LORARegModemConfig2;  
 };
 
