@@ -5,6 +5,38 @@
  
 //#define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
 
+//--------------Table of contents------------//
+//////////////////////////////////////////////////////////
+//// Kaasfabriek routines for gps
+////////////////////////////////////////////
+void put_gpsvalues_into_sendbuffer(long l_lat, long l_lon, long l_alt, int hdopNumber);
+void process_gps_values(const gps_fix & fix );
+void gps_init();
+//////////////////////////////////////////////////
+// Kaasfabriek routines for LMIC_slim for LoraWan
+///////////////////////////////////////////////
+void setupLora();
+void doOneLora();
+//////////////////////////////////////////////////
+// Kaasfabriek routines for RFM95 radio to radio 
+///////////////////////////////////////////////
+void doOneRadio();
+void halt_stressed();
+void setupRadio();
+///////////////////////////////////////////////
+//  some other measurements
+///////////////////////////////////////////
+double GetTemp(void);
+long readVcc();
+void put_TimeToFix_into_sendbuffer(int TimeToFix_Seconds);
+///////////////////////////////////////////////
+//  arduino init and main
+///////////////////////////////////////////
+void setup();
+void loop();
+//--------------Table of contents------------//
+
+
 #define VBATPIN A9
 #define LEDPIN 13 
 #define TX_INTERVAL 60  // seconds between LoraWan messages
@@ -44,6 +76,7 @@ unsigned long gps_gets_time = 5000;
 
 int TX_COMPLETE_was_triggered = 0;  // 20170220 added to allow full controll in main Loop
 uint8_t  myLoraWanData[40];  // including byte[0]
+unsigned long last_lora_time = millis(); // last time lorawan ran
 
 //////////////////////////////////////////////////////////
 //// Kaasfabriek routines for gps
@@ -506,38 +539,14 @@ void loop() {
     while(gps.available(ss))process_gps_values( gps.read() ); 
   }
   
+  if((millis() - last_lora_time) > (TX_INTERVAL * 1000)) {
+    last_lora_time = millis();
+    Serial.println(F("\nSend one LoraWan"));
+    lmic_slim_init();
+    doOneLoraWan();    
+  }
+  
  
-  Serial.println(F("\nSend one LoraWan"));
-  lmic_slim_init();
-  doOneLoraWan();
-  
-  Serial.print(F("\nSleep"));
-  //=--=-=---=--=-=--=-=--=  START SLEEP HERE -=-=--=-=-=-=-==-=-=-
-
-  unsigned long processedTime = millis() - startTime;
-  long sleeptime = 0;TX_INTERVAL  - (processedTime / 1000);
-  if ( sleeptime < 0 ) sleeptime = 0;
-//  Serial.print(" TX_INTERVAL=" );
-//  Serial.print(TX_INTERVAL);
-//  Serial.print(" processedTime=" );
-//  Serial.print(processedTime);
-//  Serial.print(" sleeptime=" );
-  Serial.print(sleeptime );
-  Serial.println(F(" sec"));
-  
-  //LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);    // this kind of sleep does not work
-  //Serial.println(F("sleep2 "));
-  //Sleepy::loseSomeTime(8000);  // max 60.000 (60 sec)  // this kind of sleep does not work
-  //Serial.println(F("delay "));
-  
-  delay(sleeptime * 1000);
-  
-  //=--=-=---=--=-=--=-=--=  SLEEP IS COMPLETED HERE -=-=--=-=-=-=-==-=-=-
-  
-  Serial.println(F("Wake"));
-  delay(30000); //temp fix to at least delay a bit
-  delay(30000); //temp fix to at least delay a bit
-  delay(30000); //temp fix to at least delay a bit
 }
 
 
