@@ -5,6 +5,7 @@
  
 //#define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
 
+
 #define VBATPIN A9
 #define LEDPIN 13 
 #define TX_INTERVAL 60  // seconds between LoraWan messages
@@ -44,6 +45,39 @@ unsigned long gps_gets_time = 5000;
 
 int TX_COMPLETE_was_triggered = 0;  // 20170220 added to allow full controll in main Loop
 uint8_t  myLoraWanData[40];  // including byte[0]
+unsigned long last_lora_time = millis(); // last time lorawan ran
+//--------------Table of contents------------//
+//////////////////////////////////////////////////////////
+//// Kaasfabriek routines for gps
+////////////////////////////////////////////
+void put_gpsvalues_into_sendbuffer(long l_lat, long l_lon, long l_alt, int hdopNumber);
+//void process_gps_values(const gps_fix & fix );
+void gps_init();
+//////////////////////////////////////////////////
+// Kaasfabriek routines for LMIC_slim for LoraWan
+///////////////////////////////////////////////
+void setupLora();
+void doOneLora();
+//////////////////////////////////////////////////
+// Kaasfabriek routines for RFM95 radio to radio 
+///////////////////////////////////////////////
+void doOneRadio();
+void halt_stressed();
+void setupRadio();
+///////////////////////////////////////////////
+//  some other measurements
+///////////////////////////////////////////
+double GetTemp(void);
+long readVcc();
+void put_TimeToFix_into_sendbuffer(int TimeToFix_Seconds);
+///////////////////////////////////////////////
+//  arduino init and main
+///////////////////////////////////////////
+void setup();
+void loop();
+//--------------Table of contents------------//
+
+
 
 //////////////////////////////////////////////////////////
 //// Kaasfabriek routines for gps
@@ -90,13 +124,13 @@ void process_gps_values(const gps_fix & fix ) {   // constant pointer to fix obj
   int hdopNumber;  
   bool GPS_values_are_valid = true;
   
-  if (fix.valid.location) {
+  if (fix.valid.location && fix.dateTime.seconds > 0) {
     if ( fix.dateTime.seconds < 10 )
       Serial.print( "0" );
     Serial.print( fix.dateTime.seconds ); Serial.print(" datetime sec, ");
     Serial.print( fix.dateTime ); Serial.print(" datetime, ");
     
-    // Serial.print( fix.latitude(), 6 ); // floating-point display
+    Serial.print( fix.latitude(), 6 ); // floating-point display
     l_lat = fix.latitudeL();
     Serial.print( l_lat  ); Serial.print(" lat, ");
     // Serial.print( fix.longitude(), 6 ); // floating-point display
@@ -109,14 +143,15 @@ void process_gps_values(const gps_fix & fix ) {   // constant pointer to fix obj
     Serial.print( F(" kn = ") );
     hdopNumber = fix.hdop;
     l_alt = fix.alt.whole;
-    
+    Serial.println();
   } else {
     // No valid location data yet!
-    Serial.print( 'No valid location data yet!' );
+    //Serial.println( "No valid location data yet!" );
   }
-  Serial.println();
+  
   
   put_gpsvalues_into_sendbuffer( l_lat, l_lon, l_alt, hdopNumber);
+  
 }
 
 void gps_init() {  
@@ -482,9 +517,9 @@ void setup() {
   radio_init();                                                       
   delay (10);
   txlora();
-  delay(2000);                    // wacht op TX ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
-  setopmode(0x00);                // opmode SLEEP  // better not tell Lorawan to go to sleep before message is sent
-
+  delay(1000);                    // wacht op TX ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
+  setopmode(0x00);                // opmode SLEEP
+  last_lora_time = millis();
   //gps_read_until_fix_or_timeout(60 * 60);  // after factory reset, time to first fix can be 15 minutes (or multiple).  gps needs to acquire full data which is sent out once every 15 minutes; sat data sent out once every 5 minutes
 }
 
@@ -495,7 +530,7 @@ void loop() {
   digitalWrite(LEDPIN, !digitalRead(LEDPIN)); 
   unsigned long startTime = millis();
   
-  Serial.println(F("\nValues"));
+  //Serial.println(F("\nValues"));
   put_VCC_and_Temp_into_sendbuffer();
   
   int Time_till_now = (millis() - startTime) / 1000 ; 
@@ -517,50 +552,28 @@ void loop() {
       sprintf(myLoraWanData,"xx geen radio ontvangen xx");
     }  
   }
-  // Some Gps and give it the time it should get
-  gps_last_time = millis();
-  while (millis() - gps_last_time < gps_gets_time) {    
-    while(gps.available(ss))process_gps_values( gps.read() ); 
+  if (ss.available()) {
+    gps.available(ss);
+    process_gps_values( gps.read()); 
   }
-   
-  Serial.println(F("\nSend one LoraWan"));
-  lmic_slim_init();
-  delay(500); 
-  doOneLoraWan();
   
-  Serial.print(F("\nSleep"));
-  //=--=-=---=--=-=--=-=--=  START SLEEP HERE -=-=--=-=-=-=-==-=-=-
-
-  unsigned long processedTime = millis() - startTime;
-  long sleeptime = 0;TX_INTERVAL  - (processedTime / 1000);
-  if ( sleeptime < 0 ) sleeptime = 0;
-//  Serial.print(" TX_INTERVAL=" );
-//  Serial.print(TX_INTERVAL);
-//  Serial.print(" processedTime=" );
-//  Serial.print(processedTime);
-//  Serial.print(" sleeptime=" );
-  Serial.print(sleeptime );
-  Serial.println(F(" sec"));
+  if((millis() - last_lora_time) > (TX_INTERVAL * 1000L)) {
+    last_lora_time = millis();
+    Serial.println(F("\nSend one LoraWan"));
+    lmic_slim_init();
+    doOneLoraWan();    
+  }
   
-  //LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);    // this kind of sleep does not work
-  //Serial.println(F("sleep2 "));
-  //Sleepy::loseSomeTime(8000);  // max 60.000 (60 sec)  // this kind of sleep does not work
-  //Serial.println(F("delay "));
-  
-  delay(sleeptime * 1000);
-  
-  //=--=-=---=--=-=--=-=--=  SLEEP IS COMPLETED HERE -=-=--=-=-=-=-==-=-=-
-  
-  Serial.println(F("Wake"));
-  delay(60000); //temp fix to at least delay a bit
-  delay(60000); //temp fix to at least delay a bit
-  delay(60000); //temp fix to at least delay a bit
-  delay(60000); //temp fix to at least delay a bit
-  delay(60000); //temp fix to at least delay a bit
-  delay(60000); //temp fix to at least delay a bit
-  delay(60000); //temp fix to at least delay a bit
-  delay(60000); //temp fix to at least delay a bit
-  delay(60000); //temp fix to at least delay a bit
+//  Serial.println(F("Wake"));
+//  delay(60000); //temp fix to at least delay a bit
+//  delay(60000); //temp fix to at least delay a bit
+//  delay(60000); //temp fix to at least delay a bit
+//  delay(60000); //temp fix to at least delay a bit
+//  delay(60000); //temp fix to at least delay a bit
+//  delay(60000); //temp fix to at least delay a bit
+//  delay(60000); //temp fix to at least delay a bit
+//  delay(60000); //temp fix to at least delay a bit
+//  delay(60000); //temp fix to at least delay a bit
 }
 
 
