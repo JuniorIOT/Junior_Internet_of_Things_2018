@@ -86,7 +86,8 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
     byte 23, 24     Moisture   2 bytes, AD measurement directly from AD port
     byte 25, 26     AirPress   2 bytes, AD measurement directly from AD port
     byte 27, 28     O3         2 bytes, AD measurement directly from AD port
-                               
+    byte 29         spare
+                  
     -- OPTIONAL radio values 
     byte 21         RemoteID   ID of remote team (who shot me)
         0b0000 0000            
