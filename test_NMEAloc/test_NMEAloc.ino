@@ -74,11 +74,14 @@ void setup()
 
 void loop()
 {
-  while (gps.available( ss )) {
-    doSomeWork( gps.read() );
+//  // NMEAGPS
+//  while (gps.available( ss )) {
+//    doSomeWork( gps.read() );
+//  }
 
-    //char c = gps.read();
-    ///Serial.print(c);
-    ///doSomeWork( c );
+  if (ss.available()) {
+    char c = ss.read();
+    Serial.write(c);
   }
+  
 }

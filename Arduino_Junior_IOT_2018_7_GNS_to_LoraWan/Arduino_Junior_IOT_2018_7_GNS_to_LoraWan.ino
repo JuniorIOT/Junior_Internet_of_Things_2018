@@ -8,25 +8,26 @@
 
 #define VBATPIN A9
 #define LEDPIN 13 
-#define LORAWAN_TX_INTERVAL 60  // seconds between LoraWan messages
+#define LORAWAN_TX_INTERVAL 180  // seconds between LoraWan messages
 
 //////////////////////////////////////////////
 // GPS libraries, mappings and things
 //////////////////////////////////////////////
-#define GPS_FIX_HDOP
-#define GPS_TXD_PIN 11    // where we plugged in our GNSS GPS into Lora32u4
+#define GPS_FIX_HDOP   // to prevent eror: 'const class gps_fix' has no member named 'hdop'
 #define GPS_RXD_PIN 10  
-#ifndef GPS_FIX_HDOP
-  #error GPS_FIX_HDOP must be defined in GPSfix_cfg.h!
-#endif
+#define GPS_TXD_PIN 11    // where we plugged in our GNSS GPS into Lora32u4
 
 #include <NeoSWSerial.h>  //  We now use NeoSWSerial for lower footprint end better performance than SoftwareSerial
   // an issue with Leonardo-types is fixed in branch, yet to be merged into main version library. So you may need to remove all your NeoSWSerial libraries and add \libraries\NeoSWSerial-master-DamiaBranch.zip
 NeoSWSerial ss(GPS_RXD_PIN, GPS_TXD_PIN);
 
-#include <NMEAGPS.h>       // We now use NmeaGps (or NeoGps) as it understands newer GNSS
+// You must enable/change these lines in NMEAGPS_cfg.h:
+//          #define NMEAGPS_PARSE_GLL  // juniorIOTchallenge2018
+//          #define LAST_SENTENCE_IN_INTERVAL NMEAGPS::NMEA_GLL  // juniorIOTchallenge2018
+// and in GPSfox_cfg.h:         
+//          #define GPS_FIX_HDOP  // juniorIOTchallenge2018
+#include <NMEAGPS.h>       // We now use NmeaGps (or NeoGps) as it understands newer GNSS (default reads only GGA, RMC)
 static NMEAGPS gps;    // This parses the GPS characters
-
 
 long gps_fix_count = 0;
 long gps_nofix_count = 0;
@@ -50,7 +51,8 @@ unsigned long last_lora_time = millis(); // last time lorawan ran
 //////////////////////////////////////////////////////////
 //// Kaasfabriek routines for gps
 ////////////////////////////////////////////
-void put_gpsvalues_into_sendbuffer(long l_lat, long l_lon, long l_alt, int hdopNumber);
+//void put_gpsvalues_into_sendbuffer(long l_lat, long l_lon, long l_alt, int hdopNumber);
+void put_gpsvalues_into_sendbuffer();
 //void process_gps_values(const gps_fix & fix );
 void gps_init();
 //////////////////////////////////////////////////
@@ -82,8 +84,10 @@ void loop();
 //////////////////////////////////////////////////////////
 //// Kaasfabriek routines for gps
 ////////////////////////////////////////////
+long l_lat, l_lon, l_alt;
+int hdopNumber;
 
-void put_gpsvalues_into_sendbuffer(long l_lat, long l_lon, long l_alt, int hdopNumber) {
+void put_gpsvalues_into_sendbuffer() {
   const double shift_lat =    90 * 1000000;        // range shift from -90M..90M into 0..180M
   const double max_old_lat = 180 * 1000000;        // max value for lat is now 180M
   const double max_3byte =        16777215;        // max value that fits in 3 bytes
@@ -114,44 +118,87 @@ void put_gpsvalues_into_sendbuffer(long l_lat, long l_lon, long l_alt, int hdopN
 }
 
 // 04 datetime sec, 561398704 datetime, 526326337 lat, 47384373 lon, 8, 1.067000 kn = 1.227881 mph
-void process_gps_values(const gps_fix & fix ) {   // constant pointer to fix object
-  //  This is the best place to do your time-consuming work, right after the RMC sentence was received.  If you do anything in "loop()",
-  //     you could cause GPS characters to be lost, and you will not get a good lat/lon.
-  //  For this example, we just print the lat/lon.  If you print too much, this routine will not get back to "loop()" in time to process
-  //     the next set of GPS data.
-  long l_lat, l_lon, l_alt;
+void process_gps_values(const gps_fix & fix) {   // constant pointer to fix object
   unsigned long age; 
-  int hdopNumber;  
   bool GPS_values_are_valid = true;
   
-  if (fix.valid.location && fix.dateTime.seconds > 0) {
-    if ( fix.dateTime.seconds < 10 )
-      Serial.print( "0" );
-    Serial.print( fix.dateTime.seconds ); Serial.print(" datetime sec, ");
-    Serial.print( fix.dateTime ); Serial.print(" datetime, ");
+  Serial.print("\n ");
+  Serial.print( fix.dateTime.seconds ); Serial.print(" datetime sec, ");
     
-    Serial.print( fix.latitude(), 6 ); // floating-point display
+  //if (fix.valid.location && fix.dateTime.seconds > 0) {   
+  if (fix.valid.location ) {    
     l_lat = fix.latitudeL();
+    l_lon = fix.longitudeL();
+    l_alt = fix.alt.whole;
+    hdopNumber = fix.hdop;
+    
+    // serial print commands will take time and may affect the gps read
+    if ( fix.dateTime.seconds < 10 ) Serial.print( "0" );
+    Serial.print( fix.dateTime.seconds ); Serial.print(" datetime sec, ");
+    Serial.print( fix.dateTime ); Serial.print(" datetime, ");    
+    //Serial.print( fix.latitude(), 6 ); // floating-point display
     Serial.print( l_lat  ); Serial.print(" lat, ");
     // Serial.print( fix.longitude(), 6 ); // floating-point display
-    l_lon = fix.longitudeL();
     Serial.print( l_lon ); Serial.print(" lon, ");
-    if (fix.valid.satellites)
-      Serial.print( fix.satellites );
+    if (fix.valid.satellites)  Serial.print( fix.satellites );
     Serial.print(", ");
     Serial.print( fix.speed(), 6 );
     Serial.print( F(" kn = ") );
-    hdopNumber = fix.hdop;
-    l_alt = fix.alt.whole;
     Serial.println();
   } else {
     // No valid location data yet!
-    //Serial.println( "No valid location data yet!" );
-  }
+    Serial.print( "*" );
+  }  
+}
+
+void doGPS() {
+  Serial.println(F("\nDo GPS"));
+  // first we want to know GPS coordinates - we do accept a long delay if needed, even before listening to radio
+  unsigned long gps_listen_startTime = millis(); 
+  unsigned long gps_timeout = 3;  // sec
   
+  //now listen to gps till fix or time-out, once gps has a fix, the refresh should be ready within 2 data reads = less than 3 sec
+  // gps read command:
+
+  Serial.println(F("x"));
   
-  put_gpsvalues_into_sendbuffer( l_lat, l_lon, l_alt, hdopNumber);
+  while((millis() - gps_listen_startTime) < (gps_timeout * 1000L)) {
+    // for NMEAgps
+    while (gps.available(ss)) {
+      process_gps_values(gps.read()); 
+      Serial.print(F("."));
+    }
+  }  
   
+  Serial.println(F("\nCompleted listening to GPS."));
+//Serial.print(F(" [ "));
+//Serial.write(gps.fix().latitudeL());
+//Serial.print(F(" - "));
+//Serial.write(gps.fix().longitudeL());
+//Serial.print(F(" - "));
+//Serial.write(gps.fix().alt.whole);
+//Serial.print(F(" - "));
+//Serial.write(gps.fix().hdop);
+//Serial.print(F(" - "));
+//Serial.write(gps.fix().status);
+//Serial.print(F(" - "));
+//Serial.write(gps.fix().satellites);
+//Serial.print(F(" - "));
+//Serial.write(gps.fix().altitude_cm());
+//Serial.print(F(" - "));
+//Serial.write(gps.fix().valid.date);
+//Serial.print(F(" - "));
+//Serial.write(gps.fix().valid.time);
+//Serial.print(F(" - "));
+////Serial.write(gps.string_for( LAST_SENTENCE_IN_INTERVAL ));
+//
+//Serial.println(F(" ] "));
+
+
+  // put gps values into send buffer
+  int gps_listen_time_till_now = (millis() - gps_listen_startTime) / 1000 ; 
+  put_TimeToFix_into_sendbuffer( gps_listen_time_till_now );  
+  put_gpsvalues_into_sendbuffer();
 }
 
 void gps_init() {  
@@ -159,7 +206,8 @@ void gps_init() {
     
   // load the send buffer with dummy location 0,0. This location 0,0 is recognized as dummy by TTN Mapper and will be ignored
   //put_gpsvalues_into_sendbuffer( 0, 0, 0, 0);
-  put_gpsvalues_into_sendbuffer( 52632400, 4738800, 678, 2345); // Alkmaar
+  l_lat = 52632400; l_lon = 4738800; l_alt = 678; hdopNumber = 2345;   // Alkmaar
+  put_gpsvalues_into_sendbuffer(); 
   
   // GPS serial starting
   Serial.print( F("The NeoGps people are prowd to show their smallest possible size:\n") );
@@ -167,15 +215,15 @@ void gps_init() {
   Serial.print( F("NeoGps, NMEAGPS object size = ") ); Serial.println( sizeof(gps) );
 
   #ifdef NMEAGPS_NO_MERGING
-    Serial.println( F("Only displaying data from xxRMC sentences.\n  Other sentences may be parsed, but their data will not be displayed.") );
+    Serial.println( F("Only displaying data from xxRMC sentences.\n Other sentences may be parsed, but their data will not be displayed.") );
   #endif
   
-  Serial.flush();
+  //Serial.flush();
   ss.begin(9600);
   
   //gps_requestColdStart();  // DO NOT USE: it seems this does a FACTORY RESET and delays getting a solid fix
 //  gps_SetMode_gpsRfOn();
-//  gps_setStrings();
+  gps_setStrings();
 //  gps_setNavMode(7); // 2=stationary, 3=pedestrian, 4=auto, 5=Sea, 6=airborne 1g, 7=air 2g, 8=air 4g
   
 //  gps_setPowerMode(1);  // 1=max power, 2=eco, 3=cyclic power save
@@ -190,7 +238,96 @@ void gps_init() {
 //gps_read_chars(200);
   //gps_setPowerMode(2);
 }
-    
+
+
+void gps_setStrings() {
+  Serial.println(F("\n\nGPS some strings"));
+
+  // Turning ON or OFF  GPS NMEA strings 
+  // we need lat, lon, alt, HDOP  --> keep GGA
+
+  // GLL = Lat/Lon time fix
+  //ss.print(F("$PUBX,40,GLL,0,0,0,0*5C\r\n"));  // GLL OFF
+  ss.print(F("$PUBX,40,GLL,1,1,1,0*5D\r\n"));  // GLL ON
+
+  // ZDA = date, time
+  ss.print(F("$PUBX,40,ZDA,0,0,0,0*44\r\n"));  // ZDA OFF
+  //ss.print(F("$PUBX,40,ZDA,1,1,1,0*45\r\n"));  // ZDA ON 
+  
+  // VTG = Vector Track and speed over ground
+  ss.print(F("$PUBX,40,VTG,0,0,0,0*5E\r\n"));  // VTG OFF
+  //ss.print(F("$PUBX,40,VTG,1,1,1,0*5F\r\n"));  // VTG ON
+
+  // GSV = Satellite in View. #sentences,sentence#,#sat,[sat PRN#, elev degr, azi degr, SNR,] *check
+  ss.print(F("$PUBX,40,GSV,0,0,0,0*59\r\n"));  //GSV OFF
+  //ss.print(F("$PUBX,40,GSV,1,1,1,0*58\r\n"));  //GSV ON
+
+  // RMC = recommended minimum, no Alt
+  // ss.print(F("$PUBX,40,RMC,0,0,0,0*47\r\n"));    // RMC OFF
+  ss.print(F("$PUBX,40,RMC,1,1,1,0*46\r\n"));      // RMC ON 
+
+  // GSA = Overall Satelite status. Auto/Manual,1/2/3 D fix, PRN1, ...PRN12 satt id, pdop,hdop,vdop,*check
+  ss.print(F("$PUBX,40,GSA,0,0,0,0*4E\r\n"));  // GSA OFF
+  //ss.print(F("$PUBX,40,GSA,1,1,1,0*4F\r\n"));  // GSA ON
+
+  // GGA = Fix information. time,lat,N,lon,E,fix qual,num sat,hor dilution, alt,M,height geoid,M,time since DGPS,DGPS id, *check
+  // ss.println(F("$PUBX,40,GGA,0,0,0,0*5A"));   // GGA OFF
+  ss.println(F("$PUBX,40,GGA,1,1,1,0*5B"));   // GGA ON
+
+  //GRS
+  //$PUBX,40,GRS,0,0,0,0*5D // Turn OFF
+  //$PUBX,40,GRS,1,1,1,0*5C // Turn ON
+
+  //GST
+  //$PUBX,40,GRS,0,0,0,0*5D // Turn OFF
+  //$PUBX,40,GRS,1,1,1,0*5C // Turn ON
+
+  //gps_read_chars(300);
+  
+  unsigned long gps_listen_startTime = millis(); 
+  unsigned long gps_timeout = 3;  // sec
+  
+  Serial.println(F("x"));
+  int times_without_char=0;
+  while((millis() - gps_listen_startTime) < (gps_timeout * 1000L)) {
+    // for debugging
+    if (ss.available()) {
+      char c = ss.read();
+      Serial.write(c);
+    }
+    if(times_without_char++>30 && times_without_char<60) Serial.write(".");
+  }
+   
+      //  ...................................
+      //  $GNVTG,,T,,M,0.332,N,0.614,K,A*3C
+      //       Course and speed relative to the ground. 
+      //       (not req, not included by default)
+      //  $GNGGA,223359.00,5237.95861,N,00444.30108,E,1,12,0.66,-16.6,M,45.8,M,,*56
+      //       Time, position, and fix related data of the receiver. 
+      //       (included by default)
+      //  $GNGSA,A,3,10,28,12,17,13,15,18,24,19,,,,1.31,0.66,1.13*13
+      //  $GNGSA,A,3,74,70,71,73,81,72,,,,,,,1.31,0.66,1.13*16
+      //       ID’s of satellites which are used for position fix. $GNGSA sentence is used when both GPS and Beidou
+      //       (not req, not included by default)
+      //  $GPGSV,3,1,12,01,05,026,,10,23,305,26,11,02,015,,12,31,218,28*7C
+      //  $GPGSV,3,2,12,13,32,150,24,15,55,187,29,17,37,079,19,18,25,273,25*70
+      //  $GPGSV,3,3,12,19,35,110,25,20,03,213,08,24,66,281,24,28,15,050,11*7A
+      //       Satellite information about elevation, azimuth and CNR, $GPGSV is used for GPS satellites
+      //       (not req, not included by default)
+      //  $GLGSV,3,1,10,65,08,342,,70,09,188,19,71,46,227,33,72,43,307,14*6F
+      //  $GLGSV,3,2,10,73,76,343,21,74,29,265,10,80,33,064,,81,16,015,19*67
+      //  $GLGSV,3,3,10,82,30,067,,83,14,120,*61
+      //       Satellite information about elevation, azimuth and CNR, $GLGSV is used for GLONASS satellites
+      //       (not req, not included by default)
+      //  $GNGLL,5237.95861,N,00444.30108,E,223359.00,A,A*75
+      //       Position, time and fix status.  
+      //       (required, not included by default)
+      //  ...................................
+      // #define LAST_SENTENCE_IN_INTERVAL NMEAGPS::NMEA_RMC
+      //       actually we do not see any $GPRMC, $GNRMC (Time, date, position, course and speed data.)
+
+}
+
 //////////////////////////////////////////////////
 // Kaasfabriek routines for LMIC_slim for LoraWan
 ///////////////////////////////////////////////
@@ -490,7 +627,8 @@ void setup() {
   Serial.print(F("\n Starting\ndevice:")); Serial.println(DEVADDR); Serial.println();
   device_startTime = millis();
 
-  gps_init(); put_gpsvalues_into_sendbuffer( 52632400, 4738800, 678, 2345);
+  gps_init(); 
+  doGPS();
   
   Serial.println(F("\nlmic init"));
   lmic_slim_init();  
@@ -516,19 +654,19 @@ void loop() {
   Serial.println(F("\n==== Loop starts. "));
   digitalWrite(LEDPIN, !digitalRead(LEDPIN)); 
 
-  ////// GPS pre-loop //////////////
-  Serial.println(F("\nGPS 1 "));
-  // first we want to know GPS coordinates - we do accept a long delay if needed, even before listening to radio
-  unsigned long gps_listen_startTime = millis();  
-  //now listen to gps till fix or time-out, once gps has a fix, the refresh should be ready within 2 data reads = less than 3 sec
-  // gps read command:
-  if (ss.available()) {
-    gps.available(ss);
-    process_gps_values( gps.read()); 
-  }
-  // put gps values into send buffer
-  int gps_listen_time_till_now = (millis() - gps_listen_startTime) / 1000 ; 
-  put_TimeToFix_into_sendbuffer( gps_listen_time_till_now );
+//  ////// GPS pre-loop //////////////
+//  Serial.println(F("\nGPS 1 "));
+//  // first we want to know GPS coordinates - we do accept a long delay if needed, even before listening to radio
+//  unsigned long gps_listen_startTime = millis();  
+//  //now listen to gps till fix or time-out, once gps has a fix, the refresh should be ready within 2 data reads = less than 3 sec
+//  // gps read command:
+//  if (ss.available()) {
+//    gps.available(ss);
+//    process_gps_values( gps.read()); 
+//  }
+//  // put gps values into send buffer
+//  int gps_listen_time_till_now = (millis() - gps_listen_startTime) / 1000 ; 
+//  put_TimeToFix_into_sendbuffer( gps_listen_time_till_now );
 
   ////////// Radio  ///////////
   Serial.println(F("\nRadio listen? "));
@@ -549,7 +687,7 @@ void loop() {
     }  
   } else {
     //not listening to radio at all, we may as well use delay for a bit 
-    Serial.print(F("\nWe need to delay a bit before lorawan: ")); Serial.print(LORAWAN_TX_INTERVAL); Serial.print(F(" sec."));
+    Serial.print(F("\nNo radio listen required. We need to delay a bit before lorawan: ")); Serial.print(LORAWAN_TX_INTERVAL); Serial.print(F(" sec."));
     while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L)) {
       delay(5000);   
       Serial.print(F("."));
@@ -563,16 +701,7 @@ void loop() {
   Serial.println(F("collect values for message"));
   put_Volts_and_Temp_into_sendbuffer();
   // gps
-  gps_listen_startTime = millis();  
-  //now listen to gps till fix or time-out, once gps has a fix, the refresh should be ready within 2 data reads = less than 3 sec
-  // gps read command:
-  if (ss.available()) {
-    gps.available(ss);
-    process_gps_values( gps.read()); 
-  }
-  // put gps values into send buffer
-   gps_listen_time_till_now = (millis() - gps_listen_startTime) / 1000 ; 
-  put_TimeToFix_into_sendbuffer( gps_listen_time_till_now );
+  doGPS();
 
   // LORAWAN:
   // switch the LMIC antenna to LoraWan mode
