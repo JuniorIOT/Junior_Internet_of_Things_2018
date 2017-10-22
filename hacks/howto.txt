@@ -1,0 +1,4 @@
+This is a hack for the sodaq explorer to function with neogps.
+Didn't test yet.
+Put the file in .arduino15/packages/SODAQ/hardware/samd/1.6.14/cores/arduino/avr/pgmspace.h (linux) 
+Donno where that is in windows
