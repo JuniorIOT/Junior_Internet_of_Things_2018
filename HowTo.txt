@@ -54,7 +54,9 @@ Start a new arduino project, copy-paste the sample code from the adafruit instru
 I have adjusted a few things; see github. When using two nodes both with the 'send' version, it appears that not all messages get received. 
 Can you see how many messages are received and how many times there is no answer? Think about why this happens.
 
-
+for sodaq explorer:
+http://support.sodaq.com/sodaq-one/explorer/
+http://downloads.sodaq.net/package_sodaq_samd_index.json
 
 
 
