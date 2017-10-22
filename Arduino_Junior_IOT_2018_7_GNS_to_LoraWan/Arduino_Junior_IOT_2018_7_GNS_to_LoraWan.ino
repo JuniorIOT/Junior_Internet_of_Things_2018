@@ -212,8 +212,8 @@ void gps_init() {
   Serial.print(F("\nGPS init. milis=")); Serial.println(millis());
     
   // load the send buffer with dummy location 0,0. This location 0,0 is recognized as dummy by TTN Mapper and will be ignored
-  //put_gpsvalues_into_sendbuffer( 0, 0, 0, 0);
-  l_lat = 52632400; l_lon = 4738800; l_alt = 678; hdopNumber = 2345;   // Alkmaar
+  //l_lat = 526324000; l_lon = 47388000; l_alt = 678; hdopNumber = 2345;   // Alkmaar
+  l_lat = 0; l_lon = 0; l_alt = 678; hdopNumber = 9999;   // the zero position
   put_gpsvalues_into_sendbuffer(); 
   
 //  Serial.print( F("The NeoGps people are proud to show their smallest possible size:\n") );
