@@ -8,7 +8,7 @@
 
 #define VBATPIN A9
 #define LEDPIN 13 
-#define LORAWAN_TX_INTERVAL 180  // seconds between LoraWan messages
+#define LORAWAN_TX_INTERVAL 240  // seconds between LoraWan messages
 
 //////////////////////////////////////////////
 // GPS libraries, mappings and things
@@ -379,13 +379,14 @@ void doOneLoraWan() {
   delay (10);
   //digitalWrite(LED_BUILTIN, HIGH);
   digitalWrite(LEDPIN, !digitalRead(LEDPIN));
-  Serial.print("\ntxLora. milis="); Serial.println(millis());
+  Serial.print("  txLora. milis="); Serial.println(millis());
   txlora();
-  Serial.print("\nntxLora completed. milis="); Serial.println(millis());
+  Serial.print("  txLora completed. milis="); Serial.println(millis());
   delay(200);           // this is a simple wait with no checking for TX Ready. Sdjust this for your SF.
                           // Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms. 
                           // with 30-50 bytes: SF12 = 2 seconds, SF10 = 0,5 sec, SF8 = 120 msec, SF7= 70 msec. One device has 30 seconds per day airtime.
   //digitalWrite(LED_BUILTIN, LOW);
+  Serial.print("  send time delay completed. milis="); Serial.println(millis());
   digitalWrite(LEDPIN, !digitalRead(LEDPIN));
   setopmode(0x00);                     // opmode SLEEP; better not tell lorawan to go to sleep before message is done
   Serial.print("Completed: Do one lora. milis="); Serial.println(millis());
@@ -693,7 +694,7 @@ void loop() {
     }  
   } else {
     //not listening to radio at all, we may as well use delay for a bit 
-    Serial.print(F("  No radio listen required, so instead just add a delay before lorawan: ")); Serial.print(LORAWAN_TX_INTERVAL); Serial.print(F(" sec."));
+    Serial.print(F("  No radio listen required, so instead just add a delay before lorawan: \n    ")); Serial.print(LORAWAN_TX_INTERVAL); Serial.print(F(" sec."));
     while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L)) {
       delay(5000);   
       Serial.print(F("."));
