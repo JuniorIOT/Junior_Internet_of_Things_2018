@@ -1,0 +1,53 @@
+ps. marco this is allready in the word document. by it helps me think
+
+Include libraries
+Set initial variables
+check or wait for gps
+check or wait for lorawan
+
+start loop
+
+read compass() every COMPASS_INTERVAL seconds
+keep checking gns every GNS_INTERVAL seconds
+keep sending to lorawan every TX_INTERVAL seconds
+keep checking for radio every RADIO_INTERVAL seconds
+
+
+if(button) then:
+hasshot is true;
+negotiateState is 1;
+endif
+
+
+// fire
+if(hasshot and negotiateState is 1):
+send radio broadcast that a shot has been fired by X(you) towards coordinates
+send lorawan messenge to the internet that a shot has been fired by X(you) towards coordinates
+negotiateState is 2
+endif
+
+// hit!
+if(hasshot and negotiateState is 2):
+and radio messenge came in that id Y has been shot by X**
+if you are X
+play song - a hit!
+endif
+
+if(radio came in)
+if(messenge says a shot has been fired by Y towards coordinates from coordinates in direction)
+if(check if that shot was towards you and you are in range());
+Send radio that you have been hit by Y and that you are X();
+send lorawan messenge to the internet that X(you) has been hit();
+play song - i have been shot();
+endif 
+endif
+
+** - maybe here
+endif
+
+
+endif
+
+end loop
+
+
