@@ -88,20 +88,53 @@ long l_lat, l_lon, l_alt;
 int hdopNumber;
 
 void put_gpsvalues_into_sendbuffer() {
-  const double shift_lat =    90 * 1000000;        // range shift from -90M..90M into 0..180M
-  const double max_old_lat = 180 * 1000000;        // max value for lat is now 180M
-  const double max_3byte =        16777215;        // max value that fits in 3 bytes
-  double lat_float = l_lat;                        // put the 4byte LONG into a more precise floating point to prevent round-off effect in calculation
-  lat_float = (lat_float + shift_lat) * max_3byte / max_old_lat; // rescale into 3 byte integer range
-  uint32_t LatitudeBinary = lat_float;             // clips off anything after the decimal point    
-  const double shift_lon =   180 * 1000000;        // range shift from -180M..180M into 0..360M
-  const double max_old_lon = 360 * 1000000;        // max value longitude is now 360M
-  double lon_float = l_lon;                        // put the 4byte LONG into a precise floating point memory space
-  lon_float = (lon_float + shift_lon) * max_3byte / max_old_lon; // rescale into 3 byte integer range
-  uint32_t LongitudeBinary = lon_float;             // clips off anything after the decimal point  
-  uint16_t altitudeBinary = l_alt/100;         // altitudeGps in meters, l_alt from tinyGPS is integer in centimeters
-  if (l_alt<0) altitudeBinary=0;               // unsigned int wil not allow negative values and warps them to huge number, needs to be zero'ed  
-  uint8_t HdopBinary = hdopNumber/10;   // from TinyGPS horizontal dilution of precision in 100ths, TinyGPSplus seems the same in 100ths as per MNEMA string
+  Serial.println(F("Started: put_gpsvalues_into_sendbuffer"));
+  //   GPS reading = Satellite time hh:mm:18, lat 526326595, lon 47384133, alt 21, hdop 990, sat count = 12
+  // With the larger precision in LONG values in NMEAGPS, 
+  //    when rescaling, the values exceed the range for type LONG  -2.147.483.648 .. 2.147.483.647
+  //    so we need to use DOUBLE with 15 digits precision, not preferred is FLOAT with 7 digits
+  //    our values such as 526326595 have 9 digits
+    
+  const double shift_lat     =    90. * 10000000.;                 // range shift from -90..90 into 0..180, note: 
+                                                                 //      NMEAGPS long lat&lon are degree values * 10.000.000
+                                                                 //      TynyGPS long lat&lon are degree values * 1.000.000
+  const double max_old_lat   =   180. * 10000000.;                 // max value for lat is now 180
+  const double max_3byte     =         16777215.;                   // max value that fits in 3 bytes
+  double lat_DOUBLE         = l_lat;                              // put 4byte LONG into a more precise floating point to prevent rounding during calcs 
+  lat_DOUBLE = (lat_DOUBLE + shift_lat) * max_3byte / max_old_lat; // rescale into 3 byte integer range
+  uint32_t LatitudeBinary  = lat_DOUBLE;                          // clips off anything after the decimal point    
+  const double shift_lon     =   180. * 10000000.;                 // range shift from -180..180 into 0..360
+  const double max_old_lon   = 360. * 10000000.;                   // max value longitude is now 360, note the value is too big for Long type
+  double lon_DOUBLE = l_lon;                                      // put the 4byte LONG into a precise floating point memory space
+  lon_DOUBLE = (lon_DOUBLE + shift_lon) * max_3byte / max_old_lon; // rescale into 3 byte integer range
+  uint32_t LongitudeBinary = lon_DOUBLE;                          // clips off anything after the decimal point  
+  uint16_t altitudeBinary  = l_alt    ;                          // we want altitudeGps in meters, note:
+                                                                 //      NMEAGPS alt.whole is meter value 
+                                                                 //      TynyGPS long alt is meter value * 100
+  if (l_alt<0) altitudeBinary=0;                                 // unsigned int wil not allow negative values and warps them to huge number  
+  uint8_t HdopBinary = hdopNumber/100;                           // we want horizontal dillution, good is 2..5, poor is >20. Note:
+                                                                 //      NMEAGPS outputs an indoor value of 600..1000. Let's divide by 100
+                                                                 //      from TinyGPS horizontal dilution of precision in 100ths? We succesfully divided by 10
+                                                                 //      TinyGPSplus seems the same in 100ths as per MNEMA string. We succesfully divided by 10
+  
+//  Serial.print(F("  shift_lat = "));Serial.println(shift_lat);
+//  Serial.print(F("  max_old_lat = "));Serial.println(max_old_lat);
+//  Serial.print(F("  max_3byte = "));Serial.println(max_3byte);
+//  Serial.print(F("  l_lat = "));Serial.println(l_lat);
+//  Serial.print(F("  lat_float = "));Serial.println(lat_float);
+//  Serial.print(F("  LatitudeBinary = "));Serial.println(LatitudeBinary);
+//  
+//  Serial.print(F("\n  shift_lon = "));Serial.println(shift_lon);
+//  Serial.print(F("  max_old_lon = "));Serial.println(max_old_lon);
+//  Serial.print(F("  l_lon = "));Serial.println(l_lon);
+//  Serial.print(F("  lon_float = "));Serial.println(lon_float);
+//  Serial.print(F("  LongitudeBinary = "));Serial.println(LongitudeBinary);
+//  
+//  Serial.print(F("\n  l_alt = "));Serial.println(l_alt);
+//  Serial.print(F("  altitudeBinary = "));Serial.println(altitudeBinary);
+//  
+//  Serial.print(F("\n  hdopNumber = "));Serial.println(hdopNumber);
+//  Serial.print(F("  HdopBinary = "));Serial.println(HdopBinary);
   
   myLoraWanData[0] = ( LatitudeBinary >> 16 ) & 0xFF;
   myLoraWanData[1] = ( LatitudeBinary >> 8 ) & 0xFF;
@@ -114,6 +147,13 @@ void put_gpsvalues_into_sendbuffer() {
   myLoraWanData[7] = altitudeBinary & 0xFF;
   // hdop in tenths of meter
   myLoraWanData[8] = HdopBinary & 0xFF;
+
+  print_myLoraWanData();
+  
+//  Dummy satellite values: time hh:mm:5, lat 52632400, lon 4738800, alt 678, hdop 2345, sat count = 12
+//       0  1  2  3  4  5  6  7  8   
+//     [87 7C 49 80 56 44 02 A6 17 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  .. ]
+
 }
 
 void process_gps_datastream(const gps_fix & fix) {   // constant pointer to fix object
@@ -125,10 +165,11 @@ void process_gps_datastream(const gps_fix & fix) {   // constant pointer to fix 
     l_lat = fix.latitudeL();
     l_lon = fix.longitudeL();
     l_alt = fix.alt.whole;
+    //l_alt = fix.altitude_cm;
     hdopNumber = fix.hdop;
     
     // serial print commands will take time and may affect the gps read
-    Serial.print("  Sattelite time hh:mm:"); Serial.print( fix.dateTime.seconds ); Serial.print(", ");
+    Serial.print("  Satellite time hh:mm:"); Serial.print( fix.dateTime.seconds ); Serial.print(", ");
     Serial.print("lat "); Serial.print( l_lat  ); Serial.print(", ");
     Serial.print("lon "); Serial.print( l_lon ); Serial.print(", ");
     Serial.print("alt "); Serial.print( l_alt ); Serial.print(", ");
@@ -137,6 +178,8 @@ void process_gps_datastream(const gps_fix & fix) {   // constant pointer to fix 
     //Serial.print( fix.dateTime ); Serial.print(" datetime, ");    
     //Serial.print( fix.latitude(), 6 ); // floating-point display
     // Serial.print( fix.longitude(), 6 ); // floating-point display
+    //   Satellite time hh:mm:18, lat 526326595, lon 47384133, alt 21, hdop 990, sat count = 12
+    
     Serial.println();
   } else {
     Serial.print( "(no valid location) " );
@@ -173,10 +216,9 @@ void gps_init() {
   l_lat = 52632400; l_lon = 4738800; l_alt = 678; hdopNumber = 2345;   // Alkmaar
   put_gpsvalues_into_sendbuffer(); 
   
-  // GPS serial starting
-  Serial.print( F("The NeoGps people are prowd to show their smallest possible size:\n") );
-  Serial.print( F("NeoGps, fix object size = ") ); Serial.println( sizeof(gps.fix()) );
-  Serial.print( F("NeoGps, NMEAGPS object size = ") ); Serial.println( sizeof(gps) );
+//  Serial.print( F("The NeoGps people are proud to show their smallest possible size:\n") );
+//  Serial.print( F("NeoGps, fix object size = ") ); Serial.println( sizeof(gps.fix()) );
+//  Serial.print( F("NeoGps, NMEAGPS object size = ") ); Serial.println( sizeof(gps) );
 
   #ifdef NMEAGPS_NO_MERGING
     Serial.println( F("Only displaying data from xxRMC sentences.\n Other sentences may be parsed, but their data will not be displayed.") );
@@ -317,21 +359,29 @@ void lmic_slim_init() {
     //       SNR   Signal to noise ratio, as low as -20dB seems workable. I get -5 from my work table.
 }
 
-void doOneLoraWan() {
-  Serial.print("\nStart: Do one lora. milis="); Serial.println(millis());
-  Serial.print(F("  myLoraWanData = [")); Serial.print((char*)myLoraWanData); Serial.print("]");
-  Serial.print(F("                  [ "));  
-  for(int i=0; i<20; i++) {  
-    Serial.print(myLoraWanData[i], HEX); Serial.print(F(" "));  
+void print_myLoraWanData() {
+  Serial.print(F("  myLoraWanData = [")); 
+  //Serial.print((char*)myLoraWanData); Serial.println("]"); Serial.print(F("                  [ "));  
+  for(int i=0; i<30; i++) {  
+    if (myLoraWanData[i] < 16) Serial.print("0"); 
+    Serial.print(myLoraWanData[i], HEX); 
+    Serial.print(F(" "));  
   }  
   Serial.println(F(" .. ]"));
+}
 
+void doOneLoraWan() {
+  Serial.print("\nStart: Do one lora. milis="); Serial.println(millis());
+  print_myLoraWanData();
+  
   LMIC_setTxData2(myLoraWanData, sizeof(myLoraWanData)-1);
   radio_init();                                                       
   delay (10);
   //digitalWrite(LED_BUILTIN, HIGH);
   digitalWrite(LEDPIN, !digitalRead(LEDPIN));
+  Serial.print("\ntxLora. milis="); Serial.println(millis());
   txlora();
+  Serial.print("\nntxLora completed. milis="); Serial.println(millis());
   delay(200);           // this is a simple wait with no checking for TX Ready. Sdjust this for your SF.
                           // Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms. 
                           // with 30-50 bytes: SF12 = 2 seconds, SF10 = 0,5 sec, SF8 = 120 msec, SF7= 70 msec. One device has 30 seconds per day airtime.
@@ -486,19 +536,19 @@ double GetTemp(void) { //http://playground.arduino.cc/Main/InternalTemperatureSe
   return (t);
 }
 
-//long readVccCPU() {  //http://dumbpcs.blogspot.nl/2013/07/arduino-secret-built-in-thermometer.html
-//  long result;
-//  // Read 1.1V reference against AVcc 
-//  //ATmega32U4 has 2.56V ref instead of 1.1?
-//  ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
-//  delay(2); // Wait for Vref to settle
-//  ADCSRA |= _BV(ADSC); // Convert
-//  while (bit_is_set(ADCSRA,ADSC));
-//  result = ADCL;
-//  result |= ADCH<<8;
-//  result = 1126400L / result; // Back-calculate AVcc in mV
-//  return result;
-//}
+long readVccCPU() {  //http://dumbpcs.blogspot.nl/2013/07/arduino-secret-built-in-thermometer.html
+  long result;
+  // Read 1.1V reference against AVcc 
+  //ATmega32U4 has 2.56V ref instead of 1.1?
+  ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
+  delay(2); // Wait for Vref to settle
+  ADCSRA |= _BV(ADSC); // Convert
+  while (bit_is_set(ADCSRA,ADSC));
+  result = ADCL;
+  result |= ADCH<<8;
+  result = 1126400L / result; // Back-calculate AVcc in mV
+  return result;
+}
 
 long readVbat() {
   long result;
@@ -515,14 +565,25 @@ long readVbat() {
   return result;
 }
 
+void put_Compass_and_Btn_into_sendbuffer() {
+  //long compass = readCompass();
+  long compass = 123;  // 0..360 deg
+  uint8_t compass_bin = compass/3 ;  // rescale 0-360 deg into 0 - 120 values and make sure it is not bigger than one byte
+  // now add a bit for BTN (not implemented)
+  myLoraWanData[9] = compass_bin;
+  //#ifdef DEBUG
+  Serial.print(F("  compass=")); Serial.print(compass); Serial.print(F("  deg. compass_bin=")); Serial.println(compass_bin);
+  //#endif
+}
+
 void put_Volts_and_Temp_into_sendbuffer() {
 
-  //long vcc = readVcc();
-  long vcc = 0;
+  long vcc = readVccCPU();
+  //long vcc = 0;
   uint8_t vcc_bin = vcc/20 ;  // rescale 0-5100 milli volt into 0 - 255 values and make sure it is not bigger than one byte
   myLoraWanData[10] = vcc_bin;
   //#ifdef DEBUG
-  Serial.print(F("  (not implemented yet) Vcc=")); Serial.print(vcc); Serial.print(F(" mV. vcc_bin=")); Serial.print(vcc_bin);
+  Serial.print(F("  Vcc=")); Serial.print(vcc); Serial.print(F(" mV. vcc_bin=")); Serial.println(vcc_bin);
   //#endif
   
   double temperature = GetTemp();
@@ -541,40 +602,28 @@ void put_Volts_and_Temp_into_sendbuffer() {
 }
 
 void put_TimeToFix_into_sendbuffer(int TimeToFix_Seconds) {  // time to fix onto gps coordinates
-  int TimeToFix_Calculate;  // this helps to calculate but no round-off yet
-  if ( TimeToFix_Seconds < 0) {
-    TimeToFix_Calculate=0;
-  } else if ( TimeToFix_Seconds <= (1 * 60) ) {  
-    TimeToFix_Calculate = TimeToFix_Seconds;                  // 0..60 sec  at 1 sec interval <==> values 0 .. 60 
-  } else if ( TimeToFix_Seconds <= (10 * 60) ) {    
-    TimeToFix_Calculate = 60 + (TimeToFix_Seconds - (1* 60) )/5 ;   // 1..10 min at 5 sec interval  <==> values 60 ..  168 
-  } else if ( TimeToFix_Seconds <= (60 * 60) ) {  
-    TimeToFix_Calculate = 168 + (TimeToFix_Seconds - (10 * 60) )/60 ;   // 10..60 min at 1 min interval <==> values 168 .. 218     
-  } else {
-    TimeToFix_Calculate = 218 + (TimeToFix_Seconds - (60 * 60) )/600 ;    // 1..7:00 hour at 10 min interval <==> values 218 ..254   
-  }
-  if (TimeToFix_Calculate>255) TimeToFix_Calculate = 255 ;                  //  more than 7 hour = 255
-  
-  uint8_t TimeToFix_bin = TimeToFix_Calculate;  // this can contain the values 0..255,
-      
-  myLoraWanData[11] = TimeToFix_bin;
-  #ifdef DEBUG
-  Serial.print(F("TTF=")); Serial.print(TimeToFix_Seconds); Serial.print(F(" sec. bin=")); Serial.print(TimeToFix_bin);
-  #endif
+//  int TimeToFix_Calculate;  // this helps to calculate but no round-off yet
+//  if ( TimeToFix_Seconds < 0) {
+//    TimeToFix_Calculate=0;
+//  } else if ( TimeToFix_Seconds <= (1 * 60) ) {  
+//    TimeToFix_Calculate = TimeToFix_Seconds;                  // 0..60 sec  at 1 sec interval <==> values 0 .. 60 
+//  } else if ( TimeToFix_Seconds <= (10 * 60) ) {    
+//    TimeToFix_Calculate = 60 + (TimeToFix_Seconds - (1* 60) )/5 ;   // 1..10 min at 5 sec interval  <==> values 60 ..  168 
+//  } else if ( TimeToFix_Seconds <= (60 * 60) ) {  
+//    TimeToFix_Calculate = 168 + (TimeToFix_Seconds - (10 * 60) )/60 ;   // 10..60 min at 1 min interval <==> values 168 .. 218     
+//  } else {
+//    TimeToFix_Calculate = 218 + (TimeToFix_Seconds - (60 * 60) )/600 ;    // 1..7:00 hour at 10 min interval <==> values 218 ..254   
+//  }
+//  if (TimeToFix_Calculate>255) TimeToFix_Calculate = 255 ;                  //  more than 7 hour = 255
+//  
+//  uint8_t TimeToFix_bin = TimeToFix_Calculate;  // this can contain the values 0..255,
+//      
+//  myLoraWanData[11] = TimeToFix_bin;
+//  #ifdef DEBUG
+//  Serial.print(F("TTF=")); Serial.print(TimeToFix_Seconds); Serial.print(F(" sec. bin=")); Serial.print(TimeToFix_bin);
+//  #endif
 }
 
-void put_Compass_and_Btn_into_sendbuffer() {
-
-  //long compass = readCompass();
-  long compass = 123;  // 0..360 deg
-  uint8_t compass_bin = compass/3 ;  // rescale 0-360 deg into 0 - 120 values and make sure it is not bigger than one byte
-  // now add a bit for BTN (not implemented)
-  myLoraWanData[9] = compass_bin;
-  //#ifdef DEBUG
-  Serial.print(F("  (not implemented yet) compass=")); Serial.print(compass); Serial.print(F("  deg. compass_bin=")); Serial.println(compass_bin);
-  //#endif
-  
-}
 
 ///////////////////////////////////////////////
 //  arduino init and main
@@ -601,13 +650,16 @@ void setup() {
   doGPS_and_put_values_into_sendbuffer();   
 
   Serial.print(F("\nSend one lorawan message as part of system init. milis=")); Serial.println(millis());
-  LMIC_setTxData2(myLoraWanData, sizeof(myLoraWanData)-1);
-  radio_init();                                                       
-  delay (10);
-  txlora();
-  delay(200);                    // wacht op TX ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
-  setopmode(0x00);                // opmode SLEEP
+//  LMIC_setTxData2(myLoraWanData, sizeof(myLoraWanData)-1);
+//  radio_init();                                                       
+//  delay (10);
+//  txlora();
+//  delay(200);                    // wacht op TX ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
+//  setopmode(0x00);                // opmode SLEEP
+//  last_lora_time = millis();
   last_lora_time = millis();
+  lmic_slim_init();
+  doOneLoraWan();    
   
   Serial.print(F("\nCompleted: Setup. milis=")); Serial.println(millis());
 }
@@ -623,7 +675,7 @@ void loop() {
   // Serial.println(F("\nNo lengthy GPS read-till-fix is needed, the GPS will find/keep a fix as log as power is on. "));
 
   ////////// Radio  ///////////
-  Serial.println(F("\nRadio listen? "));
+  Serial.print(F("\nRadio listen? milis=")); Serial.println(millis());
   // now listen a long time for a radio message which we may want to act on, or for a keypress on our side 
   // time needs to be long enough not to miss a radio, we do not worry about GPS as it will keep fix as long as powered
   if(radioActive) {
@@ -651,15 +703,15 @@ void loop() {
   // we keep doing this part until it is time to send one LORAWAN TX to the worl
 
   ////////// Collect data needed just before sending a LORAWAN update to the world  ///////////
-  Serial.println(F("\nCollect data needed just before sending a LORAWAN update "));
+  Serial.println(F("\nCollect data needed just before sending a LORAWAN update. milis=")); Serial.println(millis());
   put_Volts_and_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
   doGPS_and_put_values_into_sendbuffer();
 
   ////////// Now we need to send a LORAWAN update to the world  ///////////
   // switch the LMIC antenna to LoraWan mode
+  Serial.println(F("Time or button press tells us to send one LoraWan. milis=")); Serial.println(millis());
   last_lora_time = millis();
-  Serial.println(F("Time or button press tells us to send one LoraWan"));
   lmic_slim_init();
   doOneLoraWan();    
   
