@@ -10,7 +10,7 @@
 #include <rn2xx3.h>
 #include "keys.h"
 #define mySerial Serial2
-#define PAYLOADSIZE 9 // The size of the package to be sent
+#define PAYLOADSIZE 12 // The size of the package to be sent
 
 //create an instance of the rn2xx3 library,
 //giving the software serial as port to use
@@ -112,7 +112,7 @@ void put_gpsvalues_into_sendbuffer() {
   //    when rescaling, the values exceed the range for type LONG  -2.147.483.648 .. 2.147.483.647
   //    so we need to use DOUBLE with 15 digits precision, not preferred is FLOAT with 7 digits
   //    our values such as 526326595 have 9 digits
-    
+ 
   const double shift_lat     =    90. * 10000000.;                 // range shift from -90..90 into 0..180, note: 
                                                                  //      NMEAGPS long lat&lon are degree values * 10.000.000
                                                                  //      TynyGPS long lat&lon are degree values * 1.000.000
@@ -315,9 +315,9 @@ void gps_setStrings() {
     // for debugging
     if (ss.available()) {
       char c = ss.read();
-      Serial.write(c);
+      SerialUSB.write(c);
     }
-    if(times_without_char++>30 && times_without_char<60) Serial.write(".");
+    if(times_without_char++>30 && times_without_char<60) SerialUSB.write(".");
   }
   SerialUSB.println();
   
@@ -405,7 +405,7 @@ void doOneLoraWan() {
 
     
     SerialUSB.print("  txLora. milis="); SerialUSB.println(millis());
-    myLora.txBytes(myLoraWanData, sizeof(PAYLOADSIZE));
+    myLora.txBytes(myLoraWanData, PAYLOADSIZE);
     SerialUSB.print("  txLora completed. milis="); SerialUSB.println(millis());
     led_off();
    SerialUSB.print("  send time delay completed. milis="); SerialUSB.println(millis());
@@ -537,7 +537,7 @@ void setup() {
   pinMode(LEDPIN, OUTPUT);
   delay(1000);  // https://www.thethingsnetwork.org/forum/t/got-adafruit-feather-32u4-lora-radio-to-work-and-here-is-how/6863
   
-  Serial.begin(115200);   // whether 9600 or 115200; the gps feed shows repeated char and cannot be interpreted, setting high value to release system time
+  SerialUSB.begin(115200);   // whether 9600 or 115200; the gps feed shows repeated char and cannot be interpreted, setting high value to release system time
   delay(100);
 
   SerialUSB.print(F("\nStarting device: ")); SerialUSB.println(DEVADDR); 

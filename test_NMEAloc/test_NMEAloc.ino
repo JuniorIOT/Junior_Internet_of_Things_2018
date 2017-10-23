@@ -1,9 +1,8 @@
-//#include <SoftwareSerial.h>  // better use NeoSWSerial, they claim it is much lighter, misses less characters and that would be nice
-//SoftwareSerial ss(10, 11);
-//#define Serial1 ss
+//#include <SoftwareSerialUSB.h>  // better use NeoSWSerialUSB, they claim it is much lighter, misses less characters and that would be nice
+//SoftwareSerialUSB ss(10, 11);
+//#define SerialUSB1 ss
 
-#include <NeoSWSerial.h>  // an issue with Leonardo-types is fixed in branch, yet to be merged. So you may need to remove all your NeoSWSerial libraries and add \libraries\NeoSWSerial-master-DamiaBranch.zip
-NeoSWSerial ss( 10, 11 );
+#define ss Serial
 
 #include <NMEAGPS.h>
 static NMEAGPS  gps; // This parses the GPS characters
@@ -23,51 +22,51 @@ static void doSomeWork( const gps_fix & fix )
 
   if (fix.valid.location) {
     if ( fix.dateTime.seconds < 10 )
-      Serial.print( "0" );
-    Serial.print( fix.dateTime.seconds );
-    Serial.print(" datetime sec, ");
+      SerialUSB.print( "0" );
+    SerialUSB.print( fix.dateTime.seconds );
+    SerialUSB.print(" datetime sec, ");
     
-    Serial.print( fix.dateTime );
-    Serial.print(" datetime, ");
+    SerialUSB.print( fix.dateTime );
+    SerialUSB.print(" datetime, ");
     
 
-    // Serial.print( fix.latitude(), 6 ); // floating-point display
-    Serial.print( fix.latitudeL() ); // integer display
-    Serial.print(" lat, ");
-    // Serial.print( fix.longitude(), 6 ); // floating-point display
-    Serial.print( fix.longitudeL() );  // integer display
+    // SerialUSB.print( fix.latitude(), 6 ); // floating-point display
+    SerialUSB.print( fix.latitudeL() ); // integer display
+    SerialUSB.print(" lat, ");
+    // SerialUSB.print( fix.longitude(), 6 ); // floating-point display
+    SerialUSB.print( fix.longitudeL() );  // integer display
     
-    Serial.print(" lon, ");
+    SerialUSB.print(" lon, ");
     if (fix.valid.satellites)
-      Serial.print( fix.satellites );
+      SerialUSB.print( fix.satellites );
 
-    Serial.print(", ");
-    Serial.print( fix.speed(), 6 );
-    Serial.print( F(" kn = ") );
-    Serial.print( fix.speed_mph(), 6 );
-    Serial.print( F(" mph") );
+    SerialUSB.print(", ");
+    SerialUSB.print( fix.speed(), 6 );
+    SerialUSB.print( F(" kn = ") );
+    SerialUSB.print( fix.speed_mph(), 6 );
+    SerialUSB.print( F(" mph") );
   } else {
     // No valid location data yet!
-    Serial.print( 'No valid location data yet!' );
+    SerialUSB.print( 'No valid location data yet!' );
   }
-  Serial.println();
+  SerialUSB.println();
 } 
 
 void setup()
 {
   
-  Serial.begin(9600);
+  SerialUSB.begin(9600);
 
-  Serial.print( F("NMEAloc.INO: started\n") );
-  Serial.print( F("fix object size = ") );
-  Serial.println( sizeof(gps.fix()) );
-  Serial.print( F("NMEAGPS object size = ") );
-  Serial.println( sizeof(gps) );
+  SerialUSB.print( F("NMEAloc.INO: started\n") );
+  SerialUSB.print( F("fix object size = ") );
+  SerialUSB.println( sizeof(gps.fix()) );
+  SerialUSB.print( F("NMEAGPS object size = ") );
+  SerialUSB.println( sizeof(gps) );
 
   #ifdef NMEAGPS_NO_MERGING
-    Serial.println( F("Only displaying data from xxRMC sentences.\n  Other sentences may be parsed, but their data will not be displayed.") );
+    SerialUSB.println( F("Only displaying data from xxRMC sentences.\n  Other sentences may be parsed, but their data will not be displayed.") );
   #endif
-  Serial.flush();
+  SerialUSB.flush();
 
   ss.begin(9600);
 }
@@ -75,13 +74,13 @@ void setup()
 void loop()
 {
 //  // NMEAGPS
-//  while (gps.available( ss )) {
-//    doSomeWork( gps.read() );
-//  }
-
-  if (ss.available()) {
-    char c = ss.read();
-    Serial.write(c);
+  while (gps.available( ss )) {
+    doSomeWork( gps.read() );
   }
-  
+
+/*  if (ss.available()) {
+    char c = ss.read();
+    SerialUSB.write(c);
+  }
+  */
 }
