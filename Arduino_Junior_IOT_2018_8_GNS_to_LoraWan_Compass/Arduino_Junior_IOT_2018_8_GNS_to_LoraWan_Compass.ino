@@ -39,7 +39,7 @@ unsigned long gps_gets_time = 5000;
 //////////////////////////////////////////////
 
 //#include <SPI.h>  //MISO MOSI SCK stuff that was part of 2017 thing with rfm95
-#define PAYLOADSIZE 11 // The size of the package to be sent
+#define PAYLOADSIZE 23 // The size of the package to be sent
 #include <avr/pgmspace.h>
 #include <lmic_slim.h>     // the really cool micro-library, to replace our 2017 LMIC which filled 99% memory
 #include "keys.h"          // the personal keys to identify our own nodes, in a file outside GITHUB
@@ -399,7 +399,7 @@ void doOneLoraWan() {
   Serial.print("\nStart: Do one lora. milis="); Serial.println(millis());
   print_myLoraWanData();
   
-  LMIC_setTxData2(myLoraWanData, sizeof(myLoraWanData)-1);
+  LMIC_setTxData2(myLoraWanData, PAYLOADSIZE);
   radio_init();                                                       
   delay (10);
   //digitalWrite(LED_BUILTIN, HIGH);
