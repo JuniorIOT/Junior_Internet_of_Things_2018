@@ -108,8 +108,8 @@ void put_gpsvalues_into_sendbuffer() {
   double lon_DOUBLE = l_lon;                                      // put the 4byte LONG into a precise floating point memory space
   lon_DOUBLE = (lon_DOUBLE + shift_lon) * max_3byte / max_old_lon; // rescale into 3 byte integer range
   uint32_t LongitudeBinary = lon_DOUBLE;                          // clips off anything after the decimal point  
-  uint16_t altitudeBinary  = l_alt    ;                          // we want altitudeGps in meters, note:
-                                                                 //      NMEAGPS alt.whole is meter value 
+  uint16_t altitudeBinary  = l_alt/10 ;                          // we want altitudeGps in meters, note:
+                                                                 //      NMEAGPS alt.whole is meter value ---> not sure, so dividing by 10
                                                                  //      TynyGPS long alt is meter value * 100
   if (l_alt<0) altitudeBinary=0;                                 // unsigned int wil not allow negative values and warps them to huge number  
   uint8_t HdopBinary = hdopNumber/100;                           // we want horizontal dillution, good is 2..5, poor is >20. Note:
@@ -212,8 +212,8 @@ void gps_init() {
   Serial.print(F("\nGPS init. milis=")); Serial.println(millis());
     
   // load the send buffer with dummy location 0,0. This location 0,0 is recognized as dummy by TTN Mapper and will be ignored
-  //l_lat = 526324000; l_lon = 47388000; l_alt = 678; hdopNumber = 2345;   // Alkmaar
-  l_lat = 0; l_lon = 0; l_alt = 678; hdopNumber = 9999;   // the zero position
+  //l_lat = 526324000; l_lon = 47388000; l_alt = 678; hdopNumber = 23459;   // Alkmaar
+  l_lat = 0; l_lon = 0; l_alt = 678; hdopNumber = 99999;   // the zero position
   put_gpsvalues_into_sendbuffer(); 
   
 //  Serial.print( F("The NeoGps people are proud to show their smallest possible size:\n") );
@@ -707,6 +707,9 @@ void loop() {
   Serial.println(F("\nCollect data needed just before sending a LORAWAN update. milis=")); Serial.println(millis());
   put_Volts_and_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
+
+  // Clear gps buffer, or else it will retail old position if no fix is found. If no fix is found we want invalid location so TTNmapper does not get disturbed.
+  l_lat = 0; l_lon = 0; l_alt = 678; hdopNumber = 99999;   // the zero position
   doGPS_and_put_values_into_sendbuffer();
 
   ////////// Now we need to send a LORAWAN update to the world  ///////////
