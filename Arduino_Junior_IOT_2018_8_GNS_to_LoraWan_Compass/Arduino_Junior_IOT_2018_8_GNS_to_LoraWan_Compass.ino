@@ -70,9 +70,8 @@ float heading, headingDegrees, headingFiltered, geo_magnetic_declination_deg;
 //////////////////////////////////////////////////////////
 //// Kaasfabriek routines for gps
 ////////////////////////////////////////////
-//void put_gpsvalues_into_sendbuffer(long l_lat, long l_lon, long l_alt, int hdopNumber);
-void put_gpsvalues_into_sendbuffer();
-//void process_gps_datastream(const gps_fix & fix );
+void doGPS();
+void put_gpsvalues_into_lora_sendbuffer();
 void gps_init();
 //////////////////////////////////////////////////
 // Kaasfabriek routines for LMIC_slim for LoraWan
@@ -114,7 +113,7 @@ void loop();
 long l_lat, l_lon, l_alt;
 int hdopNumber;
 
-void put_gpsvalues_into_sendbuffer() {
+void put_gpsvalues_into_lora_sendbuffer() {
   Serial.println(F("Started: put_gpsvalues_into_sendbuffer"));
   //   GPS reading = Satellite time hh:mm:18, lat 526326595, lon 47384133, alt 21, hdop 990, sat count = 12
   // With the larger precision in LONG values in NMEAGPS, 
@@ -183,7 +182,7 @@ void put_gpsvalues_into_sendbuffer() {
 
 }
 
-void process_gps_datastream(const gps_fix & fix) {   // constant pointer to fix object
+bool process_gps_datastream(const gps_fix & fix) {   // constant pointer to fix object
   //unsigned long age; 
   //bool GPS_values_are_valid = true;
     
@@ -208,12 +207,15 @@ void process_gps_datastream(const gps_fix & fix) {   // constant pointer to fix 
     //   Satellite time hh:mm:18, lat 526326595, lon 47384133, alt 21, hdop 990, sat count = 12
     
     Serial.println();
-  } else {
+    return true;
+  } else {    
     Serial.print( "(no valid location) " );
+    return false;
   }  
 }
 
-void doGPS_and_put_values_into_sendbuffer() {
+void doGPS(bool musthaveFix = false) {
+  bool hasFix = false;
   Serial.print(F("\nStart: doGPS_and_put_values_into_sendbuffer. milis=")); Serial.println(millis());
   // first we want to know GPS coordinates - we do accept a long delay if needed, even before listening to radio
   unsigned long gps_listen_startTime = millis(); 
@@ -222,16 +224,20 @@ void doGPS_and_put_values_into_sendbuffer() {
   //now listen to gps till fix or time-out, once gps has a fix, the refresh should be ready within 2 data reads = less than 3 sec
   // gps read command:
   Serial.println(F("Listen to GPS stream:"));
-  while((millis() - gps_listen_startTime) < (gps_listen_timeout * 1000L)) {
+  while((millis() - gps_listen_startTime) < (gps_listen_timeout * 1000L) || (musthaveFix && !hasFix)) {
     // for NMEAgps
     while (gps.available(ss)) {
-      process_gps_datastream(gps.read()); 
+      hasFix = process_gps_datastream(gps.read()); 
     }
   }    
   Serial.println(F("Completed listening to GPS."));
   
+}
+
+void doGPS_and_put_values_into_lora_sendbuffer() {
+  doGPS(false);
   // put gps values into send buffer
-  put_gpsvalues_into_sendbuffer();
+  put_gpsvalues_into_lora_sendbuffer();
   Serial.print(F("\Completed: doGPS_and_put_values_into_sendbuffer. milis=")); Serial.println(millis());
 }
 
@@ -241,7 +247,7 @@ void gps_init() {
   // load the send buffer with dummy location 0,0. This location 0,0 is recognized as dummy by TTN Mapper and will be ignored
   //l_lat = 526324000; l_lon = 47388000; l_alt = 678; hdopNumber = 2345;   // Alkmaar
   l_lat = 0; l_lon = 0; l_alt = 678; hdopNumber = 9999;   // the zero position
-  put_gpsvalues_into_sendbuffer(); 
+  put_gpsvalues_into_lora_sendbuffer(); 
   
 //  Serial.print( F("The NeoGps people are proud to show their smallest possible size:\n") );
 //  Serial.print( F("NeoGps, fix object size = ") ); Serial.println( sizeof(gps.fix()) );
@@ -548,11 +554,103 @@ void setupRadio() {
     byte 9          Validator  Hash (binary add) on message, GPS date, salt..
     */
 void formatRadioPackage(uint8_t *loopbackToData) {
+  bool didIFire = true;
+  bool didSomeoneElseFire = false;
+  bool shouldITalkBack = false;
+  uint8_t MyID = 1;
+  uint8_t buttonPressed = 0b10000000;
+  uint8_t targetID = 0b00000000; // unknown
+  
+  if(didIFire) {
+    loopbackToData[0] = 0b00000001;
+    loopbackToData[8] = targetID; // send unknown    
+  } else if(didSomeoneElseFire && shouldITalkBack) {
+    loopbackToData[0] = 0b00000010;
+    loopbackToData[8] |= whoWasItThatTalkedToMe() << 4;
+    loopbackToData[8] |= wasIHit();
+  }
+  loopbackToData[0] |= MyID << 4;
+
+  doGPS(true); // must have a gps fix - wait for one
+
+  // maybe we should make a function for lat lng encoding that doesnt put them to lorawan
+  const double shift_lat     =    90. * 10000000.;                 // range shift from -90..90 into 0..180, note: 
+                                                                 //      NMEAGPS long lat&lon are degree values * 10.000.000
+                                                                 //      TynyGPS long lat&lon are degree values * 1.000.000
+  const double max_old_lat   =   180. * 10000000.;                 // max value for lat is now 180
+  const double max_3byte     =         16777215.;                   // max value that fits in 3 bytes
+  double lat_DOUBLE         = l_lat;                              // put 4byte LONG into a more precise floating point to prevent rounding during calcs 
+  lat_DOUBLE = (lat_DOUBLE + shift_lat) * max_3byte / max_old_lat; // rescale into 3 byte integer range
+  uint32_t LatitudeBinary  = lat_DOUBLE;                          // clips off anything after the decimal point    
+  const double shift_lon     =   180. * 10000000.;                 // range shift from -180..180 into 0..360
+  const double max_old_lon   = 360. * 10000000.;                   // max value longitude is now 360, note the value is too big for Long type
+  double lon_DOUBLE = l_lon;                                      // put the 4byte LONG into a precise floating point memory space
+  lon_DOUBLE = (lon_DOUBLE + shift_lon) * max_3byte / max_old_lon; // rescale into 3 byte integer range
+  uint32_t LongitudeBinary = lon_DOUBLE;                          // clips off anything after the decimal point  
+
+  loopbackToData[1] = ( LatitudeBinary >> 16 ) & 0xFF;
+  loopbackToData[2] = ( LatitudeBinary >> 8 ) & 0xFF;
+  loopbackToData[3] = LatitudeBinary & 0xFF;
+  loopbackToData[4] = ( LongitudeBinary >> 16 ) & 0xFF;
+  loopbackToData[5] = ( LongitudeBinary >> 8 ) & 0xFF;
+  loopbackToData[6] = LongitudeBinary & 0xFF;
+
+  // maybe we should make a function for compass encoding that doesnt put them to lorawan
+  long compass = readCompass(); // 0..360 deg
+  uint8_t compass_bin = compass/3 ;  // rescale 0-360 deg into 0 - 120 values and make sure it is not bigger than one byte
+  // now add a bit for BTN (not implemented)
+  loopbackToData[7] = compass_bin;
+  //#ifdef DEBUG
+  Serial.print(F("  compass=")); Serial.print(compass); Serial.print(F("  deg. compass_bin=")); Serial.println(compass_bin);
+  //#endif
+
+  loopbackToData[7] |= buttonPressed;
+
   
 }
-
+/*
+   byte 0          My ID      My ID and message type
+        0b0000 0000            
+          ---- nnnn MessType   
+          ---- 0001 msg#1      Yelling out loud that I have fired
+          ---- 0010 msg#2      You have fired and here is my answer 
+          nnnn ---- MyID       
+    byte 1, 2, 3    MyLat      
+    byte 4, 5, 6    MyLon      
+    byte 7          MyComp ++   
+        0b0000 0000            
+          -nnn nnnn MyComp     
+          1--- ---- MyBtn#1       
+    byte 8          RemoteID   Your ID, hey I am talkming to you
+        0b0000 0000            
+          ---- ---n WasIhit    Hit indicator
+          nnnn ---- RemoteID   Value 0-31, Remote team ID
+    byte 9          Validator  Hash (binary add) on message, GPS date, salt..
+    */
 void decodeReply(uint8_t buf[], bool debugToSerial) {
-  
+  if(debugToSerial) {
+    // bytes 0
+    if((buf[0] & 0b11110000) == 0b11110001) {
+      Serial.println("Radio: Someone says that he fired");
+    } else if((buf[0] & 0b11110000) == 0b11110010) {
+        Serial.println("Radio: Someone talkes back to someone who fired");
+    }
+    Serial.print("That someone has an id of:");
+    uint8_t id = (buf[0] >> 4) & 0b00001111;
+    Serial.println((int) id);
+    
+    // byte 1
+    
+    
+  }
+}
+uint8_t whoWasItThatTalkedToMe() {
+  uint8_t who = 2; // 2 talks to me
+  return who;
+}
+uint8_t wasIHit() {
+  uint8_t hit = 0b00000001; // yes i was hit
+  return hit;
 }
 
 ///////////////////////////////////////////////
@@ -817,7 +915,7 @@ void setup() {
   Serial.print(F("\nInit values. milis=")); Serial.println(millis());
   put_Volts_and_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
-  doGPS_and_put_values_into_sendbuffer();   
+  doGPS_and_put_values_into_lora_sendbuffer();   
 
   Serial.print(F("\nSend one lorawan message as part of system init. milis=")); Serial.println(millis());
 //  LMIC_setTxData2(myLoraWanData, sizeof(myLoraWanData)-1);
@@ -876,7 +974,7 @@ void loop() {
   Serial.println(F("\nCollect data needed just before sending a LORAWAN update. milis=")); Serial.println(millis());
   put_Volts_and_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
-  doGPS_and_put_values_into_sendbuffer();
+  doGPS_and_put_values_into_lora_sendbuffer();
 
   ////////// Now we need to send a LORAWAN update to the world  ///////////
   // switch the LMIC antenna to LoraWan mode
