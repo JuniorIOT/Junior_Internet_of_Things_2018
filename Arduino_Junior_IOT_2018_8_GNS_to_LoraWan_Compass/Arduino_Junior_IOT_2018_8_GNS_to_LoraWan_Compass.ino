@@ -82,9 +82,11 @@ void doOneLora();
 //////////////////////////////////////////////////
 // Kaasfabriek routines for RFM95 radio to radio 
 ///////////////////////////////////////////////
+void formatRadioPackage(uint8_t *loopbackToData);
 void doOneRadio();
 void halt_stressed();
 void setupRadio();
+void decodeReply(uint8_t buf[], bool debugToSerial);
 ///////////////////////////////////////////////
 //  some other measurements
 ///////////////////////////////////////////
@@ -441,19 +443,10 @@ uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
 void doOneRadio() {
   Serial.print("\nStart: Do one radio. milis="); Serial.println(millis());  
     
-  // preparing to send an interesting message to everyone  
-  long vbat = readVbat();     // convert to mV
-  Serial.print("  VBat: " ); 
-  Serial.print(vbat);
-  Serial.println(" milliVolt");
-  
-  char radiopacket[40] = "Hello World #       Vbatt= #       mV  ";
-  int radiopacket_strlen=sprintf(radiopacket, "Radio message #%d 'Vbatt= %d mV' ",packetnum++,vbat);
-  Serial.print("radiopacket: "); Serial.println(radiopacket);
-  radiopacket[radiopacket_strlen] = 0; // last char was nulled by sprintf?
-  
+  uint8_t radiopacket[10];
+  formatRadioPackage(&radiopacket[0]);
   Serial.println("Sending..."); delay(10);
-  rf95.send((uint8_t *)radiopacket, 40);
+  rf95.send((uint8_t *)radiopacket, 10);
 
   // now, sending is done. start listening
   Serial.println("Waiting for radio packet to complete..."); delay(10);
@@ -469,8 +462,9 @@ void doOneRadio() {
     else {
       // message has a length
       RH_RF95::printBuffer("Received this radio message: ", buf, len);
-      Serial.print("Got reply:              [");
-      Serial.print((char*)buf);
+      Serial.println("Got reply:              [");
+      decodeReply(buf, 1/*debug*/);
+      //Serial.print((char*)buf);
       Serial.print("] RSSI: ");
       Serial.println(rf95.lastRssi(), DEC);    
       // RSSI values, indication for Wifi: http://www.metageek.com/training/resources/understanding-rssi.html
@@ -534,6 +528,32 @@ void setupRadio() {
   rf95.setTxPower(13, false);   // is 13 TTN & TTNtracker intended spec?
 }
 
+/*
+   byte 0          My ID      My ID and message type
+        0b0000 0000            
+          ---- nnnn MessType   
+          ---- 0001 msg#1      Yelling out loud that I have fired
+          ---- 0010 msg#2      You have fired and here is my answer 
+          nnnn ---- MyID       
+    byte 1, 2, 3    MyLat      
+    byte 4, 5, 6    MyLon      
+    byte 7          MyComp ++   
+        0b0000 0000            
+          -nnn nnnn MyComp     
+          1--- ---- MyBtn#1       
+    byte 8          RemoteID   Your ID, hey I am talkming to you
+        0b0000 0000            
+          ---- ---n WasIhit    Hit indicator
+          nnnn ---- RemoteID   Value 0-31, Remote team ID
+    byte 9          Validator  Hash (binary add) on message, GPS date, salt..
+    */
+void formatRadioPackage(uint8_t *loopbackToData) {
+  
+}
+
+void decodeReply(uint8_t buf[], bool debugToSerial) {
+  
+}
 
 ///////////////////////////////////////////////
 //  some other measurements
