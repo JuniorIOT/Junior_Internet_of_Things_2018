@@ -606,7 +606,7 @@ void formatRadioPackage(uint8_t *loopbackToData) {
 
   loopbackToData[7] |= buttonPressed;
 
-  
+  loopbackToData[9] = 0x00; // What is this?
 }
 /*
    byte 0          My ID      My ID and message type
@@ -637,10 +637,37 @@ void decodeReply(uint8_t buf[], bool debugToSerial) {
     }
     Serial.print("That someone has an id of:");
     uint8_t id = (buf[0] >> 4) & 0b00001111;
-    Serial.println((int) id);
+    Serial.println((int) id,DEC);
     
-    // byte 1
-    
+    // byte 1,2,3 and 4,5,6
+    Serial.print("His location is: ");
+    float _lat = ((buf[1] << 16) + (buf[2] << 8) + buf[3]) / 16777215.0 * 180.0 - 90;
+    float _lng = ((buf[4] << 16) + (buf[5] << 8) + buf[6]) / 16777215.0 * 360.0 - 180;
+    Serial.print("lat: ");
+    Serial.print(_lat);
+    Serial.print("lng: ");
+    Serial.println(_lng);
+
+    // byte 7
+    uint8_t compass = buf[7] & 0b01111111; // don't want the hit indicator now
+    Serial.print("His compass points to: ");
+    int _compass = (compass & 127)*3;
+    Serial.println(_compass);
+
+    bool hePressedHisButton = ((buf[7] >> 7) & 0b00000001) == 0b00000001;
+    if(hePressedHisButton) Serial.println("He pressed his button");
+    else Serial.println("He did not press his button");
+
+    // byte 8
+    bool heWasHit = (buf[8] & 0b00000001) == 0b00000001;
+    if(heWasHit) Serial.println("He was hit");
+    else Serial.println("He was not hit - or doesn't know it yet");
+
+    uint8_t remoteid = (buf[8] >> 4) & 0b00001111;
+    Serial.println("He was talking to id: ");
+    Serial.print((int)remoteid,DEC);
+
+    // byte 9 - what is this?
     
   }
 }
