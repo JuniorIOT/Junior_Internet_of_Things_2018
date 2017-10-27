@@ -214,19 +214,19 @@ bool process_gps_datastream(const gps_fix & fix) {   // constant pointer to fix 
   }  
 }
 
-void doGPS(bool musthaveFix = false) {
+void doGPS(unsigned long gps_listen_timeout) {
   bool hasFix = false;
   Serial.print(F("\nStart: doGPS_and_put_values_into_sendbuffer. milis=")); Serial.println(millis());
   // first we want to know GPS coordinates - we do accept a long delay if needed, even before listening to radio
   unsigned long gps_listen_startTime = millis(); 
-  unsigned long gps_listen_timeout = 3;  // sec
+
   
   //now listen to gps till fix or time-out, once gps has a fix, the refresh should be ready within 2 data reads = less than 3 sec
   // gps read command:
   Serial.println(F("Listen to GPS stream:"));
-  while((millis() - gps_listen_startTime) < (gps_listen_timeout * 1000L) || (musthaveFix && !hasFix)) {
+  while((millis() - gps_listen_startTime) < (gps_listen_timeout * 1000L) && !hasFix) {
     // for NMEAgps
-    while (gps.available(ss)) {
+    while (gps.available(ss) && !hasFix) {
       hasFix = process_gps_datastream(gps.read()); 
     }
   }    
@@ -235,7 +235,7 @@ void doGPS(bool musthaveFix = false) {
 }
 
 void doGPS_and_put_values_into_lora_sendbuffer() {
-  doGPS(false);
+  doGPS(3);
   // put gps values into send buffer
   put_gpsvalues_into_lora_sendbuffer();
   Serial.print(F("\Completed: doGPS_and_put_values_into_sendbuffer. milis=")); Serial.println(millis());
@@ -571,7 +571,7 @@ void formatRadioPackage(uint8_t *loopbackToData) {
   }
   loopbackToData[0] |= MyID << 4;
 
-  doGPS(true); // must have a gps fix - wait for one
+  doGPS(10); // must have a gps - wait up to 10 seconds
 
   // maybe we should make a function for lat lng encoding that doesnt put them to lorawan
   const double shift_lat     =    90. * 10000000.;                 // range shift from -90..90 into 0..180, note: 
