@@ -959,7 +959,7 @@ void setup() {
   Serial.print(F("\nCompleted: Setup. milis=")); Serial.println(millis());
 }
 
-boolean radioActive = false;  // this name is for radio, not LoraWan
+boolean radioActive = true;  // this name is for radio, not LoraWan
 boolean loraWannaBe = false;
 
 void loop() {
@@ -975,17 +975,17 @@ void loop() {
   // time needs to be long enough not to miss a radio, we do not worry about GPS as it will keep fix as long as powered
   if(radioActive) {
     setupRadio();
-//while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L)) {
+    while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L)) {
     // next command is not what we want to do
     doOneRadio();  // sends a radio message and will listen for return message for a certain time
-    
-    if(ReceivedFromRadio) {
+    }
+    /*if(ReceivedFromRadio) {
       // use the radio message content for Lora
       memcpy(myLoraWanData,buf,PAYLOADSIZE);
       ReceivedFromRadio = false;
     } else {
       sprintf(myLoraWanData,"xx geen radio ontvangen xx");
-    }  
+    } */ 
   } else {
     //not listening to radio at all, we may as well use delay for a bit 
     Serial.print(F("  No radio listen required, so instead just add a delay before lorawan: \n    ")); Serial.print(LORAWAN_TX_INTERVAL); Serial.print(F(" sec."));
