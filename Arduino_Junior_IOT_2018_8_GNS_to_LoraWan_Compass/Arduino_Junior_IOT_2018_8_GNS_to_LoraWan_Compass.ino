@@ -619,6 +619,7 @@ void setupRadio() {
 void formatRadioPackage(uint8_t *loopbackToData) {
   bool didIFire = true;
   bool didSomeoneElseFire = false;
+  
   bool shouldITalkBack = false;
   uint8_t MyID = 1;
   uint8_t buttonPressed = 0b10000000;
@@ -795,9 +796,9 @@ long readVbat() {
     // *1000 to get milliVolt
   measuredvbat *= 6600 / 1024;         
   result = measuredvbat;
-//  Serial.print(F("  Vbat=") ); 
-//  Serial.print(result);
-//  Serial.println(F(" milliVolt"));
+  Serial.print(F("  Vbat=") ); 
+  Serial.print(result);
+  Serial.println(F(" milliVolt"));
   return result;
 }
 
