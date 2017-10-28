@@ -5,6 +5,7 @@
  
 //#define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
 //#define DEBUGLEVEL2
+#define DEBUGRADIO
 
 #define VBATPIN A9
 #define LEDPIN 13 
@@ -693,9 +694,9 @@ void decodeReply(uint8_t buf[], bool debugToSerial) {
   if(debugToSerial) {
     #ifdef DEBUGRADIO
     // bytes 0
-    if((buf[0] & 0b11110000) == 0b11110001) {
+    if((buf[0] & 0b00001111) == 0b00000001) {
       Serial.println("Radio: Someone says that he fired");
-    } else if((buf[0] & 0b11110000) == 0b11110010) {
+    } else if((buf[0] & 0b00001111) == 0b00000010) {
         Serial.println("Radio: Someone talkes back to someone who fired");
     }
     Serial.print("That someone has an id of:");
