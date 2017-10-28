@@ -978,6 +978,7 @@ void loop() {
     while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L)) {
     // next command is not what we want to do
     doOneRadio();  // sends a radio message and will listen for return message for a certain time
+    delay(5000);
     }
     /*if(ReceivedFromRadio) {
       // use the radio message content for Lora
