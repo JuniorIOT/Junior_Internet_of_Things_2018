@@ -8,7 +8,9 @@
 
 #define VBATPIN A9
 #define LEDPIN 13 
-#define LORAWAN_TX_INTERVAL 240  // seconds between LoraWan messages
+#define LORAWAN_TX_INTERVAL 60  // seconds between LoraWan messages  
+   // 240 = every 4 minutes,  was original 10/26
+   //  60 = once a minute, that is okay when war-driving with only few minutes daily within range
 
 //////////////////////////////////////////////
 // GPS libraries, mappings and things
@@ -108,8 +110,8 @@ void put_gpsvalues_into_sendbuffer() {
   double lon_DOUBLE = l_lon;                                      // put the 4byte LONG into a precise floating point memory space
   lon_DOUBLE = (lon_DOUBLE + shift_lon) * max_3byte / max_old_lon; // rescale into 3 byte integer range
   uint32_t LongitudeBinary = lon_DOUBLE;                          // clips off anything after the decimal point  
-  uint16_t altitudeBinary  = l_alt/10 ;                          // we want altitudeGps in meters, note:
-                                                                 //      NMEAGPS alt.whole is meter value ---> not sure, so dividing by 10
+  uint16_t altitudeBinary  = l_alt    ;                          // we want altitudeGps in meters, note:
+                                                                 //      NMEAGPS alt.whole is meter value ---> checked in Poznan, no need to divide by 10
                                                                  //      TynyGPS long alt is meter value * 100
   if (l_alt<0) altitudeBinary=0;                                 // unsigned int wil not allow negative values and warps them to huge number  
   uint8_t HdopBinary = hdopNumber/100;                           // we want horizontal dillution, good is 2..5, poor is >20. Note:
@@ -542,7 +544,7 @@ long readVccCPU() {  //http://dumbpcs.blogspot.nl/2013/07/arduino-secret-built-i
   // Read 1.1V reference against AVcc 
   //ATmega32U4 has 2.56V ref instead of 1.1?
   ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
-  delay(2); // Wait for Vref to settle
+  delay(20); // Wait for Vref to settle  // was 2
   ADCSRA |= _BV(ADSC); // Convert
   while (bit_is_set(ADCSRA,ADSC));
   result = ADCL;
@@ -555,10 +557,10 @@ long readVbat() {
   long result;
   float measuredvbat = analogRead(VBATPIN);
     // devide by 1024 to convert to voltage
-    // we divided by 2 using 2x 100M Ohm, so multiply back
+    // we divided by 2 using 2x 100M Ohm, so multiply x2
     // Multiply by 3.3V, our reference voltage
     // *1000 to get milliVolt
-  measuredvbat *= 6600 / 1024;         
+  measuredvbat *= 6600. / 1024.;         
   result = measuredvbat;
 //  Serial.print(F("  Vbat=") ); 
 //  Serial.print(result);
@@ -704,7 +706,7 @@ void loop() {
   // we keep doing this part until it is time to send one LORAWAN TX to the worl
 
   ////////// Collect data needed just before sending a LORAWAN update to the world  ///////////
-  Serial.println(F("\nCollect data needed just before sending a LORAWAN update. milis=")); Serial.println(millis());
+  Serial.print(F("\nCollect data needed just before sending a LORAWAN update. milis=")); Serial.println(millis());
   put_Volts_and_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
 
@@ -714,7 +716,7 @@ void loop() {
 
   ////////// Now we need to send a LORAWAN update to the world  ///////////
   // switch the LMIC antenna to LoraWan mode
-  Serial.println(F("Time or button press tells us to send one LoraWan. milis=")); Serial.println(millis());
+  Serial.print(F("Time or button press tells us to send one LoraWan. milis=")); Serial.println(millis());
   last_lora_time = millis();
   lmic_slim_init();
   doOneLoraWan();    
