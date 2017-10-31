@@ -24,8 +24,10 @@ unsigned long last_lora_time = millis(); // last time lorawan ran
 #include <Sodaq_nbIOT.h>
 #include "Sodaq_UBlox_GPS.h"
 Sodaq_nbIOT nbiot;
-
-
+// compass
+#include <Adafruit_Sensor.h>
+#include <Adafruit_LSM303_U.h>
+Adafruit_LSM303_Mag_Unified mag = Adafruit_LSM303_Mag_Unified(2017);
 
 //////////////////////////////////////////////////
 // Kaasfabriek routines for RN2483 for LoraWan
@@ -40,12 +42,18 @@ void loop();
 //////////////////////////////////////////////////////////
 //// Kaasfabriek routines for gps
 ////////////////////////////////////////////
-
 void put_gpsvalues_into_sendbuffer();
 void gps_init();
 void find_fix(uint32_t delay_until);
 void doGPS_and_put_values_into_lora_sendbuffer();
 void put_gpsvalues_into_lora_sendbuffer();
+//////////////////////////////////////////////////////////
+//// Compass LSM303_U i2c
+////////////////////////////////////////////
+void setupCompass();
+long readCompass();
+void put_Compass_and_Btn_into_sendbuffer();
+
 
 //////////////////////////////////////////////////
 // Kaasfabriek routines for RN2483 for LoraWan
@@ -158,12 +166,14 @@ void setup() {
 
   gps_init(); 
   rn2483_init();
+  setupCompass();
 
   DEBUG_STREAM.print(F("\nInit values. milis=")); DEBUG_STREAM.println(millis());
   /*TODO
    * put_Volts_and_Temp_into_sendbuffer();
-  put_Compass_and_Btn_into_sendbuffer();
   */
+  put_Compass_and_Btn_into_sendbuffer();
+  
   doGPS_and_put_values_into_lora_sendbuffer();   
 
   DEBUG_STREAM.print(F("\nSend one lorawan message as part of system init. milis=")); DEBUG_STREAM.println(millis());
@@ -216,8 +226,9 @@ void loop() {
   /*
    * TODO
    * put_Volts_and_Temp_into_sendbuffer();
-  put_Compass_and_Btn_into_sendbuffer();
   */
+  put_Compass_and_Btn_into_sendbuffer();
+  
   doGPS_and_put_values_into_lora_sendbuffer();
   
   
@@ -267,7 +278,7 @@ void find_fix(uint32_t delay_until)
 
 void put_gpsvalues_into_lora_sendbuffer() {
   
-  Serial.println(F("Started: put_gpsvalues_into_sendbuffer"));
+  DEBUG_STREAM.println(F("Started: put_gpsvalues_into_sendbuffer"));
   
   //   GPS reading = Satellite time hh:mm:18, lat 526326595, lon 47384133, alt 21, hdop 990, sat count = 12
   // With the larger precision in LONG values in NMEAGPS, 
@@ -297,24 +308,24 @@ void put_gpsvalues_into_lora_sendbuffer() {
                                                                  //      from TinyGPS horizontal dilution of precision in 100ths? We succesfully divided by 10
                                                                  //      TinyGPSplus seems the same in 100ths as per MNEMA string. We succesfully divided by 10
   
-//  Serial.print(F("  shift_lat = "));//Serial.println(shift_lat);
-//  Serial.print(F("  max_old_lat = "));//Serial.println(max_old_lat);
-//  Serial.print(F("  max_3byte = "));//Serial.println(max_3byte);
-//  Serial.print(F("  l_lat = "));//Serial.println(l_lat);
-//  Serial.print(F("  lat_float = "));//Serial.println(lat_float);
-//  Serial.print(F("  LatitudeBinary = "));//Serial.println(LatitudeBinary);
+//  DEBUG_STREAM.print(F("  shift_lat = "));//DEBUG_STREAM.println(shift_lat);
+//  DEBUG_STREAM.print(F("  max_old_lat = "));//DEBUG_STREAM.println(max_old_lat);
+//  DEBUG_STREAM.print(F("  max_3byte = "));//DEBUG_STREAM.println(max_3byte);
+//  DEBUG_STREAM.print(F("  l_lat = "));//DEBUG_STREAM.println(l_lat);
+//  DEBUG_STREAM.print(F("  lat_float = "));//DEBUG_STREAM.println(lat_float);
+//  DEBUG_STREAM.print(F("  LatitudeBinary = "));//DEBUG_STREAM.println(LatitudeBinary);
 //  
-//  Serial.print(F("\n  shift_lon = "));//Serial.println(shift_lon);
-//  Serial.print(F("  max_old_lon = "));//Serial.println(max_old_lon);
-//  Serial.print(F("  l_lon = "));//Serial.println(l_lon);
-//  Serial.print(F("  lon_float = "));//Serial.println(lon_float);
-//  Serial.print(F("  LongitudeBinary = "));//Serial.println(LongitudeBinary);
+//  DEBUG_STREAM.print(F("\n  shift_lon = "));//DEBUG_STREAM.println(shift_lon);
+//  DEBUG_STREAM.print(F("  max_old_lon = "));//DEBUG_STREAM.println(max_old_lon);
+//  DEBUG_STREAM.print(F("  l_lon = "));//DEBUG_STREAM.println(l_lon);
+//  DEBUG_STREAM.print(F("  lon_float = "));//DEBUG_STREAM.println(lon_float);
+//  DEBUG_STREAM.print(F("  LongitudeBinary = "));//DEBUG_STREAM.println(LongitudeBinary);
 //  
-//  Serial.print(F("\n  l_alt = "));//Serial.println(l_alt);
-//  Serial.print(F("  altitudeBinary = "));//Serial.println(altitudeBinary);
+//  DEBUG_STREAM.print(F("\n  l_alt = "));//DEBUG_STREAM.println(l_alt);
+//  DEBUG_STREAM.print(F("  altitudeBinary = "));//DEBUG_STREAM.println(altitudeBinary);
 //  
-//  //Serial.print(F("\n  hdopNumber = "));//Serial.println(hdopNumber);
-//  //Serial.print(F("  HdopBinary = "));//Serial.println(HdopBinary);
+//  //DEBUG_STREAM.print(F("\n  hdopNumber = "));//DEBUG_STREAM.println(hdopNumber);
+//  //DEBUG_STREAM.print(F("  HdopBinary = "));//DEBUG_STREAM.println(HdopBinary);
   
   myLoraWanData[0] = ( LatitudeBinary >> 16 ) & 0xFF;
   myLoraWanData[1] = ( LatitudeBinary >> 8 ) & 0xFF;
@@ -341,11 +352,80 @@ void doGPS_and_put_values_into_lora_sendbuffer() {
   // put gps values into send buffer
   put_gpsvalues_into_lora_sendbuffer();
   
-  Serial.print(F("\Completed: doGPS_and_put_values_into_sendbuffer. milis=")); Serial.println(millis());
+  DEBUG_STREAM.print(F("\Completed: doGPS_and_put_values_into_sendbuffer. milis=")); DEBUG_STREAM.println(millis());
   
 }
 
+//////////////////////////////////////////////////////////
+//// Compass LSM303_U i2c
+////////////////////////////////////////////
+void setupCompass() {
+  /* Enable auto-gain */
+  mag.enableAutoRange(true);
 
+  /* Initialise the sensor */
+  if(!mag.begin())
+  {
+    /* There was a problem detecting the LSM303 ... check your connections */
+    DEBUG_STREAM.println("Ooops, no LSM303 detected ... Check your wiring!");
+    while(1);
+  }
+  sensor_t sensor;
+  mag.getSensor(&sensor);
+}
+float X_milliGauss,Y_milliGauss,Z_milliGauss;
+float heading, headingDegrees, headingFiltered, geo_magnetic_declination_deg;
+
+long readCompass() {
+  sensors_event_t event;
+  mag.getEvent(&event);
+  
+  // TODO Marco?? this is not millisguass anymore
+  
+  long x = event.magnetic.x;
+  long y = event.magnetic.y;
+  long z = event.magnetic.z;
+
+  // Correcting the heading with the geo_magnetic_declination_deg angle depending on your location
+  // You can find your geo_magnetic_declination_deg angle at: http://www.ngdc.noaa.gov/geomag-web/
+  // At zzz location it's 4.2 degrees => 0.073 rad
+  // Haarlem                    2017-10-20  1° 4' E  ± 0° 22'  changing by  0° 9' E per year
+  // Amsterdam                  2017-10-20  1° 9' E  ± 0° 22'  changing by  0° 9' E per year
+  // Alkmaar 52.6324 4.7534     2017-10-20  1.09° E  ± 0.38°  changing by  0.14° E per year
+  geo_magnetic_declination_deg = 1.09; // for our location
+  
+  //Calculating Heading
+  headingDegrees = atan2(Y_milliGauss, X_milliGauss)* 180/PI + geo_magnetic_declination_deg;  // heading in rad. 
+  
+  // Correcting when signs are reveresed or due to the addition of the geo_magnetic_declination_deg angle
+  if(headingDegrees <0) headingDegrees += 2*180;
+  if(headingDegrees > 2*180) headingDegrees -= 2*180;
+  
+  // Smoothing the output angle / Low pass filter --- to make changes apeare slower
+  //headingFiltered = headingFiltered*0.85 + headingDegrees*0.15;
+  headingFiltered = headingDegrees;
+  // We can do this, but then we need to take multiple readings and it will still go wrong if we take readings from the previous buttonpress in account
+  // Because If i pressed a button at 180 degrees. And I press it again at 0 degrees, 180 is not relevant to be taking into account.
+  
+  //Sending the heading value through the Serial Port 
+  
+  DEBUG_STREAM.print(headingDegrees);
+  DEBUG_STREAM.print(" filtered ");
+  DEBUG_STREAM.println(headingFiltered);
+  
+  return headingFiltered;
+}
+
+
+void put_Compass_and_Btn_into_sendbuffer() {
+  long compass = readCompass(); // 0..360 deg
+  uint8_t compass_bin = compass/3 ;  // rescale 0-360 deg into 0 - 120 values and make sure it is not bigger than one byte
+  // now add a bit for BTN (not implemented)
+  myLoraWanData[9] = compass_bin;
+  #ifdef DEBUG
+  DEBUG_STREAM.print(F("  compass=")); DEBUG_STREAM.print(compass); DEBUG_STREAM.print(F("  deg. compass_bin=")); DEBUG_STREAM.println(compass_bin);
+  #endif
+}
 
 // Leds
 void led_on()
