@@ -4,7 +4,7 @@
  *******************************************************************************/ 
  
 //#define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
-
+#define DEBUG_STREAM SerialUSB
 
 // lorawan
 #include <rn2xx3.h>
@@ -19,6 +19,14 @@ rn2xx3 myLora(loraSerial);
 uint8_t  myLoraWanData[40];  // including byte[0]
 unsigned long last_lora_time = millis(); // last time lorawan ran
 
+// GPS
+#include <Arduino.h>
+#include <Sodaq_nbIOT.h>
+#include "Sodaq_UBlox_GPS.h"
+Sodaq_nbIOT nbiot;
+
+
+
 //////////////////////////////////////////////////
 // Kaasfabriek routines for RN2483 for LoraWan
 ///////////////////////////////////////////////
@@ -29,6 +37,13 @@ void doOneLoraWan();
 ///////////////////////////////////////////
 void setup();
 void loop();
+//////////////////////////////////////////////////////////
+//// Kaasfabriek routines for gps
+////////////////////////////////////////////
+
+void put_gpsvalues_into_sendbuffer();
+void gps_init();
+void find_fix(uint32_t delay_until);
 
 
 //////////////////////////////////////////////////
@@ -54,20 +69,20 @@ void rn2483_init()
   String hweui = myLora.hweui();
   while(hweui.length() != 16)
   {
-    SerialUSB.println("Communication with RN2xx3 unsuccessful. Power cycle the board.");
-    SerialUSB.println(hweui);
+    DEBUG_STREAM.println("Communication with RN2xx3 unsuccessful. Power cycle the board.");
+    DEBUG_STREAM.println(hweui);
     delay(10000);
     hweui = myLora.hweui();
   }
 
   //print out the HWEUI so that we can register it via ttnctl
-  SerialUSB.println("When using OTAA, register this DevEUI: ");
-  SerialUSB.println(myLora.hweui());
-  SerialUSB.println("RN2xx3 firmware version:");
-  SerialUSB.println(myLora.sysver());
+  DEBUG_STREAM.println("When using OTAA, register this DevEUI: ");
+  DEBUG_STREAM.println(myLora.hweui());
+  DEBUG_STREAM.println("RN2xx3 firmware version:");
+  DEBUG_STREAM.println(myLora.sysver());
 
   //configure your keys and join the network
-  SerialUSB.println("Trying to join TTN");
+  DEBUG_STREAM.println("Trying to join TTN");
   bool join_result = false;
 
   //ABP: initABP(String addr, String AppSKey, String NwkSKey);
@@ -78,12 +93,12 @@ void rn2483_init()
 
   while(!join_result)
   {
-    SerialUSB.println("Unable to join. Are your keys correct, and do you have TTN coverage?");
+    DEBUG_STREAM.println("Unable to join. Are your keys correct, and do you have TTN coverage?");
     RED();
     delay(60000); //delay a minute before retry
     join_result = myLora.init();
   }
-  SerialUSB.println("Successfully joined TTN");
+  DEBUG_STREAM.println("Successfully joined TTN");
   GREEN();
 
   // SF is not in the library yet - maybe add it
@@ -91,28 +106,28 @@ void rn2483_init()
 }
 
 void print_myLoraWanData() {
-  SerialUSB.print(F("  myLoraWanData = [")); 
-  //SerialUSB.print((char*)myLoraWanData); SerialUSB.println("]"); SerialUSB.print(F("                  [ "));  
+  DEBUG_STREAM.print(F("  myLoraWanData = [")); 
+  //DEBUG_STREAM.print((char*)myLoraWanData); DEBUG_STREAM.println("]"); DEBUG_STREAM.print(F("                  [ "));  
   for(int i=0; i<30; i++) {  
-    if (myLoraWanData[i] < 16) SerialUSB.print("0"); 
-    SerialUSB.print(myLoraWanData[i], HEX); 
-    SerialUSB.print(F(" "));  
+    if (myLoraWanData[i] < 16) DEBUG_STREAM.print("0"); 
+    DEBUG_STREAM.print(myLoraWanData[i], HEX); 
+    DEBUG_STREAM.print(F(" "));  
   }  
-  SerialUSB.println(F(" .. ]"));
+  DEBUG_STREAM.println(F(" .. ]"));
 }
 
 void doOneLoraWan() {
-  SerialUSB.print("\nStart: Do one lora. milis="); SerialUSB.println(millis());
+  DEBUG_STREAM.print("\nStart: Do one lora. milis="); DEBUG_STREAM.println(millis());
   print_myLoraWanData();
     led_on();
 
     
-    SerialUSB.print("  txLora. milis="); SerialUSB.println(millis());
+    DEBUG_STREAM.print("  txLora. milis="); DEBUG_STREAM.println(millis());
     myLora.txBytes(myLoraWanData, PAYLOADSIZE);
-    SerialUSB.print("  txLora completed. milis="); SerialUSB.println(millis());
+    DEBUG_STREAM.print("  txLora completed. milis="); DEBUG_STREAM.println(millis());
     led_off();
-   SerialUSB.print("  send time delay completed. milis="); SerialUSB.println(millis());
-  SerialUSB.print("Completed: Do one lora. milis="); SerialUSB.println(millis());
+   DEBUG_STREAM.print("  send time delay completed. milis="); DEBUG_STREAM.println(millis());
+  DEBUG_STREAM.print("Completed: Do one lora. milis="); DEBUG_STREAM.println(millis());
 }
 
 
@@ -134,38 +149,38 @@ void setup() {
   pinMode(LEDPIN, OUTPUT);
   delay(1000);  // https://www.thethingsnetwork.org/forum/t/got-adafruit-feather-32u4-lora-radio-to-work-and-here-is-how/6863
   
-  SerialUSB.begin(115200);   // whether 9600 or 115200; the gps feed shows repeated char and cannot be interpreted, setting high value to release system time
+  DEBUG_STREAM.begin(115200);   // whether 9600 or 115200; the gps feed shows repeated char and cannot be interpreted, setting high value to release system time
   delay(100);
 
-  SerialUSB.print(F("\nStarting device: ")); SerialUSB.println(DEVADDR); 
+  DEBUG_STREAM.print(F("\nStarting device: ")); DEBUG_STREAM.println(DEVADDR); 
   device_startTime = millis();
 
-  //todo   gps_init(); 
+  gps_init(); 
   rn2483_init();
 
-  SerialUSB.print(F("\nInit values. milis=")); SerialUSB.println(millis());
+  DEBUG_STREAM.print(F("\nInit values. milis=")); DEBUG_STREAM.println(millis());
   /*TODO
    * put_Volts_and_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
   doGPS_and_put_values_into_sendbuffer();   
 */
-  SerialUSB.print(F("\nSend one lorawan message as part of system init. milis=")); SerialUSB.println(millis());
+  DEBUG_STREAM.print(F("\nSend one lorawan message as part of system init. milis=")); DEBUG_STREAM.println(millis());
 
   last_lora_time = millis();
   doOneLoraWan();
-  SerialUSB.print(F("\nCompleted: Setup. milis=")); SerialUSB.println(millis());
+  DEBUG_STREAM.print(F("\nCompleted: Setup. milis=")); DEBUG_STREAM.println(millis());
   
 }
 boolean radioActive = false;  // this name is for radio, not LoraWan
 boolean loraWannaBe = false;
 
 void loop() {
-  SerialUSB.print(F("\n==== Loop starts. milis=")); SerialUSB.println(millis());
+  DEBUG_STREAM.print(F("\n==== Loop starts. milis=")); DEBUG_STREAM.println(millis());
   ////// GPS pre-loop //////////////
-  // SerialUSB.println(F("\nNo lengthy GPS read-till-fix is needed, the GPS will find/keep a fix as log as power is on. "));
+  // DEBUG_STREAM.println(F("\nNo lengthy GPS read-till-fix is needed, the GPS will find/keep a fix as log as power is on. "));
 
   ////////// Radio  ///////////
-  SerialUSB.print(F("\nRadio listen? milis=")); SerialUSB.println(millis());
+  DEBUG_STREAM.print(F("\nRadio listen? milis=")); DEBUG_STREAM.println(millis());
   // now listen a long time for a radio message which we may want to act on, or for a keypress on our side 
   // time needs to be long enough not to miss a radio, we do not worry about GPS as it will keep fix as long as powered
   if(radioActive) {
@@ -184,17 +199,17 @@ void loop() {
     }  
   } else {
     //not listening to radio at all, we may as well use delay for a bit 
-    SerialUSB.print(F("  No radio listen required, so instead just add a delay before lorawan: \n    ")); SerialUSB.print(LORAWAN_TX_INTERVAL); SerialUSB.print(F(" sec."));
+    DEBUG_STREAM.print(F("  No radio listen required, so instead just add a delay before lorawan: \n    ")); DEBUG_STREAM.print(LORAWAN_TX_INTERVAL); DEBUG_STREAM.print(F(" sec."));
     while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L)) {
       delay(5000);   
-      SerialUSB.print(F("."));
+      DEBUG_STREAM.print(F("."));
     }
-    SerialUSB.println();
+    DEBUG_STREAM.println();
   }
   // we keep doing this part until it is time to send one LORAWAN TX to the worl
 
   ////////// Collect data needed just before sending a LORAWAN update to the world  ///////////
-  SerialUSB.println(F("\nCollect data needed just before sending a LORAWAN update. milis=")); SerialUSB.println(millis());
+  DEBUG_STREAM.println(F("\nCollect data needed just before sending a LORAWAN update. milis=")); DEBUG_STREAM.println(millis());
   
   /*
    * TODO
@@ -205,14 +220,49 @@ void loop() {
   
   ////////// Now we need to send a LORAWAN update to the world  ///////////
   // switch the LMIC antenna to LoraWan mode
-  SerialUSB.println(F("Time or button press tells us to send one LoraWan. milis=")); SerialUSB.println(millis());
+  DEBUG_STREAM.println(F("Time or button press tells us to send one LoraWan. milis=")); DEBUG_STREAM.println(millis());
   last_lora_time = millis();
   rn2483_init();
   doOneLoraWan();    
   
   /////////// Loop again  //////////////
-  SerialUSB.println(F("\nEnd of loop. milis=")); SerialUSB.println(millis());
+  DEBUG_STREAM.println(F("\nEnd of loop. milis=")); DEBUG_STREAM.println(millis());
 }
+
+//////////////////////////////////////////////////////////
+//// Kaasfabriek routines for gps
+////////////////////////////////////////////
+void gps_init() {
+  sodaq_gps.init(6);
+  #ifdef DEBUG
+  sodaq_gps.setDiag(DEBUG_STREAM);
+  #endif
+  // First time finding a fix wait 60 seconds at most
+  find_fix(60);
+}
+
+
+void find_fix(uint32_t delay_until)
+{
+    uint32_t start = millis();
+    uint32_t timeout = delay_until * 1000; // timeout
+    DEBUG_STREAM.println(String("waiting for fix ..., timeout=") + timeout + String("ms"));
+    if (sodaq_gps.scan(false, timeout)) {
+      /*
+       * String message = "";
+        message +=(String(" time to find fix: ") + (millis() - start) + String("ms"));
+        message +=(String(" datetime = ") + sodaq_gps.getDateTimeString());
+        message +=(String(" lat = ") + String(sodaq_gps.getLat(), 7));
+        message +=(String(" lon = ") + String(sodaq_gps.getLon(), 7));
+        message +=(String(" num sats = ") + String(sodaq_gps.getNumberOfSatellites()));
+        
+       */
+        
+    } else {
+        DEBUG_STREAM.println("No Fix");        
+    }
+}
+
 
 // Leds
 void led_on()
