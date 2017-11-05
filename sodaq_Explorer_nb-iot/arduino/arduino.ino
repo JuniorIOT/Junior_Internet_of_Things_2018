@@ -3,7 +3,7 @@
  * Modified By Marco van Schagen for Junior IOT Challenge 2018
  *******************************************************************************/ 
  
-//#define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
+#define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
 #define DEBUG_STREAM SerialUSB
 
 // lorawan
@@ -27,7 +27,7 @@ Sodaq_nbIOT nbiot;
 // compass
 #include <Adafruit_Sensor.h>
 #include <Adafruit_LSM303_U.h>
-Adafruit_LSM303_Mag_Unified mag = Adafruit_LSM303_Mag_Unified(2017);
+Adafruit_LSM303_Mag_Unified mag = Adafruit_LSM303_Mag_Unified(12345);
 
 //////////////////////////////////////////////////
 // Kaasfabriek routines for RN2483 for LoraWan
@@ -172,6 +172,7 @@ void setup() {
   /*TODO
    * put_Volts_and_Temp_into_sendbuffer();
   */
+  
   put_Compass_and_Btn_into_sendbuffer();
   
   doGPS_and_put_values_into_lora_sendbuffer();   
@@ -370,9 +371,25 @@ void setupCompass() {
     DEBUG_STREAM.println("Ooops, no LSM303 detected ... Check your wiring!");
     while(1);
   }
+  displaySensorDetails();
+}
+
+void displaySensorDetails(void)
+{
   sensor_t sensor;
   mag.getSensor(&sensor);
+  Serial.println("------------------------------------");
+  Serial.print  ("Sensor:       "); Serial.println(sensor.name);
+  Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
+  Serial.print  ("Unique ID:    "); Serial.println(sensor.sensor_id);
+  Serial.print  ("Max Value:    "); Serial.print(sensor.max_value); Serial.println(" uT");
+  Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println(" uT");
+  Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println(" uT");
+  Serial.println("------------------------------------");
+  Serial.println("");
+  delay(500);
 }
+
 float X_milliGauss,Y_milliGauss,Z_milliGauss;
 float heading, headingDegrees, headingFiltered, geo_magnetic_declination_deg;
 
