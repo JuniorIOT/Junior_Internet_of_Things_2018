@@ -25,9 +25,10 @@ unsigned long last_lora_time = millis(); // last time lorawan ran
 #include "Sodaq_UBlox_GPS.h"
 Sodaq_nbIOT nbiot;
 // compass
+#include <Wire.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_LSM303_U.h>
-Adafruit_LSM303_Mag_Unified mag = Adafruit_LSM303_Mag_Unified(12345);
+#include <Adafruit_LSM303.h>
+Adafruit_LSM303 lsm;
 
 //////////////////////////////////////////////////
 // Kaasfabriek routines for RN2483 for LoraWan
@@ -361,48 +362,30 @@ void doGPS_and_put_values_into_lora_sendbuffer() {
 //// Compass LSM303_U i2c
 ////////////////////////////////////////////
 void setupCompass() {
-  /* Enable auto-gain */
-  mag.enableAutoRange(true);
-
-  /* Initialise the sensor */
-  if(!mag.begin())
+  // Try to initialise and warn if we couldn't detect the chip
+  if (!lsm.begin())
   {
-    /* There was a problem detecting the LSM303 ... check your connections */
-    DEBUG_STREAM.println("Ooops, no LSM303 detected ... Check your wiring!");
-    while(1);
+    SerialUSB.println("Oops ... unable to initialize the LSM303. Check your wiring!");
+    while (1);
   }
-  displaySensorDetails();
-}
-
-void displaySensorDetails(void)
-{
-  sensor_t sensor;
-  mag.getSensor(&sensor);
-  Serial.println("------------------------------------");
-  Serial.print  ("Sensor:       "); Serial.println(sensor.name);
-  Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
-  Serial.print  ("Unique ID:    "); Serial.println(sensor.sensor_id);
-  Serial.print  ("Max Value:    "); Serial.print(sensor.max_value); Serial.println(" uT");
-  Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println(" uT");
-  Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println(" uT");
-  Serial.println("------------------------------------");
-  Serial.println("");
-  delay(500);
 }
 
 float X_milliGauss,Y_milliGauss,Z_milliGauss;
 float heading, headingDegrees, headingFiltered, geo_magnetic_declination_deg;
 
 long readCompass() {
-  sensors_event_t event;
-  mag.getEvent(&event);
   
   // TODO Marco?? this is not millisguass anymore
   
-  long x = event.magnetic.x;
-  long y = event.magnetic.y;
-  long z = event.magnetic.z;
-
+  long x = lsm.magData.x;
+  long y = lsm.magData.y;
+  long z = lsm.magData.z;
+  SerialUSB.print("x: ");
+  SerialUSB.print(x);
+  SerialUSB.print(" y: ");
+  SerialUSB.print(y);
+  SerialUSB.print(" z: ");
+  SerialUSB.println(z);
   // Correcting the heading with the geo_magnetic_declination_deg angle depending on your location
   // You can find your geo_magnetic_declination_deg angle at: http://www.ngdc.noaa.gov/geomag-web/
   // At zzz location it's 4.2 degrees => 0.073 rad
