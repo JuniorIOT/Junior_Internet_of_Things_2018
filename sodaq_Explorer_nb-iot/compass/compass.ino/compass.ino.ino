@@ -175,51 +175,32 @@ SerialUSB.print(OUT_X_H_M,HEX);
 SerialUSB.print("OUT_X_L_M: ");
 SerialUSB.println(OUT_X_L_M,HEX);
 
-int x = ((OUT_X_H_M << 8) + OUT_X_L_M);
-if(OUT_X_H_M >= 0b10000000) {
-  SerialUSB.println("Negative");
-  OUT_X_H_M -= 0b10000000;
-  x = ((OUT_X_H_M << 8) + OUT_X_L_M);
-  x -= 32768;
-} else {
-  SerialUSB.println("Positive");
-}
+int16_t x = ((OUT_X_H_M << 8) + OUT_X_L_M);
+int16_t y = ((OUT_Y_H_M << 8) + OUT_Y_L_M);
+int16_t z = ((OUT_Z_H_M << 8) + OUT_Z_L_M);
+int16_t temp = ((TEMP_H_M << 8) + TEMP_L_M);
 
-int y = ((OUT_Y_H_M << 8) + OUT_Y_L_M);
-if(OUT_Y_H_M >= 0b10000000) {
-  OUT_Y_H_M -= 0b10000000;
-  y = ((OUT_Y_H_M << 8) + OUT_Y_L_M);
-  y -= 32768;
-}
-int z = ((OUT_Z_H_M << 8) + OUT_Z_L_M);
-if(OUT_Z_H_M >= 0b10000000) {
-  OUT_Z_H_M -= 0b10000000;
-  z = ((OUT_Z_H_M << 8) + OUT_Z_L_M);
-  z -= 32768;
-}
-int temp = ((TEMP_H_M << 8) + TEMP_L_M);
-if(TEMP_H_M >= 0b10000000) {
-  TEMP_H_M -= 0b10000000;
-  temp = ((TEMP_H_M << 8) + TEMP_L_M);
-  temp -= 32768;
-}
+SerialUSB.print("x");
+SerialUSB.println(x,DEC);
+SerialUSB.print("y: ");
+SerialUSB.println(y, DEC);
+SerialUSB.print("z: ");
+SerialUSB.println(z, DEC);
 
-float xgauss = (float)x/32768.0F * 16.0F * 1000;
-float ygauss = (float)y/32768.0F * 16.0F * 1000;
-float zgauss = (float)z/32768.0F * 16.0F * 1000;
 
+
+float X_milliGauss = x * 0.58;
+float Y_milliGauss = y * 0.58;
+float Z_milliGauss = z * 0.58;
 
 SerialUSB.print("x mgauss");
-SerialUSB.println(xgauss, 6);
-SerialUSB.print("y mgauss: ");
-SerialUSB.println(ygauss, 6);
-SerialUSB.print("z mgauss: ");
-SerialUSB.println(zgauss, 6);
-SerialUSB.print("temp byte: ");
-SerialUSB.println(temp, DEC);
-float X_milliGauss = xgauss;
-float Y_milliGauss = ygauss;
-float Z_milliGauss = zgauss;
+SerialUSB.println(X_milliGauss,DEC);
+SerialUSB.print("y: mgauss");
+SerialUSB.println(Y_milliGauss, DEC);
+SerialUSB.print("z: mgauss");
+SerialUSB.println(Z_milliGauss, DEC);
+
+
 
 float heading, headingDegrees, headingFiltered, geo_magnetic_declination_deg;
 geo_magnetic_declination_deg = 1.09; // for our location
@@ -232,6 +213,8 @@ geo_magnetic_declination_deg = 1.09; // for our location
 if(headingDegrees > 2*180) headingDegrees -= 2*180;
 SerialUSB.print("heading: ");
 SerialUSB.println(headingDegrees);
+
+
 delay(2 *1000);
 }
 
