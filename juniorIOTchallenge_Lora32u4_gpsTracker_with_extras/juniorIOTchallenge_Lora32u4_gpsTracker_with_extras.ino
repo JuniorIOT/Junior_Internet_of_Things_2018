@@ -3,9 +3,9 @@
  * Modified By Marco van Schagen for Junior IOT Challenge 2018
  *******************************************************************************/ 
  
-//#define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
-//#define DEBUGLEVEL2
-#define DEBUGRADIO
+#define DEBUG           // if DEBUG is defined, some code is added to display some basic debug info
+//#define DEBUGLEVEL2     // if DEBUGLEVEL2 is defined, some code is added to display deeper debug info
+//#define DEBUGRADIO      // if DEBUGLEVEL2 is defined, some code is added to display radio debug info
 
 #define VBATPIN A9
 #define LEDPIN 13 
@@ -79,15 +79,15 @@ void gps_init();
 //////////////////////////////////////////////////
 // Kaasfabriek routines for LMIC_slim for LoraWan
 ///////////////////////////////////////////////
-void setupLora();
-void doOneLora();
+void LoraWan_init();
+void doOneLoraWan();
 //////////////////////////////////////////////////
 // Kaasfabriek routines for RFM95 radio to radio 
 ///////////////////////////////////////////////
 void formatRadioPackage(uint8_t *loopbackToData);
 void doOneRadio();
 void halt_stressed();
-void setupRadio();
+void Radio_init();
 void decodeReply(uint8_t buf[], bool debugToSerial);
 ///////////////////////////////////////////////
 //  some other measurements
@@ -98,7 +98,7 @@ void put_TimeToFix_into_sendbuffer(int TimeToFix_Seconds);
 //////////////////////////////////////////////////////////
 //// Compass HMC5983
 ////////////////////////////////////////////
-void setupCompass();
+void Compass_init();
 long readCompass();
 void put_Compass_and_Btn_into_sendbuffer();
 ///////////////////////////////////////////////
@@ -117,8 +117,8 @@ long l_lat, l_lon, l_alt;
 int hdopNumber;
 
 void put_gpsvalues_into_sendbuffer() {
-  #ifdef DEBUGLEVEL2
-  Serial.println(F("Started: put_gpsvalues_into_sendbuffer"));
+  #ifdef DEBUG
+  Serial.println(F("Start: put_gpsvalues_into_sendbuffer"));
   #endif
   //   GPS reading = Satellite time hh:mm:18, lat 526326595, lon 47384133, alt 21, hdop 990, sat count = 12
   // With the larger precision in LONG values in NMEAGPS, 
@@ -167,17 +167,17 @@ void put_gpsvalues_into_sendbuffer() {
 //  Serial.print(F("\n  hdopNumber = "));Serial.println(hdopNumber);
 //  Serial.print(F("  HdopBinary = "));Serial.println(HdopBinary);
   
-  myLoraWanData[0] = ( LatitudeBinary >> 16 ) & 0xFF;
-  myLoraWanData[1] = ( LatitudeBinary >> 8 ) & 0xFF;
-  myLoraWanData[2] = LatitudeBinary & 0xFF;
-  myLoraWanData[3] = ( LongitudeBinary >> 16 ) & 0xFF;
-  myLoraWanData[4] = ( LongitudeBinary >> 8 ) & 0xFF;
-  myLoraWanData[5] = LongitudeBinary & 0xFF;
+  myLoraWanData[0] = LatitudeBinary >> 16;
+  myLoraWanData[1] = LatitudeBinary >> 8;
+  myLoraWanData[2] = LatitudeBinary;
+  myLoraWanData[3] = LongitudeBinary >> 16;
+  myLoraWanData[4] = LongitudeBinary >> 8;
+  myLoraWanData[5] = LongitudeBinary;
   // altitudeGps in meters into unsigned int
-  myLoraWanData[6] = ( altitudeBinary >> 8 ) & 0xFF;
-  myLoraWanData[7] = altitudeBinary & 0xFF;
+  myLoraWanData[6] = altitudeBinary >> 8;
+  myLoraWanData[7] = altitudeBinary;
   // hdop in tenths of meter
-  myLoraWanData[8] = HdopBinary & 0xFF;
+  myLoraWanData[8] = HdopBinary;
 
   print_myLoraWanData();
   
@@ -201,12 +201,12 @@ bool process_gps_datastream(const gps_fix & fix) {   // constant pointer to fix 
     
     // serial print commands will take time and may affect the gps read
     #ifdef DEBUGLEVEL2
-    Serial.print("  Satellite time hh:mm:"); Serial.print( fix.dateTime.seconds ); Serial.print(", ");
-    Serial.print("lat "); Serial.print( l_lat  ); Serial.print(", ");
-    Serial.print("lon "); Serial.print( l_lon ); Serial.print(", ");
-    Serial.print("alt "); Serial.print( l_alt ); Serial.print(", ");
-    Serial.print("hdop "); Serial.print( hdopNumber ); Serial.print(", ");
-    Serial.print("sat count = "); Serial.print( fix.satellites );
+    Serial.print(F("  Satellite time hh:mm:")); Serial.print( fix.dateTime.seconds ); Serial.print(F(", "));
+    Serial.print(F("lat ")); Serial.print( l_lat  ); Serial.print(F(", "));
+    Serial.print(F("lon ")); Serial.print( l_lon ); Serial.print(F(", "));
+    Serial.print(F("alt ")); Serial.print( l_alt ); Serial.print(F(", "));
+    Serial.print(F("hdop ")); Serial.print( hdopNumber ); Serial.print(F(", "));
+    Serial.print(F("sat = ")); Serial.print( fix.satellites );
     //Serial.print( fix.dateTime ); Serial.print(" datetime, ");    
     //Serial.print( fix.latitude(), 6 ); // floating-point display
     //Serial.print( fix.longitude(), 6 ); // floating-point display
@@ -216,7 +216,7 @@ bool process_gps_datastream(const gps_fix & fix) {   // constant pointer to fix 
     #endif
     return true;
   } else {
-    #ifdef DEBUGLEVEL2
+    #ifdef DEBUG
     Serial.print( "(no valid location) " );
     #endif
     return false;
@@ -224,11 +224,11 @@ bool process_gps_datastream(const gps_fix & fix) {   // constant pointer to fix 
 }
 
 void doGPS(unsigned long gps_listen_timeout) {
-  bool hasFix = false;
-  #ifdef DEBUGLEVEL2
-  Serial.print(F("\nStart: doGPS_and_put_values_into_sendbuffer. milis=")); Serial.println(millis());
-  // first we want to know GPS coordinates - we do accept a long delay if needed, even before listening to radio
+  #ifdef DEBUG
+  Serial.print(F("Start: doGPS. timeout=")); Serial.println(gps_listen_timeout);Serial.print(F(" milis=")); Serial.println(millis());
   #endif
+  
+  bool hasFix = false;
   unsigned long gps_listen_startTime = millis(); 
 
   
@@ -248,6 +248,10 @@ void doGPS(unsigned long gps_listen_timeout) {
   #endif
 }
 void doGPS_and_put_values_into_sendbuffer() {
+  #ifdef DEBUG
+  Serial.print(F("Start: doGPS_and_put_values_into_sendbuffer. milis=")); Serial.println(millis());
+  #endif
+  
   doGPS(3);
   // put gps values into send buffer
   put_gpsvalues_into_sendbuffer();
@@ -257,8 +261,8 @@ void doGPS_and_put_values_into_sendbuffer() {
 }
 
 void gps_init() {  
-  #ifdef DEBUGLEVEL2
-  Serial.print(F("\nGPS init. milis=")); Serial.println(millis());
+  #ifdef DEBUG
+  Serial.print(F("GPS init. milis=")); Serial.println(millis());
   #endif
     
   // load the send buffer with dummy location 0,0. This location 0,0 is recognized as dummy by TTN Mapper and will be ignored
@@ -270,12 +274,6 @@ void gps_init() {
 //  Serial.print( F("NeoGps, fix object size = ") ); Serial.println( sizeof(gps.fix()) );
 //  Serial.print( F("NeoGps, NMEAGPS object size = ") ); Serial.println( sizeof(gps) );
 
-  #ifdef NMEAGPS_NO_MERGING
-    #ifdef DEBUGLEVEL2
-    Serial.println( F("Only displaying data from xxRMC sentences.\n Other sentences may be parsed, but their data will not be displayed.") );
-    #endif
-  #endif
-  
   //Serial.flush();
   ss.begin(9600);
   
@@ -298,8 +296,8 @@ void gps_init() {
 }
 
 void gps_setStrings() {
-  #ifdef DEBUGLEVEL2
-  Serial.print(F("\nStart: gps_setStrings. milis=")); Serial.println(millis());
+  #ifdef DEBUG
+  Serial.print(F("Start: gps_setStrings. milis=")); Serial.println(millis());
   #endif
 
   // Turning ON or OFF  GPS NMEA strings 
@@ -355,9 +353,8 @@ void gps_setStrings() {
     }
     if(times_without_char++>30 && times_without_char<60) Serial.write(".");
   }
-  #ifdef DEBUGLEVEL2
   Serial.println();
-  #endif
+  
   // #define LAST_SENTENCE_IN_INTERVAL NMEAGPS::NMEA_RMC
 
   // our GN-801 works well
@@ -370,9 +367,10 @@ void gps_setStrings() {
 ///////////////////////////////////////////////
 
 void lmic_slim_init() {
-  #ifdef DEBUGLEVEL2
-  Serial.print("\nStart: lmic_slim_init. milis="); Serial.println(millis());  
+  #ifdef DEBUG
+  Serial.print(F("Start: lmic_slim_init. milis=")); Serial.println(millis());  
   #endif
+  
   spi_start();
   pinMode(SS_pin, OUTPUT);                                                                  
   pinMode(SCK_pin, OUTPUT);                                         
@@ -420,18 +418,18 @@ void print_myLoraWanData() {
   #ifdef DEBUGLEVEL2
   Serial.print(F("  myLoraWanData = [")); 
   //Serial.print((char*)myLoraWanData); Serial.println("]"); Serial.print(F("                  [ "));  
-  for(int i=0; i<30; i++) {  
-    if (myLoraWanData[i] < 16) Serial.print("0"); 
+  for(int i=0; i<PAYLOADSIZE; i++) {  
+    if (myLoraWanData[i] < 16) Serial.print(F("0")); 
     Serial.print(myLoraWanData[i], HEX); 
     Serial.print(F(" "));  
   }  
-  Serial.println(F(" .. ]"));
+  Serial.println();
   #endif 
 }
 
 void doOneLoraWan() {
-  #ifdef DEBUGLEVEL2
-  Serial.print("\nStart: Do one lora. milis="); Serial.println(millis());
+  #ifdef DEBUG
+  Serial.print(F("Start: doOneLoraWan. milis=")); Serial.println(millis());
   print_myLoraWanData();
   #endif
   
@@ -440,24 +438,44 @@ void doOneLoraWan() {
   delay (10);
   //digitalWrite(LED_BUILTIN, HIGH);
   digitalWrite(LEDPIN, !digitalRead(LEDPIN));
+  
   #ifdef DEBUGLEVEL2
-  Serial.print("  txLora. milis="); Serial.println(millis());
+  Serial.print(F("  txLora. milis=")); Serial.println(millis());
   #endif
+  
   txlora();
+  
   #ifdef DEBUGLEVEL2
-  Serial.print("  txLora completed. milis="); Serial.println(millis());
+  Serial.print(F("  txLora completed. milis=")); Serial.println(millis());
   #endif
+  
   delay(200);           // this is a simple wait with no checking for TX Ready. Sdjust this for your SF.
                           // Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms. 
                           // with 30-50 bytes: SF12 = 2 seconds, SF10 = 0,5 sec, SF8 = 120 msec, SF7= 70 msec. One device has 30 seconds per day airtime.
   //digitalWrite(LED_BUILTIN, LOW);
+  
   #ifdef DEBUGLEVEL2
-  Serial.print("  send time delay completed. milis="); Serial.println(millis());
+  Serial.print(F("  send time delay completed. milis=")); Serial.println(millis());
   #endif
+  
   digitalWrite(LEDPIN, !digitalRead(LEDPIN));
   setopmode(0x00);                     // opmode SLEEP; better not tell lorawan to go to sleep before message is done
+
+  //just after the send is completed, we push the location data into buffer for prev location - dark spot finder  
+  myLoraWanData[9] = myLoraWanData[0];
+  myLoraWanData[10] = myLoraWanData[1];
+  myLoraWanData[11] = myLoraWanData[2];
+  
+  myLoraWanData[12] = myLoraWanData[3];
+  myLoraWanData[13] = myLoraWanData[4];
+  myLoraWanData[14] = myLoraWanData[5];
+  
+  myLoraWanData[15] = myLoraWanData[6];
+  myLoraWanData[16] = myLoraWanData[7];
+  myLoraWanData[17] = myLoraWanData[8];
+  
   #ifdef DEBUGLEVEL2
-  Serial.print("Completed: Do one lora. milis="); Serial.println(millis());
+  Serial.print(F("Completed: Do one lora. milis=")); Serial.println(millis());
   #endif
 }
 
@@ -483,15 +501,15 @@ bool ReceivedFromRadio = false;
 uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
 
 void doOneRadio() {
-  #ifdef DEBUGLEVEL2
-  Serial.print("\nStart: Do one radio. milis="); Serial.println(millis());  
+  #ifdef DEBUG
+  Serial.print(F("Start: doOneRadio. milis=")); Serial.println(millis());  
   #endif
   
   uint8_t radiopacket[10];
   
   formatRadioPackage(&radiopacket[0]);
-  #ifdef DEBUGLEVEL2
-  Serial.println("Sending..."); delay(10);
+  #ifdef DEBUG
+  Serial.println(F("  Sending...")); delay(10);
   #endif
   rf95.send(radiopacket, 10);
 
@@ -501,25 +519,36 @@ void doOneRadio() {
   // Now wait for a reply  
   uint8_t len = sizeof(buf);
   
-  #ifdef DEBUGLEVEL2
-  Serial.println("Waiting for some other radio to reply..."); delay(10);
+  #ifdef DEBUG
+  Serial.println(F("  Waiting for some other radio to reply...")); delay(10);
   #endif
-  if (!rf95.waitAvailableTimeout(20000)) { Serial.println("No radio received in 20 sec, is there anyone around in same send settings?"); }
-  else { 
+  
+  if (!rf95.waitAvailableTimeout(20000)) { 
+    #ifdef DEBUG
+    Serial.println(F("  No radio received in 20 sec.")); 
+    #endif
+  } else { 
     // a message was received
-    if (!rf95.recv(buf, &len)) { Serial.println("Receive buffer is empty."); }
-    else {
+    if (!rf95.recv(buf, &len)) {
+      #ifdef DEBUG 
+      Serial.println(F("Receive buffer is empty.")); 
+      #endif
+    } else {
       // message has a length
+      #ifdef DEBUG 
       RH_RF95::printBuffer("Received this radio message: ", buf, len);
+      #endif
+      
       #ifdef DEBUGLEVEL2
-      Serial.println("Got reply:              [");
+      Serial.println(F("Got reply:              ["));
       #endif
       decodeReply(buf, 1/*debug*/);
       //Serial.print((char*)buf);
       #ifdef DEBUGLEVEL2
-      Serial.print("] RSSI: ");
+      Serial.print(F("] RSSI: "));
       Serial.println(rf95.lastRssi(), DEC);
       #endif
+      
       // RSSI values, indication for Wifi: http://www.metageek.com/training/resources/understanding-rssi.html
       //   -45 dBm  =  60 cm distance
       //   -110 dBm  =  probably 200 meter in streets
@@ -529,29 +558,28 @@ void doOneRadio() {
     }
   }
 
-  // end loop
+  // done wait for radio
   #ifdef DEBUGLEVEL2
-  Serial.print("\nCompleted: Do one radio. milis="); Serial.println(millis());
+  Serial.print(F("  Completed: doOneRadio. milis=")); Serial.println(millis());
   #endif 
 }
 
-void halt_stressed() {  
-  #ifdef DEBUGLEVEL2
-  Serial.print("\nPanic. Halted. milis="); Serial.println(millis());  
-  #endif
+void halt_stressed() { 
+  Serial.print(F("Panic. Halted. milis=")); Serial.println(millis()); 
   while(1) {
     digitalWrite(LEDPIN, HIGH);   
     delay(150);
     digitalWrite(LEDPIN, LOW);  
     delay(50);
-    Serial.print("x");  
+    Serial.print(F("x"));  
   }
 }   
 
-void setupRadio() {  
-  #ifdef DEBUGLEVEL2
-  Serial.print("\nSetup radio. milis="); //Serial.println(millis());  
+void Radio_init() {  
+  #ifdef DEBUG
+  Serial.print(F("Init radio. milis=")); Serial.println(millis());  
   #endif
+  
   pinMode(RFM95_RST, OUTPUT);
   digitalWrite(RFM95_RST, HIGH);
 
@@ -562,22 +590,22 @@ void setupRadio() {
   delay(10);
 
   if (!rf95.init()) {
-    Serial.println("Radio init failed");
+    Serial.println(F("Radio init failed"));
     //while (1);
     halt_stressed();
   }
   #ifdef DEBUGLEVEL2
-  Serial.println("Radio init OK!");
+  Serial.println(F("Radio init OK!"));
   #endif
 
   // Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM
   if (!rf95.setFrequency(RF95_FREQ)) {
-    Serial.println("setFrequency failed");
+    Serial.println(F("setFrequency failed"));
     //while (1);
     halt_stressed();
   }
   #ifdef DEBUGLEVEL2
-  Serial.print("Freq is set to: "); 
+  Serial.print(F("Freq is set to: ")); 
   Serial.println(RF95_FREQ);
   #endif
   // Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol, CRC on
@@ -689,41 +717,41 @@ void decodeReply(uint8_t buf[], bool debugToSerial) {
     #ifdef DEBUGRADIO
     // bytes 0
     if((buf[0] & 0b00001111) == 0b00000001) {
-      Serial.println("Radio: Someone says that he fired");
+      Serial.println(F("Radio: Someone says that he fired"));
     } else if((buf[0] & 0b00001111) == 0b00000010) {
-        Serial.println("Radio: Someone talkes back to someone who fired");
+        Serial.println(F("Radio: Someone talkes back to someone who fired"));
     }
-    Serial.print("That someone has an id of:");
+    Serial.print(F("That someone has an id of:"));
     uint8_t id = (buf[0] >> 4) & 0b00001111;
     Serial.println((int) id,DEC);
     
     // byte 1,2,3 and 4,5,6
-    Serial.print("His location is: ");
+    Serial.print(F("His location is: "));
     
     float _lat = ((((uint32_t)buf[1]) << 16) + (((uint32_t)buf[2]) << 8) + buf[3]) / 16777215.0 * 180.0 - 90;
     float _lng = ((((uint32_t)buf[4]) << 16) + (((uint32_t)buf[5]) << 8) + buf[6]) / 16777215.0 * 360.0 - 180;
-    Serial.print("lat: ");
+    Serial.print(F("lat: "));
     Serial.print(_lat);
-    Serial.print("lng: ");
+    Serial.print(F("lng: "));
     Serial.println(_lng);
 
     // byte 7
     uint8_t compass = buf[7] & 0b01111111; // don't want the hit indicator now
-    Serial.print("His compass points to: ");
+    Serial.print(F("His compass points to: "));
     int _compass = (compass & 127)*3;
     Serial.println(_compass);
 
     bool hePressedHisButton = ((buf[7] >> 7) & 0b00000001) == 0b00000001;
-    if(hePressedHisButton) Serial.println("He pressed his button");
-    else Serial.println("He did not press his button");
+    if(hePressedHisButton) Serial.println(F("He pressed his button"));
+    else Serial.println(F("He did not press his button"));
 
     // byte 8
     bool heWasHit = (buf[8] & 0b00000001) == 0b00000001;
-    if(heWasHit) Serial.println("He was hit");
-    else Serial.println("He was not hit - or doesn't know it yet");
+    if(heWasHit) Serial.println(F("He was hit"));
+    else Serial.println(F("He was not hit - or doesn't know it yet"));
 
     uint8_t remoteid = (buf[8] >> 4) & 0b00001111;
-    Serial.println("He was talking to id: ");
+    Serial.println(F("He was talking to id: "));
     Serial.print((int)remoteid,DEC);
 
     // byte 9 - what is this?
@@ -789,7 +817,7 @@ long readVbat() {
     // *1000 to get milliVolt
   measuredvbat *= 6600. / 1024.;         
   result = measuredvbat;
-//  Serial.print(F("  Vbat=") ); 
+//  Serial.print(F("  Vbat=")); 
 //  Serial.print(result);
 //  Serial.println(F(" milliVolt"));
   return result;
@@ -797,11 +825,15 @@ long readVbat() {
 
 void put_Compass_and_Btn_into_sendbuffer() {
   long compass = readCompass(); // 0..360 deg
-  uint8_t compass_bin = compass/3 ;  // rescale 0-360 deg into 0 - 120 values and make sure it is not bigger than one byte
+  
   // now add a bit for BTN (not implemented)
-  myLoraWanData[9] = compass_bin;
+  uint8_t myBtn = 0;
+
+  uint8_t compass_bin = ((compass/3) & 127) | (myBtn << 7) ;  // rescale 0-360 deg into 0 - 120 values and make sure it is not bigger than one byte
+   
+  myLoraWanData[21] = compass_bin;
   #ifdef DEBUG
-  Serial.print(F("  compass=")); Serial.print(compass); Serial.print(F("  deg. compass_bin=")); Serial.println(compass_bin);
+  Serial.print(F("  compass=")); Serial.print(compass); Serial.print(F("  deg. bin=")); Serial.println(compass_bin);
   #endif
 }
 
@@ -810,23 +842,23 @@ void put_Volts_and_Temp_into_sendbuffer() {
   long vcc = readVccCPU();
   //long vcc = 0;
   uint8_t vcc_bin = vcc/20 ;  // rescale 0-5100 milli volt into 0 - 255 values and make sure it is not bigger than one byte
-  myLoraWanData[10] = vcc_bin;
+  myLoraWanData[18] = vcc_bin;
   #ifdef DEBUG
-  Serial.print(F("  Vcc=")); Serial.print(vcc); Serial.print(F(" mV. vcc_bin=")); Serial.println(vcc_bin);
+  Serial.print(F("  Vcc=")); Serial.print(vcc); Serial.print(F(" mV. bin=")); Serial.println(vcc_bin);
   #endif
   
-  double temperature = GetTemp();
-  uint8_t temperature_bin = temperature + 100;   // rescale -100 to 155 into 0 - 255 values and make sure it is not bigger than one byte
-  myLoraWanData[11] = temperature_bin;
+  double cpuTemp = GetTemp();
+  uint8_t cpuTemp_bin = cpuTemp + 100;   // rescale -100 to 155 into 0 - 255 values and make sure it is not bigger than one byte
+  myLoraWanData[19] = cpuTemp_bin;
   #ifdef DEBUG
-  Serial.print(F("  Temp=")); Serial.print(temperature); Serial.print(F(" bin=")); Serial.println(temperature_bin);
+  Serial.print(F("  CpuTemp=")); Serial.print(cpuTemp); Serial.print(F(" bin=")); Serial.println(cpuTemp_bin);
   #endif
   
   long vbat = readVbat();
   uint8_t vbat_bin = vbat/20 ;  // rescale 0-5100 milli volt into 0 - 255 values and make sure it is not bigger than one byte
-  myLoraWanData[12] = vbat_bin;
+  myLoraWanData[20] = vbat_bin;
   #ifdef DEBUG
-  Serial.print(F("  Vbat=")); Serial.print(vbat); Serial.print(F(" mV. vbat_bin=")); Serial.println(vbat_bin);
+  Serial.print(F("  Vbat=")); Serial.print(vbat); Serial.print(F(" mV. bin=")); Serial.println(vbat_bin);
   #endif
 }
 
@@ -856,8 +888,7 @@ void put_TimeToFix_into_sendbuffer(int TimeToFix_Seconds) {  // time to fix onto
 //////////////////////////////////////////////////////////
 //// Compass HMC5983
 ////////////////////////////////////////////
-void setupCompass() {
-  
+void Compass_init() {
   //  HMC5983 first 4 pins are soldered to first 4 pins on lora32u4
   //   Vin to pin 6
   //   GND to pin 5
@@ -964,19 +995,12 @@ long readCompass() {
   if(headingDegrees <0) headingDegrees += 2*180;
   if(headingDegrees > 2*180) headingDegrees -= 2*180;
   
-  // Smoothing the output angle / Low pass filter --- to make changes apeare slower
-  //headingFiltered = headingFiltered*0.85 + headingDegrees*0.15;
-  headingFiltered = headingDegrees;
-  // We can do this, but then we need to take multiple readings and it will still go wrong if we take readings from the previous buttonpress in account
-  // Because If i pressed a button at 180 degrees. And I press it again at 0 degrees, 180 is not relevant to be taking into account.
-  
   //Sending the heading value through the Serial Port 
   #ifdef DEBUGLEVEL2
+  Serial.print("  headingDegrees=");
   Serial.print(headingDegrees);
-  Serial.print(" filtered ");
-  Serial.println(headingFiltered);
   #endif
-  return headingFiltered;
+  return headingDegrees;
 }
 ///////////////////////////////////////////////
 //  arduino init and main
@@ -998,31 +1022,24 @@ void setup() {
 
   gps_init(); 
   lmic_slim_init();
-  setupCompass();
+  Compass_init();
   
   #ifdef DEBUGLEVEL2
-  Serial.print(F("\nInit values. milis=")); Serial.println(millis());
+  Serial.print(F("  Init values. milis=")); Serial.println(millis());
   #endif
   put_Volts_and_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
   doGPS_and_put_values_into_sendbuffer();   
   
   #ifdef DEBUGLEVEL2
-  Serial.print(F("\nSend one lorawan message as part of system init. milis=")); Serial.println(millis());
+  Serial.print(F("  Send one lorawan message as part of system init. milis=")); Serial.println(millis());
   #endif
-//  LMIC_setTxData2(myLoraWanData, sizeof(myLoraWanData)-1);
-//  radio_init();                                                       
-//  delay (10);
-//  txlora();
-//  delay(200);                    // wacht op TX ready. Airtime voor 5 bytes payload = 13 x 2^(SF-6) ms
-//  setopmode(0x00);                // opmode SLEEP
-//  last_lora_time = millis();
   last_lora_time = millis();
   lmic_slim_init();
   doOneLoraWan();    
   
   #ifdef DEBUGLEVEL2
-  Serial.print(F("\nCompleted: Setup. milis=")); Serial.println(millis());
+  Serial.print(F("  Completed: Setup. milis=")); Serial.println(millis());
   #endif
 }
 
@@ -1030,22 +1047,22 @@ boolean radioActive = true;  // this name is for radio, not LoraWan
 boolean loraWannaBe = false;
 
 void loop() {
-  #ifdef DEBUGLEVEL2
+  #ifdef DEBUG
   Serial.print(F("\n==== Loop starts. milis=")); Serial.println(millis());
   #endif
   digitalWrite(LEDPIN, !digitalRead(LEDPIN)); 
 
   ////// GPS pre-loop //////////////
-  // Serial.println(F("\nNo lengthy GPS read-till-fix is needed, the GPS will find/keep a fix as log as power is on. "));
+  // Serial.println(F("  No lengthy GPS read-till-fix is needed, the GPS will find/keep a fix as log as power is on. "));
 
   ////////// Radio  ///////////
   #ifdef DEBUGLEVEL2
-  Serial.print(F("\nRadio listen? milis=")); Serial.println(millis());
+  Serial.print(F("  Radio listen? milis=")); Serial.println(millis());
   #endif
   // now listen a long time for a radio message which we may want to act on, or for a keypress on our side 
   // time needs to be long enough not to miss a radio, we do not worry about GPS as it will keep fix as long as powered
   if(radioActive) {
-    setupRadio();
+    Radio_init();
     while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L)) {
     // next command is not what we want to do
     doOneRadio();  // sends a radio message and will listen for return message for a certain time
@@ -1061,16 +1078,24 @@ void loop() {
   } else {
     //not listening to radio at all, we may as well use delay for a bit 
     #ifdef DEBUGLEVEL2
-    Serial.print(F("  No radio listen required, so instead just add a delay before lorawan: \n    ")); Serial.print(LORAWAN_TX_INTERVAL); Serial.print(F(" sec."));
+    Serial.println(F("  No radio listen required. We will need to wait. ")); 
     #endif
-    while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L)) {
-      delay(5000);   
-      Serial.print(F("."));
-    }
-    Serial.println();
   }
-  // we keep doing this part until it is time to send one LORAWAN TX to the worl
+  // we keep doing this part until it is time to send one LORAWAN TX to the world
 
+  // if we did not wait for next lora moment, we will need to do that now
+  #ifdef DEBUGLEVEL2
+  Serial.print(F("  Delay before lorawan if needed: expected interval ")); 
+  Serial.print(LORAWAN_TX_INTERVAL); Serial.print(F(" sec. "));
+  Serial.print(F("time left: ")); 
+  Serial.print((millis() - last_lora_time)/1000); Serial.print(F(" sec."));
+  #endif
+  while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L)) {
+    delay(5000);   
+    Serial.print(F("."));
+  }
+  Serial.println();
+    
   ////////// Collect data needed just before sending a LORAWAN update to the world  ///////////
   //Serial.print(F("\nCollect data needed just before sending a LORAWAN update. milis=")); Serial.println(millis());
   put_Volts_and_Temp_into_sendbuffer();
@@ -1083,7 +1108,7 @@ void loop() {
   ////////// Now we need to send a LORAWAN update to the world  ///////////
   // switch the LMIC antenna to LoraWan mode
   #ifdef DEBUGLEVEL2
-  Serial.println(F("Time or button press tells us to send one LoraWan. milis=")); Serial.println(millis());
+  Serial.println(F("  About to send one LoraWan. milis=")); Serial.println(millis());
   #endif
   last_lora_time = millis();
   lmic_slim_init();
@@ -1091,7 +1116,7 @@ void loop() {
   
   /////////// Loop again  //////////////
   #ifdef DEBUGLEVEL2
-  Serial.println(F("\nEnd of loop. milis=")); Serial.println(millis());
+  Serial.println(F("  End of loop. milis=")); Serial.println(millis());
   #endif
 }
 

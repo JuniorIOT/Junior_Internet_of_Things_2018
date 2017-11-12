@@ -44,6 +44,7 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
 
           ┌──────┐       ┌───────────────────────┐   ┌───────────────┐
           │ LIPO │       │          GPS          │   │    compass    │
+          │      │       │                       │   │    HMC5983    │
           │      │       │                       │   │               │
           └─┬──┬─┘       └─┬───┬───┬───┬───┬───┬─┘   └─┬───┬───┬───┬─┘   
             │  │          blue wht │blk│red│grn│yel    │   │   │   │
