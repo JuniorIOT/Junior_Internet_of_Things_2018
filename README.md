@@ -1,51 +1,58 @@
 ﻿
-# Junior IOT - Smart City Challenge 2018
-GPS-Lora-Radio-dinges juniorIOTchallenge2018 
+# Junior IOT - Smart City Challenge 2018 - Fablab de Kaasfabriek
+Inexpensive low-quality Lora32u4 GPS tracker for #juniorIOTchallenge 2018
+
+## Inexpensive low-quality Lora32u4 GPS tracker
+```
+    this set of folders is for #JuniorIOTchallenge - Smart City Challenge 2018
+             met leerling teams bij fablab de Kaasfabriek in Alkmaar
+                     deze software op het internet is natuurlijk geheim...
+                                  ...anders kunnen ze makkelijk afkijken!
+                                  
+  previous iteration is Junior IoT Baloon Challenge february 2017
+  so for ora location transmittor with GPS and rfm95 see 
+  https://github.com/Kaasfabriek/GPS-Lora-Balloon-rfm95-TinyGPS/tree/master/Balloon-rfm95
+
+
+```
+Credits:
+- Software plakker: Dennis --> dennis.ruigrok@gmail.com
+- Educatie kletser: Marco --> marco@kaasfabriek.nl
+- Regie en inspiratie: marco@marcovanschagen.nl
+- Junior IOT Challenges: marco@dataschrift.nl
+
+## Important
+Some practical soldering tips in nice pictures:
+https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-yourself
+ --> you will need to use our pin mapping instead
+
+## Parts list
+- Lora32u4 with antenna, frequency 868 Mhz - 12 euro on Ebay and AliExpress
 
 ## Libraries required
 - tbd1       https://github.com/tbd1
 - tb21       https://github.com/tbd2
 
-## Lora location transmittor with GPS and rfm95 for Kaasfabriek project 2018
-```
-  previous iteration is Junior IoT Baloon Challenge february 2017
-
-  this set of folders is for #JuniorIOTchallenge2018
-             met leerling teams bij fablab de Kaasfabriek in Alkmaar
-                     deze software op het internet is natuurlijk geheim...
-                                  ...anders kunnen ze makkelijk afkijken!
-```
-See https://www.thethingsnetwork.org/labs/story/junior-iot-ballonnen-challenge
-
-- Software plakker: Dennis --> dennis.ruigrok@gmail.com
-- Educatie kletser: Marco --> marco@kaasfabriek.nl
-- Regie en inspiratie: marco@dataschrift.nl
-
-## Important
-how to build your first node, practical soldering tips in nice pictures,
-https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-yourself
- --> you will need to use our pin mapping instead
-
 ## Pin mapping
 ```
     Suggested pin mapping:
     -----------------------------------------------------------------------------
-                            ║                 ║ USB to serial programmer
-                            ║3.3 TX RX GND 5V ║ while programming, power comes
-                            ╚══╬══╬══╬══╬══╬══╝ from external supply to get
-     ╔═══════╗            ╬ RXD          GND ╬─black─60mm──┘ │           ///////
-     ║       ║            ╬ RST          RST ╬x              │               │
-     ║ (PPS) ╬x           ╬ GND          VCC ╬─red─48mm──────┘    3v   gnd   │
-      
-      NOPE, the old is no longer used here. Up to tree new designs are needed 
-         (1) based on Lora32u4
-         (2) based on SodaQ ExPloRer
-         (3) based on Sodaq One
 
-      └─────────────┘                                 ║    │  │  │  │  │       ║
-                                                      ╚═╬══╬══╬══╬══╬══╬══╬══╬═╝
-                                                      GND MI MO SCK NS RE D5 GND
-
+          ┌──────┐
+          │ LIPO │
+          └─┬──┬─┘                                         
+            │  │                                        
+   ╔════════│══│═══════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╗
+   ║        -  +      BAT EN  5V  13  12  11  10   9   6   5   3   2  DIO3╬
+   ║    (LIPO CONN)                                ┌─────────────┐    DIO2╬
+   ║                                               │             │        ║
+   ║(USB CONN)         LORA32U4                    │   (RFM95)   │        ║
+   ║                                               │             │        ║
+   ║   (RST BTN)                                   └─────────────┘        ║
+   ║  RST 3V3 ARF GND  A0  A1  A2  A3  A4 A5 SCK MOSI MISO 0   1 DIO1  ANT╬
+   ╚═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╝
+   
+   
 ```
 ## IOT TTN message format
 ```
@@ -59,6 +66,12 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
              0.4 m is much better than the GPS accuracy of 2..3 meters
     byte 3, 4, 5    Longitude  3 bytes, -180..+180 degrees, scaled 0..16777215
     byte 6, 7       Altitude   2 bytes, in meters. 0..65025 meter
+    byte 8          GPS DoP    byte, in 0.1 values. 0.25.5 DoP 
+    
+    -- then a section to detect dark spots in the coverage map
+    byte 9, 10, 11  Prev Latit 3 bytes, -90 to +90 degr, scaled to 0..16777215
+    byte 12, 13, 14 Prev Longi 3 bytes, -180..+180 degrees, scaled 0..16777215
+    byte 15, 16     Prev Altit 2 bytes, in meters. 0..65025 meter
     byte 8          GPS DoP    byte, in 0.1 values. 0.25.5 DoP 
                                
     -- now our 'regular' values
