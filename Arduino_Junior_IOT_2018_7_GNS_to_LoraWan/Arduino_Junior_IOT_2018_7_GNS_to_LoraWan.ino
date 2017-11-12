@@ -8,9 +8,10 @@
 
 #define VBATPIN A9
 #define LEDPIN 13 
-#define LORAWAN_TX_INTERVAL 60  // seconds between LoraWan messages  
+#define LORAWAN_TX_INTERVAL 240  // seconds between LoraWan messages  
    // 240 = every 4 minutes,  was original 10/26
    //  60 = once a minute, that is okay when war-driving with only few minutes daily within range
+   
 
 //////////////////////////////////////////////
 // GPS libraries, mappings and things
