@@ -3,7 +3,7 @@
  * Modified By Marco van Schagen for Junior IOT Challenge 2018
  *******************************************************************************/ 
  
-#define DEBUG           // if DEBUG is defined, some code is added to display some basic debug info
+//M#define DEBUG           // if DEBUG is defined, some code is added to display some basic debug info
 //#define DEBUGLEVEL2     // if DEBUGLEVEL2 is defined, some code is added to display deeper debug info
 //#define DEBUGRADIO      // if DEBUGLEVEL2 is defined, some code is added to display radio debug info
 
@@ -1029,7 +1029,8 @@ void setup() {
   #endif
   put_Volts_and_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
-  doGPS_and_put_values_into_sendbuffer();   
+  doGPS_and_put_values_into_sendbuffer(); 
+  myLoraWanData[22] = MY_GAME_ID << 4 | 1;  
   
   #ifdef DEBUGLEVEL2
   Serial.print(F("  Send one lorawan message as part of system init. milis=")); Serial.println(millis());

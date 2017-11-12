@@ -42,21 +42,27 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
     Suggested pin mapping:
     -----------------------------------------------------------------------------
 
-          ┌──────┐       ┌───────────────────────┐   ┌───────────────┐
-          │ LIPO │       │          GPS          │   │    compass    │
-          │      │       │                       │   │    HMC5983    │
-          │      │       │                       │   │               │
-          └─┬──┬─┘       └─┬───┬───┬───┬───┬───┬─┘   └─┬───┬───┬───┬─┘   
-            │  │          blue wht │blk│red│grn│yel    │   │   │   │
-            │  │                  3V3 GND  │   │       │   │   │   │       ant
-            │  │                           │   │       │   │   │   │        │
-   ╔════════│══│═══════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╗ │
-   ║        -  +      BAT EN  5V  13  12  11  10   9   6   5   3   2  DIO3╬ │
-   ║    (LIPO CONN)                                ┌─────────────┐    DIO2╬ │
-   │                                               │             │        ║ │
-   │(USB CONN)         LORA32U4                    │   (RFM95)   │        ║ │
-   │                                               │             │        ║ │
-   ║   (RST BTN)                                   └─────────────┘     (0)──┘
+             ┌─────────────────┐
+             │    powerbank    │
+             │solar lipo charge│
+             │    enclosure    │
+             └───────┬─┬───────┘
+                     │ │ ┌───────────────────────┐   ┌───────────────┐
+                     4V  │          GPS          │   │    compass    │
+                     ext │                       │   │    HMC5983    │
+                     - + │                       │   │               │
+          ┌──────┐   │ │ └─┬───┬───┬───┬───┬───┬─┘   └─┬───┬───┬───┬─┘   
+          │ LIPO │   │ │  blue wht │blk│red│grn│yel    │   │   │   │
+          │  380 │   │ │          3V3 GND  │   │       │   │   │   │       ant
+          │  mAh │   │ │                   │   │       │   │   │   │        │
+          └─┬──┬─┘ ┌─┘ │                   │   │       │   │   │   │        │
+   ╔════════│══│═══│═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╗ │
+   ║        -  +   │  BAT EN  5V  13  12  11  10   9   6   5   3   2  DIO3╬ │
+   ║    (LIPO CONN)│                               ┌─────────────┐    DIO2╬ │
+   │               │                               │             │        ║ │
+   │(USB CONN)     │   LORA32U4                    │   (RFM95)   │        ║ │
+   │               │                               │             │        ║ │
+   ║   (RST BTN)   │                               └─────────────┘     (0)──┘
    ║  RST 3V3 ARF GND  A0  A1  A2  A3  A4 A5 SCK MOSI MISO 0   1 DIO1  ANT╬
    ╚═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╝
                                               xxx xxx xxx       
@@ -134,35 +140,68 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
     A hit is when target is within this range and within 20 meters +/-3 meters
 
     THIS BYTE STRING NEEDS A DECODER FUNCTION IN TTN:
-    /* * function Decoder (bytes) {
+    /* * 
+    
+    function Decoder (bytes) {
       var _lat = (bytes[0] << 16 | bytes[1] << 8 | bytes[2]) / 16777215.0 * 180.0 - 90;
       var _lng = (bytes[3] << 16 | bytes[4] << 8 | bytes[5]) / 16777215.0 * 360.0 - 180;
       var _alt = (bytes[6] << 8) + bytes[7];
-      var _acc = bytes[8] / 10.0;
-      
+      var _hdop = bytes[8] / 10.0;
+
       var _prev_lat = (bytes[9] << 16 | bytes[10] << 8 | bytes[11]) / 16777215.0 * 180.0 - 90;
       var _prev_lng = (bytes[12] << 16 | bytes[13] << 8 | bytes[14]) / 16777215.0 * 360.0 - 180;
       var _prev_alt = (bytes[15] << 8) + bytes[16];
-      var _prev_acc = bytes[17] / 10.0;
-      
+      var _prev_hdop = bytes[17] / 10.0;
+
       var _VCC = bytes[18] / 50;
       var _tempCPU = bytes[19] -100;
-      var _Vbatt = bytes[20] / 50;
-      var _comp = bytes[21] / 50;
-     ...
+      var _Vbat = bytes[20] / 50;
+      var _compass = (bytes[21] & 127) * 3;
+      var _myBtn = bytes[21] >> 7;
+
+      var _myID = bytes[22] >> 4;
+      var _dataSetType = bytes[22] & 15;
+         
       var _inputHEX = bytes.map(function(b) { return ('0' + b.toString(16)).substr(-2);}).join(' ');
-      
+
+    // if _dataSetType = my game data
+      var _remoteID = bytes[23] & 15;
+      var _remote_radioSSN = bytes[23] >> 4;
+      var _remote_lat = (bytes[24] << 16 | bytes[25] << 8 | bytes[26]) / 16777215.0 * 180.0 - 90;
+      var _remote_lng = (bytes[27] << 16 | bytes[28] << 8 | bytes[29]) / 16777215.0 * 360.0 - 180;
+      var _remote_compass = (bytes[30] & 127) * 3;
+      var _remote_Btn = bytes[30] >> 7;
+      var _remote_distance = bytes[31] & 127;
+      var _remote_DidHitMe = bytes[31] >> 7;
+
       return {
+        arduino_VCC: _VCC,
+        arduino_Vbat: _Vbat,
+        arduino_tempCPU: _tempCPU,
+        compass: _compass,
+        myBtn: _myBtn,
+        myID: _myID,
+        dataSetType: _dataSetType,
         gps_lat: _lat,
         gps_lng: _lng,
         gps_alt: _alt,
-        gps_prec: _acc,
-        arduino_VCC: _VCC,
-        arduino_temp: _tempCPU,
-      ...
-      payload: _inputHEX
+        gps_hdop: _hdop,
+        gps_prev_lat: _prev_lat,
+        gps_prev_lng: _prev_lng,
+        gps_prev_alt: _prev_alt,
+        gps_prev_hdop: _prev_hdop,
+        payload: _inputHEX,
+        remoteID: _remoteID,
+        remote_radioSSN: _remote_radioSSN,
+        remote_lat: _remote_lat, 
+        remote_lng: _remote_lng,
+        remote_compass: _remote_compass,
+        remote_Btn: _remote_Btn, 
+        remote_distance: _remote_distance,
+        remote_DidHitMe: _remote_DidHitMe 
       };
     }
+    
     */
     
 ```
