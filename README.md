@@ -48,9 +48,9 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
    ╔════════│══│═══════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╗ │
    ║        -  +      BAT EN  5V  13  12  11  10   9   6   5   3   2  DIO3╬ │
    ║    (LIPO CONN)                                ┌─────────────┐    DIO2╬ │
-   ║                                               │             │        ║ │
-   ║(USB CONN)         LORA32U4                    │   (RFM95)   │        ║ │
-   ║                                               │             │        ║ │
+   │                                               │             │        ║ │
+   │(USB CONN)         LORA32U4                    │   (RFM95)   │        ║ │
+   │                                               │             │        ║ │
    ║   (RST BTN)                                   └─────────────┘     (0)──┘
    ║  RST 3V3 ARF GND  A0  A1  A2  A3  A4 A5 SCK MOSI MISO 0   1 DIO1  ANT╬
    ╚═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╝
@@ -72,21 +72,22 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
     byte 8          GPS DoP    byte, in 0.1 values. 0.25.5 DoP 
     
     -- then a section to detect dark spots in the coverage map
-    byte 9, 10, 11  Prev Latit 3 bytes, -90 to +90 degr, scaled to 0..16777215
-    byte 12, 13, 14 Prev Longi 3 bytes, -180..+180 degrees, scaled 0..16777215
-    byte 15, 16     Prev Altit 2 bytes, in meters. 0..65025 meter
-    byte 17         Prev DoP    byte, in 0.1 values. 0.25.5 DoP 
+    byte 9, 10, 11  Prev Latit 
+    byte 12, 13, 14 Prev Longi 
+    byte 15, 16     Prev Altit 
+    byte 17         Prev DoP    
                                
     -- now our 'regular' values
     byte 18         VCC        byte, 50ths, 0 - 5.10 volt -- secret voltmeter
     byte 19         CPUtemp    byte, -100 - 155 deg C     -- secret thermometer
     byte 20         Vbat       byte, 50ths, 0 - 5.10 volt -- hardwired Lora32u4
                                
-    byte 21                        
+    byte 21         
         0b0000 0000            
           -nnn nnnn Compass    0-120, My compass in 3 degree precision 0..360
                                Value=127: no compass value
           1--- ---- MyBtn#1    bit, is my button pressed
+          
     byte 22         myID, dataset:
         0b0000 0000            
           ---- -nnn Dataset    Select Value 0-7 to tell which dataset

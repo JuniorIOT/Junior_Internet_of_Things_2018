@@ -10,7 +10,9 @@
 #define VBATPIN A9
 #define LEDPIN 13 
 #define LORAWAN_TX_INTERVAL 240  // seconds between LoraWan messages
-
+   // 240 = every 4 minutes,  was original 10/26
+   //  60 = once a minute, that is okay when war-driving with only few minutes daily within range
+   
 //////////////////////////////////////////////
 // GPS libraries, mappings and things
 //////////////////////////////////////////////
@@ -213,7 +215,7 @@ bool process_gps_datastream(const gps_fix & fix) {   // constant pointer to fix 
     Serial.println();
     #endif
     return true;
-  } else {    
+  } else {
     #ifdef DEBUGLEVEL2
     Serial.print( "(no valid location) " );
     #endif
@@ -262,8 +264,8 @@ void gps_init() {
 
     
   // load the send buffer with dummy location 0,0. This location 0,0 is recognized as dummy by TTN Mapper and will be ignored
-  //l_lat = 526324000; l_lon = 47388000; l_alt = 678; hdopNumber = 2345;   // Alkmaar
-  l_lat = 0; l_lon = 0; l_alt = 678; hdopNumber = 9999;   // the zero position
+  //l_lat = 526324000; l_lon = 47388000; l_alt = 678; hdopNumber = 23459;   // Alkmaar
+  l_lat = 0; l_lon = 0; l_alt = 678; hdopNumber = 99999;   // the zero position
   put_gpsvalues_into_lora_sendbuffer(); 
   
 //  Serial.print( F("The NeoGps people are proud to show their smallest possible size:\n") );
@@ -369,7 +371,7 @@ void gps_setStrings() {
 // Kaasfabriek routines for LMIC_slim for LoraWan
 ///////////////////////////////////////////////
 
-void lmic_slim_init() {  
+void lmic_slim_init() {
   #ifdef DEBUGLEVEL2
   Serial.print("\nStart: lmic_slim_init. milis="); Serial.println(millis());  
   #endif
@@ -440,8 +442,8 @@ void print_myLoraWanData() {
 void doOneLoraWan() {
   #ifdef DEBUGLEVEL2
   Serial.print("\nStart: Do one lora. milis="); Serial.println(millis());
-  #endif
   print_myLoraWanData();
+  #endif
   
   LMIC_setTxData2(myLoraWanData, PAYLOADSIZE);
   radio_init();                                                       
@@ -494,8 +496,9 @@ void doOneRadio() {
   #ifdef DEBUGLEVEL2
   Serial.print("\nStart: Do one radio. milis="); Serial.println(millis());  
   #endif
-    
+  
   uint8_t radiopacket[10];
+  
   formatRadioPackage(&radiopacket[0]);
   #ifdef DEBUGLEVEL2
   Serial.println("Sending..."); delay(10);
@@ -525,7 +528,7 @@ void doOneRadio() {
       //Serial.print((char*)buf);
       #ifdef DEBUGLEVEL2
       Serial.print("] RSSI: ");
-      Serial.println(rf95.lastRssi(), DEC);    
+      Serial.println(rf95.lastRssi(), DEC);
       #endif
       // RSSI values, indication for Wifi: http://www.metageek.com/training/resources/understanding-rssi.html
       //   -45 dBm  =  60 cm distance
@@ -986,7 +989,6 @@ long readCompass() {
   return headingFiltered;
 }
 
-
 ///////////////////////////////////////////////
 //  arduino init and main
 ///////////////////////////////////////////
@@ -1006,7 +1008,7 @@ void setup() {
   device_startTime = millis();
 
   gps_init(); 
-  lmic_slim_init();  
+  lmic_slim_init();
   setupCompass();
   
   #ifdef DEBUGLEVEL2
@@ -1084,6 +1086,9 @@ void loop() {
   //Serial.println(F("\nCollect data needed just before sending a LORAWAN update. milis=")); //Serial.println(millis());
   put_Volts_and_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
+
+  // Clear gps buffer, or else it will retail old position if no fix is found. If no fix is found we want invalid location so TTNmapper does not get disturbed.
+  l_lat = 0; l_lon = 0; l_alt = 678; hdopNumber = 99999;   // the zero position
   doGPS_and_put_values_into_lora_sendbuffer();
 
   ////////// Now we need to send a LORAWAN update to the world  ///////////
