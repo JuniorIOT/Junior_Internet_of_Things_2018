@@ -29,6 +29,10 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
 ## Parts list
 - Lora32u4 with antenna, frequency 868 Mhz - 12 euro on Ebay and AliExpress
 
+## Important files and folders
+- juniorIOTchallenge_Lora32u4_gpsTracker_with_extras (folder) 
+   this is the GPS tracker, with demo code added got compass and peer-to-peer radio
+   
 ## Libraries required
 - tbd1       https://github.com/tbd1
 - tb21       https://github.com/tbd2
