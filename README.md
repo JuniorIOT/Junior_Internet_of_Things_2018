@@ -38,20 +38,23 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
     Suggested pin mapping:
     -----------------------------------------------------------------------------
 
-          ┌──────┐
-          │ LIPO │
-          └─┬──┬─┘                                         
-            │  │                                        
-   ╔════════│══│═══════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╗
-   ║        -  +      BAT EN  5V  13  12  11  10   9   6   5   3   2  DIO3╬
-   ║    (LIPO CONN)                                ┌─────────────┐    DIO2╬
-   ║                                               │             │        ║
-   ║(USB CONN)         LORA32U4                    │   (RFM95)   │        ║
-   ║                                               │             │        ║
-   ║   (RST BTN)                                   └─────────────┘        ║
+          ┌──────┐       ┌───────────────────────┐   ┌───────────────┐
+          │ LIPO │       │          GPS          │   │    compass    │
+          │      │       │                       │   │               │
+          └─┬──┬─┘       └─┬───┬───┬───┬───┬───┬─┘   └─┬───┬───┬───┬─┘   
+            │  │          blue wht │blk│red│grn│yel    │   │   │   │
+            │  │                  3V3 GND  │   │       │   │   │   │       ant
+            │  │                           │   │       │   │   │   │        │
+   ╔════════│══│═══════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╗ │
+   ║        -  +      BAT EN  5V  13  12  11  10   9   6   5   3   2  DIO3╬ │
+   ║    (LIPO CONN)                                ┌─────────────┐    DIO2╬ │
+   ║                                               │             │        ║ │
+   ║(USB CONN)         LORA32U4                    │   (RFM95)   │        ║ │
+   ║                                               │             │        ║ │
+   ║   (RST BTN)                                   └─────────────┘     (0)──┘
    ║  RST 3V3 ARF GND  A0  A1  A2  A3  A4 A5 SCK MOSI MISO 0   1 DIO1  ANT╬
    ╚═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╝
-   
+                                              xxx xxx xxx       
    
 ```
 ## IOT TTN message format
@@ -72,21 +75,19 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
     byte 9, 10, 11  Prev Latit 3 bytes, -90 to +90 degr, scaled to 0..16777215
     byte 12, 13, 14 Prev Longi 3 bytes, -180..+180 degrees, scaled 0..16777215
     byte 15, 16     Prev Altit 2 bytes, in meters. 0..65025 meter
-    byte 8          GPS DoP    byte, in 0.1 values. 0.25.5 DoP 
+    byte 17         Prev DoP    byte, in 0.1 values. 0.25.5 DoP 
                                
     -- now our 'regular' values
-    byte 9                        
+    byte 18         VCC        byte, 50ths, 0 - 5.10 volt -- secret voltmeter
+    byte 19         CPUtemp    byte, -100 - 155 deg C     -- secret thermometer
+    byte 20         Vbat       byte, 50ths, 0 - 5.10 volt -- hardwired Lora32u4
+                               
+    byte 21                        
         0b0000 0000            
           -nnn nnnn Compass    0-120, My compass in 3 degree precision 0..360
                                Value=127: no compass value
           1--- ---- MyBtn#1    bit, is my button pressed
-    byte 10         VCC        byte, 50ths, 0 - 5.10 volt -- secret voltmeter
-    byte 11         CPUtemp    byte, -100 - 155 deg C     -- secret thermometer
-    byte 12         Vbat       byte, 50ths, 0 - 5.10 volt -- hardwired Lora32u4
-                               
-    byte 13, 14, 15 prevLat    3 bytes, ...
-    byte 16, 17, 18 prevLon    3 bytes,    ... to detect dark spots
-    byte 19         myID, dataset:
+    byte 22         myID, dataset:
         0b0000 0000            
           ---- -nnn Dataset    Select Value 0-7 to tell which dataset
           ---- 0000 None       No additional data, this is just a GPS bleep. 
@@ -95,25 +96,27 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
           nnnn ---- MyTeamID   Value 0-31 my team ID
                                
     -- OPTIONAL set#1 environmental sensors values (not finalized)
-    byte 21, 22     CO2        2 bytes, AD measurement directly from AD port
     byte 23, 24     Moisture   2 bytes, AD measurement directly from AD port
     byte 25, 26     AirPress   2 bytes, AD measurement directly from AD port
-    byte 27, 28     O3         2 bytes, AD measurement directly from AD port
-    byte 29         spare
-                  
+    byte 27, 28     CO2        2 bytes, AD measurement directly from AD port
+    byte 29, 30     PPM 2.5    2 bytes, AD measurement directly from AD port
+    byte 31, 32     PPM 10     2 bytes, AD measurement directly from AD port
+    byte 33, 34     Audio 1    2 bytes
+    byte 35, 36     Audio 2    2 bytes
+                      
     -- OPTIONAL radio values 
-    byte 21         RemoteID   ID of remote team (who shot me)
+    byte 23         RemoteID   ID of remote team (who shot me)
         0b0000 0000            
           ---- nnnn RadioSSN   Received radio strength 1 
           nnnn ---- RemoteID   Value 0-31, Remote team ID
-    byte 22, 23, 24 RemoteLat  3 bytes, -90 to +90 degrees scaled 0..16777215
-    byte 25, 26, 27 RemoteLon  3 bytes, -180..+180 degrees scaled 0..16777215
-    byte 28         R comp ++
+    byte 24, 25, 26 RemoteLat  3 bytes, -90 to +90 degrees scaled 0..16777215
+    byte 27, 28, 29 RemoteLon  3 bytes, -180..+180 degrees scaled 0..16777215
+    byte 30         R comp ++
         0b0000 0000            
           -nnn nnnn RemoteComp 0-120, Remote Compass 3 degree precision 0..360
                                Value=127: no compass value
           1--- ---- RemBtn#1   bit, is remote button pressed
-    byte 29         distance ++
+    byte 31         distance ++
         0b0000 0000
           -nnn nnnn distance   0-100, Distance in meters        0..100
                                101-120,  100+(x-100)*20     for 120..500
@@ -122,23 +125,27 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
           1--- ---- Am I Hit   My hit status (I was hit?)
                                
     Game rule: add 2 degrees on each side of this 3 degree segment 
-    A hit is when target is within this range and within 20 meters 
-
-
+    A hit is when target is within this range and within 20 meters +/-3 meters
 
     THIS BYTE STRING NEEDS A DECODER FUNCTION IN TTN:
     /* * function Decoder (bytes) {
-      var _lat = ((bytes[0] << 16) + (bytes[1] << 8) + bytes[2]) / 16777215.0 * 180.0 - 90;
-      var _lng = ((bytes[3] << 16) + (bytes[4] << 8) + bytes[5]) / 16777215.0 * 360.0 - 180;
+      var _lat = (bytes[0] << 16 | bytes[1] << 8 | bytes[2]) / 16777215.0 * 180.0 - 90;
+      var _lng = (bytes[3] << 16 | bytes[4] << 8 | bytes[5]) / 16777215.0 * 360.0 - 180;
       var _alt = (bytes[6] << 8) + bytes[7];
       var _acc = bytes[8] / 10.0;
-      var _VCC = bytes[9] / 50;
-      var _tempCPU = bytes[10] -100;
+      
+      var _prev_lat = (bytes[9] << 16 | bytes[10] << 8 | bytes[11]) / 16777215.0 * 180.0 - 90;
+      var _prev_lng = (bytes[12] << 16 | bytes[13] << 8 | bytes[14]) / 16777215.0 * 360.0 - 180;
+      var _prev_alt = (bytes[15] << 8) + bytes[16];
+      var _prev_acc = bytes[17] / 10.0;
+      
+      var _VCC = bytes[18] / 50;
+      var _tempCPU = bytes[19] -100;
+      var _Vbatt = bytes[20] / 50;
+      var _comp = bytes[21] / 50;
      ...
-      var _inputHEX = bytes[0].toString(16)+' '+bytes[1].toString(16)+' '+bytes[2].toString(16)
-                      +' '+bytes[3].toString(16)+' '+bytes[4].toString(16)+' '+bytes[5].toString(16)
-                      +' '+bytes[6].toString(16)+' '+bytes[7].toString(16)+' '+bytes[8].toString(16)
-                      +' / '+bytes[9].toString(16)+' '+bytes[10].toString(16)+' '+bytes[11].toString(16);
+      var _inputHEX = bytes.map(function(b) { return ('0' + b.toString(16)).substr(-2);}).join(' ');
+      
       return {
         gps_lat: _lat,
         gps_lng: _lng,
@@ -151,6 +158,7 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
       };
     }
     */
+    
 ```
 
 ## p2p message format
