@@ -122,6 +122,10 @@ int LMIC_setTxData2 (uint8_t* data, uint8_t dlen) {
     return 0;
 }
 
+uint16_t getCounter() {
+	return LMIC.seqnoUp & 0xFFFF;
+}
+
 void putCounterAt(int index) {
     LMIC.pendTxData[index] = (LMIC.seqnoUp >> 8) & 0xFF;
     LMIC.pendTxData[index+1] = (LMIC.seqnoUp) & 0xFF;
