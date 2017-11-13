@@ -87,3 +87,4 @@ uint32_t os_aes (uint8_t mode, uint8_t* buf, uint16_t len);
 static void os_aes_cmac(uint8_t* buf, uint16_t len, uint8_t prepend_aux);
 void lmic_aes_encrypt(unsigned char *Data, unsigned char *Key);
 static void shift_left(uint8_t* buf, uint8_t len);
+void putCounterAt(int index);

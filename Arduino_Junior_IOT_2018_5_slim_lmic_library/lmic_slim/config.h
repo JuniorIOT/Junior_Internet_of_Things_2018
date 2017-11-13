@@ -1,1 +1,0 @@
-//#define MESSENGEID_POSITION 20
