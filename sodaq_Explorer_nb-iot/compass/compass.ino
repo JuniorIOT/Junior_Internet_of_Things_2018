@@ -12,6 +12,9 @@
 
 #include <Wire.h>
 #define compass_device (0x1E)
+float headingFiltered = 0;
+int tries = 0;
+
 void setup()
 {
   SerialUSB.begin(9600);
@@ -219,12 +222,21 @@ SerialUSB.println(atan2(Y_Gauss, X_Gauss));
   if(headingDegrees <0) headingDegrees += 2*180;
 if(headingDegrees > 2*180) headingDegrees -= 2*180;
 
+headingFiltered = headingFiltered * 0.85 + headingDegrees * 0.15;
+tries++;
 
-SerialUSB.print("heading: ");
-SerialUSB.println(headingDegrees);
+if(tries == 60) {
+
+SerialUSB.print("heading filtered: ");
+SerialUSB.println(headingFiltered);
+headingFiltered = headingDegrees;
+tries = 0;
+
+delay(10*1000);
+
+}
 
 
-delay(2 *1000);
 }
 
 

@@ -6,7 +6,6 @@
 //#define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
 //#define DEBUGLEVEL2
 #define DEBUGRADIO
-
 #define VBATPIN A9
 #define LEDPIN 13 
 #define LORAWAN_TX_INTERVAL 240  // seconds between LoraWan messages

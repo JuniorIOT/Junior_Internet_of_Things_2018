@@ -3,6 +3,7 @@
 // 20171015  Marco, SF7 text formatting
 //
 #include <lmic_slim.h>
+#include <config.h> 
 #include <SPI.h>
 struct lmic_t LMIC;
 byte channelpointer = 0;
@@ -123,13 +124,18 @@ int LMIC_setTxData2 (uint8_t* data, uint8_t dlen) {
 }
 
 static void buildDataFrame (void) {
+    #ifndef MESSENGEID_POSITION
+    #error define MESSENGEID_POSITION to the index number of the messengeid in the payload do this in config.h in the lmic library folder
+    #endif
+    LMIC.pendTxData[MESSENGEID_POSITION] = (LMIC.seqnoUp >> 8) & 0xFF;
+    LMIC.pendTxData[MESSENGEID_POSITION+1] = (LMIC.seqnoUp) & 0xFF;
     uint8_t dlen = LMIC.pendTxLen;
     int  end = 8;
     uint8_t flen = end + 5+dlen;
     LMIC.frame[0] = 0x40 | 0x00;
     LMIC.frame[5] = ( 0 | 0x80 | (end-8));
     os_wlsbf4(LMIC.frame+1, LMIC.devaddr);          // Device address in LMIC.frame[1]...[4]
-    LMIC.seqnoUp += 1;
+    LMIC.seqnoUp += 1;   
     os_wlsbf2(LMIC.frame+6, LMIC.seqnoUp-1);        // sequence number in LMIC.frame[6]...[7]
     LMIC.frame[end] = 1;                            // LMIC.pendTxPort=1
     memcpy(LMIC.frame+end+1, LMIC.pendTxData, dlen);
