@@ -120,29 +120,30 @@ optional:
           ---- 0001 Set#1      Supplying our set#1 'environmental sensor' 
           ---- 1000 Radio      I have received a radio, sending radio values
           nnnn ---- MyTeamID   Value 0-31 my team ID
+    byte 23,24         Counter    LoraWan Message counter. Last 2 bytes.
                                
     -- OPTIONAL set#1 environmental sensors values (not finalized)
-    byte 23, 24     Moisture   2 bytes, AD measurement directly from AD port
-    byte 25, 26     AirPress   2 bytes, AD measurement directly from AD port
-    byte 27, 28     CO2        2 bytes, AD measurement directly from AD port
-    byte 29, 30     PPM 2.5    2 bytes, AD measurement directly from AD port
-    byte 31, 32     PPM 10     2 bytes, AD measurement directly from AD port
-    byte 33, 34     Audio 1    2 bytes
-    byte 35, 36     Audio 2    2 bytes
+    byte 25, 26     Moisture   2 bytes, AD measurement directly from AD port
+    byte 27, 28     AirPress   2 bytes, AD measurement directly from AD port
+    byte 29, 30     CO2        2 bytes, AD measurement directly from AD port
+    byte 31, 32     PPM 2.5    2 bytes, AD measurement directly from AD port
+    byte 33, 34     PPM 10     2 bytes, AD measurement directly from AD port
+    byte 35, 36     Audio 1    2 bytes
+    byte 37, 38     Audio 2    2 bytes
                       
     -- OPTIONAL radio values 
-    byte 23         RemoteID   ID of remote team (who shot me)
+    byte 25         RemoteID   ID of remote team (who shot me)
         0b0000 0000            
           ---- nnnn RadioSSN   Received radio strength 1 
           nnnn ---- RemoteID   Value 0-31, Remote team ID
-    byte 24, 25, 26 RemoteLat  3 bytes, -90 to +90 degrees scaled 0..16777215
-    byte 27, 28, 29 RemoteLon  3 bytes, -180..+180 degrees scaled 0..16777215
-    byte 30         R comp ++
+    byte 26, 27, 28 RemoteLat  3 bytes, -90 to +90 degrees scaled 0..16777215
+    byte 29, 30, 31 RemoteLon  3 bytes, -180..+180 degrees scaled 0..16777215
+    byte 32         R comp ++
         0b0000 0000            
           -nnn nnnn RemoteComp 0-120, Remote Compass 3 degree precision 0..360
                                Value=127: no compass value
           1--- ---- RemBtn#1   bit, is remote button pressed
-    byte 31         distance ++
+    byte 33         distance ++
         0b0000 0000
           -nnn nnnn distance   0-100, Distance in meters        0..100
                                101-120,  100+(x-100)*20     for 120..500
