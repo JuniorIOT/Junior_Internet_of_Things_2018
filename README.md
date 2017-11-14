@@ -208,6 +208,7 @@ optional:
         gps_prev_lng: _prev_lng,
         gps_prev_alt: _prev_alt,
         gps_prev_hdop: _prev_hdop,
+        counter: _counter,
         payload: _inputHEX,
         remoteID: _remoteID,
         remote_radioSSN: _remote_radioSSN,
