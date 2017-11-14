@@ -28,6 +28,11 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
 
 ## Parts list
 - Lora32u4 with antenna, frequency 868 Mhz - 12 euro on Ebay and AliExpress
+optional: 
+- GPS
+- Compass
+- Solar Powerbank + lipo protect strip
+- Lipo 380 mAh
 
 ## Important files and folders
 - juniorIOTchallenge_Lora32u4_gpsTracker_with_extras (folder) 
@@ -42,19 +47,28 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
     Suggested pin mapping:
     -----------------------------------------------------------------------------
 
-             ┌─────────────────┐
-             │    powerbank    │
-             │solar lipo charge│
-             │    enclosure    │
-             └───────┬─┬───────┘
+
+      ┌──────────────────────────────────────────┐
+      │ solar      ┌────────────────────────────┐│
+      │ powerbank  │ controll board           (Mini USB) ---> 2A usb charge cable  
+      │ enclosure  │     B- B+   S- S+          ││
+      │            └──────┼─┼─────┼─┼───────────┘│
+      │┌────────────────┐ │ │  ┌──│─│──────────┐ │
+      ││ 1-5x 1800mAh  +┼─│─┤  │  - +   200 mA │ │
+      ││ Li-Ion 18650 - ┼─┤ │  │    solar panel│ │
+      │└────────────────┘ │ │  └───────────────┘ │
+      └───────────────────│─│────────────────────┘
+   ┌──────────────────────┼─┼──┐ 
+   │ Lipo protect    - + B- B+ │
+   └─────────────────┼─┼───────┘
                      │ │ ┌───────────────────────┐   ┌───────────────┐
-                     4V  │          GPS          │   │    compass    │
-                     ext │                       │   │    HMC5983    │
-                     - + │                       │   │               │
+                     │ │ │          GPS          │   │    compass    │
+                     │ │ │                       │   │    HMC5983    │
+                     │ │ │                       │   │               │
           ┌──────┐   │ │ └─┬───┬───┬───┬───┬───┬─┘   └─┬───┬───┬───┬─┘   
-          │ LIPO │   │ │  blue wht │blk│red│grn│yel    │   │   │   │
-          │  380 │   │ │          3V3 GND  │   │       │   │   │   │       ant
-          │  mAh │   │ │                   │   │       │   │   │   │        │
+          │ LIPO │   4V   blue wht │blk│red│grn│yel    │   │   │   │
+          │  380 │   ext          3V3 GND  │   │       │   │   │   │       ant
+          │  mAh │   - +                   │   │       │   │   │   │        │
           └─┬──┬─┘ ┌─┘ │                   │   │       │   │   │   │        │
    ╔════════│══│═══│═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╗ │
    ║        -  +   │  BAT EN  5V  13  12  11  10   9   6   5   3   2  DIO3╬ │
