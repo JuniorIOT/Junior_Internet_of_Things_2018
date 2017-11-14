@@ -64,22 +64,24 @@ optional:
                      │ │ ┌───────────────────────┐   ┌───────────────┐
                      │ │ │          GPS          │   │    compass    │
                      │ │ │                       │   │    HMC5983    │
-                     │ │ │                       │   │               │
+                     │ │ │        3V3 GND TXD RXD│   │Vin GND SCL SDA│
           ┌──────┐   │ │ └─┬───┬───┬───┬───┬───┬─┘   └─┬───┬───┬───┬─┘   
           │ LIPO │   4V   blue wht │blk│red│grn│yel    │   │   │   │
-          │  380 │   ext          3V3 GND  │   │       │   │   │   │       ant
-          │  mAh │   - +                   │   │       │   │   │   │        │
-          └─┬──┬─┘ ┌─┘ │                   │   │       │   │   │   │        │
+          │ 380  │   ext          3V3 GND  │   │       │   │   │   │       ant
+          │ mAh  │   - +                   │   │       │   │   │   │        │
+          └─┬──┬─┘ ┌─┘ │                   │   │ Vbat/2│   │   │I2c│        │
    ╔════════│══│═══│═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╗ │
-   ║        -  +   │  BAT EN  5V  13  12  11  10   9   6   5   3   2  DIO3╬ │
-   ║    (LIPO CONN)│                               ┌─────────────┐    DIO2╬ │
-   │               │                               │             │        ║ │
-   │(USB CONN)     │   LORA32U4                    │   (RFM95)   │        ║ │
-   │               │                               │             │        ║ │
-   ║   (RST BTN)   │                               └─────────────┘     (0)──┘
-   ║  RST 3V3 ARF GND  A0  A1  A2  A3  A4 A5 SCK MOSI MISO 0   1 DIO1  ANT╬
+   ║        -  +   │  BAT EN  5V  13  12  11  10   9   6   5   3   2      ║ │
+   ║    (LIPO CONN)│              LED A1      A10  A9  A7     SCL SDA     ║ │
+   │               │                               ┌────────────────┐ DIO3╬ │
+   │(USB CONN)     │   LORA32U4                    │ RFM95 / HDP13  │ DIO2╬ │
+   │   (RST BTN)   │                               │4=rst 7=irq 8=cs│     ║ │
+   ║               │                               └────────────────┘  (0)──┘
+   ║               │                          15  16                      ║ 
+   ║  RST 3V3 REF GND  A0  A1  A2  A3  A4 A5 SCK MOSI MISO 0   1 DIO1  ANT╬
    ╚═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╝
-                                              xxx xxx xxx       
+                                              xxx xxx xxx  RX TX
+                                               SPI-RFM95  serial1                                              
    
 ```
 ## IOT TTN message format
@@ -176,18 +178,19 @@ optional:
 
       var _myID = bytes[22] >> 4;
       var _dataSetType = bytes[22] & 15;
+      var _counter =  bytes[23] << 8 | bytes[24];
          
       var _inputHEX = bytes.map(function(b) { return ('0' + b.toString(16)).substr(-2);}).join(' ');
 
-    // if _dataSetType = my game data
-      var _remoteID = bytes[23] & 15;
-      var _remote_radioSSN = bytes[23] >> 4;
-      var _remote_lat = (bytes[24] << 16 | bytes[25] << 8 | bytes[26]) / 16777215.0 * 180.0 - 90;
-      var _remote_lng = (bytes[27] << 16 | bytes[28] << 8 | bytes[29]) / 16777215.0 * 360.0 - 180;
-      var _remote_compass = (bytes[30] & 127) * 3;
-      var _remote_Btn = bytes[30] >> 7;
-      var _remote_distance = bytes[31] & 127;
-      var _remote_DidHitMe = bytes[31] >> 7;
+    // if _dataSetType = 0001 my game data
+      var _remoteID = bytes[25] & 15;
+      var _remote_radioSSN = bytes[25] >> 4;
+      var _remote_lat = (bytes[26] << 16 | bytes[27] << 8 | bytes[28]) / 16777215.0 * 180.0 - 90;
+      var _remote_lng = (bytes[29] << 16 | bytes[30] << 8 | bytes[31]) / 16777215.0 * 360.0 - 180;
+      var _remote_compass = (bytes[32] & 127) * 3;
+      var _remote_Btn = bytes[32] >> 7;
+      var _remote_distance = bytes[33] & 127;
+      var _remote_DidHitMe = bytes[33] >> 7;
 
       return {
         arduino_VCC: _VCC,

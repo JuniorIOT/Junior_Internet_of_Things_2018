@@ -35,14 +35,14 @@ static NMEAGPS gps;    // This parses the GPS characters
 long gps_fix_count = 0;
 long gps_nofix_count = 0;
 unsigned long gps_last_time = millis();
-unsigned long gps_gets_time = 5000;
+//unsigned long gps_gets_time = 5000;
 
 //////////////////////////////////////////////
 // LoraWan libraries, mappings and things
 //////////////////////////////////////////////
 
 //#include <SPI.h>  //MISO MOSI SCK stuff that was part of 2017 thing with rfm95
-#define PAYLOADSIZE 36 // The size of the package to be sent
+#define PAYLOADSIZE 38 // The size of the package to be sent
 #include <avr/pgmspace.h>
 #include <lmic_slim.h>     // the really cool micro-library, to replace our 2017 LMIC which filled 99% memory
 #include "keys.h"          // the personal keys to identify our own nodes, in a file outside GITHUB
@@ -1010,14 +1010,12 @@ bool has_sent_allready = false;
 
 void setup() {
   pinMode(LEDPIN, OUTPUT);
-  delay(1000);  // https://www.thethingsnetwork.org/forum/t/got-adafruit-feather-32u4-lora-radio-to-work-and-here-is-how/6863
   
+  delay(2500);     // Give time to the ATMega32u4 port to wake up and be recognized by the OS.
   Serial.begin(115200);   // whether 9600 or 115200; the gps feed shows repeated char and cannot be interpreted, setting high value to release system time
   delay(100);
 
-  #ifdef DEBUGLEVEL2
   Serial.print(F("\nStarting device: ")); Serial.println(DEVADDR); 
-  #endif
   device_startTime = millis();
 
   gps_init(); 
@@ -1030,8 +1028,8 @@ void setup() {
   put_Volts_and_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
   doGPS_and_put_values_into_sendbuffer(); 
-  myLoraWanData[22] = MY_GAME_ID << 4 | 1;  
-  
+  myLoraWanData[22] = MY_GAME_ID << 4 | 1; 
+     
   #ifdef DEBUGLEVEL2
   Serial.print(F("  Send one lorawan message as part of system init. milis=")); Serial.println(millis());
   #endif
@@ -1101,6 +1099,11 @@ void loop() {
   //Serial.print(F("\nCollect data needed just before sending a LORAWAN update. milis=")); Serial.println(millis());
   put_Volts_and_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
+  myLoraWanData[22] = MY_GAME_ID << 4 | 1; 
+
+  uint32_t LoraWan_Counter = LMIC_getSeqnoUp();  // getCounter zit NIET in LMIC_slim library
+  myLoraWanData[23] = LoraWan_Counter >> 8; 
+  myLoraWanData[24] = LoraWan_Counter; 
 
   // Clear gps buffer, or else it will retail old position if no fix is found. If no fix is found we want invalid location so TTNmapper does not get disturbed.
   l_lat = 0; l_lon = 0; l_alt = 678; hdopNumber = 99999;   // the zero position
