@@ -122,14 +122,19 @@ int LMIC_setTxData2 (uint8_t* data, uint8_t dlen) {
     return 0;
 }
 
-static void buildDataFrame (void) {
+void putCounterAt(int index) {
+    LMIC.pendTxData[index] = (LMIC.seqnoUp >> 8) & 0xFF;
+    LMIC.pendTxData[index+1] = (LMIC.seqnoUp) & 0xFF;
+}
+
+static void buildDataFrame (void) {    
     uint8_t dlen = LMIC.pendTxLen;
     int  end = 8;
     uint8_t flen = end + 5+dlen;
     LMIC.frame[0] = 0x40 | 0x00;
     LMIC.frame[5] = ( 0 | 0x80 | (end-8));
     os_wlsbf4(LMIC.frame+1, LMIC.devaddr);          // Device address in LMIC.frame[1]...[4]
-    LMIC.seqnoUp += 1;
+    LMIC.seqnoUp += 1;   
     os_wlsbf2(LMIC.frame+6, LMIC.seqnoUp-1);        // sequence number in LMIC.frame[6]...[7]
     LMIC.frame[end] = 1;                            // LMIC.pendTxPort=1
     memcpy(LMIC.frame+end+1, LMIC.pendTxData, dlen);
