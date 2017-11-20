@@ -1,6 +1,6 @@
 #include <sodaq_compass.h>
 
-NBIOT_Compass compass();
+NBIOT_Compass compass;
 
 
 void setup() {
