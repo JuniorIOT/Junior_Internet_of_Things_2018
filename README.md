@@ -28,6 +28,11 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
 
 ## Parts list
 - Lora32u4 with antenna, frequency 868 Mhz - 12 euro on Ebay and AliExpress
+optional: 
+- GPS
+- Compass
+- Solar Powerbank + lipo protect strip
+- Lipo 380 mAh
 
 ## Important files and folders
 - juniorIOTchallenge_Lora32u4_gpsTracker_with_extras (folder) 
@@ -42,30 +47,41 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
     Suggested pin mapping:
     -----------------------------------------------------------------------------
 
-             ┌─────────────────┐
-             │    powerbank    │
-             │solar lipo charge│
-             │    enclosure    │
-             └───────┬─┬───────┘
+
+      ┌──────────────────────────────────────────┐
+      │ solar      ┌────────────────────────────┐│
+      │ powerbank  │ controll board           (Mini USB) ---> 2A usb charge cable  
+      │ enclosure  │     B- B+   S- S+          ││
+      │            └──────┼─┼─────┼─┼───────────┘│
+      │┌────────────────┐ │ │  ┌──│─│──────────┐ │
+      ││ 1-5x 1800mAh  +┼─│─┤  │  - +   200 mA │ │
+      ││ Li-Ion 18650 - ┼─┤ │  │    solar panel│ │
+      │└────────────────┘ │ │  └───────────────┘ │
+      └───────────────────│─│────────────────────┘
+   ┌──────────────────────┼─┼──┐ 
+   │ Lipo protect    - + B- B+ │
+   └─────────────────┼─┼───────┘    BN-200 = (led) GND TX RX VCC (batt)
                      │ │ ┌───────────────────────┐   ┌───────────────┐
-                     4V  │          GPS          │   │    compass    │
-                     ext │                       │   │    HMC5983    │
-                     - + │                       │   │               │
+                     │ │ │   GPS GN-801 30x30    │   │    compass    │
+                     │ │ │   GPS BN-200 20x20    │   │    HMC5983    │
+                     │ │ │        3V3 GND TXD RXD│   │Vin GND SCL SDA│
           ┌──────┐   │ │ └─┬───┬───┬───┬───┬───┬─┘   └─┬───┬───┬───┬─┘   
-          │ LIPO │   │ │  blue wht │blk│red│grn│yel    │   │   │   │
-          │  380 │   │ │          3V3 GND  │   │       │   │   │   │       ant
-          │  mAh │   │ │                   │   │       │   │   │   │        │
-          └─┬──┬─┘ ┌─┘ │                   │   │       │   │   │   │        │
+          │ LIPO │   4V   blue wht │blk│red│grn│yel    │   │   │   │
+          │ 380  │   ext          3V3 GND  │   │       │   │   │   │       ant
+          │ mAh  │   - +                   │   │       │   │   │   │        │
+          └─┬──┬─┘ ┌─┘ │                 rx│ tx│ Vbat/2│   │   │I2c│        │
    ╔════════│══│═══│═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╗ │
-   ║        -  +   │  BAT EN  5V  13  12  11  10   9   6   5   3   2  DIO3╬ │
-   ║    (LIPO CONN)│                               ┌─────────────┐    DIO2╬ │
-   │               │                               │             │        ║ │
-   │(USB CONN)     │   LORA32U4                    │   (RFM95)   │        ║ │
-   │               │                               │             │        ║ │
-   ║   (RST BTN)   │                               └─────────────┘     (0)──┘
-   ║  RST 3V3 ARF GND  A0  A1  A2  A3  A4 A5 SCK MOSI MISO 0   1 DIO1  ANT╬
+   ║        -  +   │  BAT EN  5V  13  12  11  10   9   6   5   3   2      ║ │
+   ║    (LIPO CONN)│              LED A1      A10  A9  A7     SCL SDA     ║ │
+   │               │                               ┌────────────────┐ DIO3╬ │
+   │(USB CONN)     │   LORA32U4                    │ RFM95 / HDP13  │ DIO2╬ │
+   │   (RST BTN)   │                               │4=rst 7=irq 8=cs│     ║ │
+   ║               │                               └────────────────┘  (0)──┘
+   ║               │                          15  16                      ║ 
+   ║  RST 3V3 REF GND  A0  A1  A2  A3  A4 A5 SCK MOSI MISO 0   1 DIO1  ANT╬
    ╚═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╝
-                                              xxx xxx xxx       
+                                              xxx xxx xxx  RX TX
+                                               SPI-RFM95  serial1                                              
    
 ```
 ## IOT TTN message format
@@ -106,29 +122,30 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
           ---- 0001 Set#1      Supplying our set#1 'environmental sensor' 
           ---- 1000 Radio      I have received a radio, sending radio values
           nnnn ---- MyTeamID   Value 0-31 my team ID
+    byte 23,24         Counter    LoraWan Message counter. Last 2 bytes.
                                
     -- OPTIONAL set#1 environmental sensors values (not finalized)
-    byte 23, 24     Moisture   2 bytes, AD measurement directly from AD port
-    byte 25, 26     AirPress   2 bytes, AD measurement directly from AD port
-    byte 27, 28     CO2        2 bytes, AD measurement directly from AD port
-    byte 29, 30     PPM 2.5    2 bytes, AD measurement directly from AD port
-    byte 31, 32     PPM 10     2 bytes, AD measurement directly from AD port
-    byte 33, 34     Audio 1    2 bytes
-    byte 35, 36     Audio 2    2 bytes
+    byte 25, 26     Moisture   2 bytes, AD measurement directly from AD port
+    byte 27, 28     AirPress   2 bytes, AD measurement directly from AD port
+    byte 29, 30     CO2        2 bytes, AD measurement directly from AD port
+    byte 31, 32     PPM 2.5    2 bytes, AD measurement directly from AD port
+    byte 33, 34     PPM 10     2 bytes, AD measurement directly from AD port
+    byte 35, 36     Audio 1    2 bytes
+    byte 37, 38     Audio 2    2 bytes
                       
     -- OPTIONAL radio values 
-    byte 23         RemoteID   ID of remote team (who shot me)
+    byte 25         RemoteID   ID of remote team (who shot me)
         0b0000 0000            
           ---- nnnn RadioSSN   Received radio strength 1 
           nnnn ---- RemoteID   Value 0-31, Remote team ID
-    byte 24, 25, 26 RemoteLat  3 bytes, -90 to +90 degrees scaled 0..16777215
-    byte 27, 28, 29 RemoteLon  3 bytes, -180..+180 degrees scaled 0..16777215
-    byte 30         R comp ++
+    byte 26, 27, 28 RemoteLat  3 bytes, -90 to +90 degrees scaled 0..16777215
+    byte 29, 30, 31 RemoteLon  3 bytes, -180..+180 degrees scaled 0..16777215
+    byte 32         R comp ++
         0b0000 0000            
           -nnn nnnn RemoteComp 0-120, Remote Compass 3 degree precision 0..360
                                Value=127: no compass value
           1--- ---- RemBtn#1   bit, is remote button pressed
-    byte 31         distance ++
+    byte 33         distance ++
         0b0000 0000
           -nnn nnnn distance   0-100, Distance in meters        0..100
                                101-120,  100+(x-100)*20     for 120..500
@@ -161,18 +178,19 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
 
       var _myID = bytes[22] >> 4;
       var _dataSetType = bytes[22] & 15;
+      var _counter =  bytes[23] << 8 | bytes[24];
          
       var _inputHEX = bytes.map(function(b) { return ('0' + b.toString(16)).substr(-2);}).join(' ');
 
-    // if _dataSetType = my game data
-      var _remoteID = bytes[23] & 15;
-      var _remote_radioSSN = bytes[23] >> 4;
-      var _remote_lat = (bytes[24] << 16 | bytes[25] << 8 | bytes[26]) / 16777215.0 * 180.0 - 90;
-      var _remote_lng = (bytes[27] << 16 | bytes[28] << 8 | bytes[29]) / 16777215.0 * 360.0 - 180;
-      var _remote_compass = (bytes[30] & 127) * 3;
-      var _remote_Btn = bytes[30] >> 7;
-      var _remote_distance = bytes[31] & 127;
-      var _remote_DidHitMe = bytes[31] >> 7;
+    // if _dataSetType = 0001 my game data
+      var _remoteID = bytes[25] & 15;
+      var _remote_radioSSN = bytes[25] >> 4;
+      var _remote_lat = (bytes[26] << 16 | bytes[27] << 8 | bytes[28]) / 16777215.0 * 180.0 - 90;
+      var _remote_lng = (bytes[29] << 16 | bytes[30] << 8 | bytes[31]) / 16777215.0 * 360.0 - 180;
+      var _remote_compass = (bytes[32] & 127) * 3;
+      var _remote_Btn = bytes[32] >> 7;
+      var _remote_distance = bytes[33] & 127;
+      var _remote_DidHitMe = bytes[33] >> 7;
 
       return {
         arduino_VCC: _VCC,
@@ -190,6 +208,7 @@ https://www.thethingsnetwork.org/labs/story/build-the-cheapest-possible-node-you
         gps_prev_lng: _prev_lng,
         gps_prev_alt: _prev_alt,
         gps_prev_hdop: _prev_hdop,
+        counter: _counter,
         payload: _inputHEX,
         remoteID: _remoteID,
         remote_radioSSN: _remote_radioSSN,

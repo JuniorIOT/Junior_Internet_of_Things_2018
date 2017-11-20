@@ -3,9 +3,10 @@
  * Modified By Marco van Schagen for Junior IOT Challenge 2018
  *******************************************************************************/ 
  
-//M#define DEBUG           // if DEBUG is defined, some code is added to display some basic debug info
+#define DEBUG           // if DEBUG is defined, some code is added to display some basic debug info
 //#define DEBUGLEVEL2     // if DEBUGLEVEL2 is defined, some code is added to display deeper debug info
 //#define DEBUGRADIO      // if DEBUGLEVEL2 is defined, some code is added to display radio debug info
+//#define doradio
 
 #define VBATPIN A9
 #define LEDPIN 13 
@@ -17,8 +18,8 @@
 // GPS libraries, mappings and things
 //////////////////////////////////////////////
 #define GPS_FIX_HDOP   // to prevent eror: 'const class gps_fix' has no member named 'hdop'
-#define GPS_RXD_PIN 10  
-#define GPS_TXD_PIN 11    // where we plugged in our GNSS GPS into Lora32u4
+#define GPS_RXD_PIN 10  // to rx arduino
+#define GPS_TXD_PIN 11    // to tx arduino
 
 #include <NeoSWSerial.h>  //  We now use NeoSWSerial for lower footprint end better performance than SoftwareSerial
   // an issue with Leonardo-types is fixed in branch, yet to be merged into main version library. So you may need to remove all your NeoSWSerial libraries and add \libraries\NeoSWSerial-master-DamiaBranch.zip
@@ -35,14 +36,14 @@ static NMEAGPS gps;    // This parses the GPS characters
 long gps_fix_count = 0;
 long gps_nofix_count = 0;
 unsigned long gps_last_time = millis();
-unsigned long gps_gets_time = 5000;
+//unsigned long gps_gets_time = 5000;
 
 //////////////////////////////////////////////
 // LoraWan libraries, mappings and things
 //////////////////////////////////////////////
 
 //#include <SPI.h>  //MISO MOSI SCK stuff that was part of 2017 thing with rfm95
-#define PAYLOADSIZE 36 // The size of the package to be sent
+#define PAYLOADSIZE 38 // The size of the package to be sent
 #include <avr/pgmspace.h>
 #include <lmic_slim.h>     // the really cool micro-library, to replace our 2017 LMIC which filled 99% memory
 #include "keys.h"          // the personal keys to identify our own nodes, in a file outside GITHUB
@@ -429,7 +430,7 @@ void print_myLoraWanData() {
 
 void doOneLoraWan() {
   #ifdef DEBUG
-  Serial.print(F("Start: doOneLoraWan. milis=")); Serial.println(millis());
+  Serial.print(F("Start: - - - - - - - - - - -- - - - doOneLoraWan. milis=")); Serial.println(millis());
   print_myLoraWanData();
   #endif
   
@@ -508,7 +509,7 @@ void doOneRadio() {
   uint8_t radiopacket[10];
   
   formatRadioPackage(&radiopacket[0]);
-  #ifdef DEBUG
+  #ifdef DEBUGRADIO
   Serial.println(F("  Sending...")); delay(10);
   #endif
   rf95.send(radiopacket, 10);
@@ -519,32 +520,32 @@ void doOneRadio() {
   // Now wait for a reply  
   uint8_t len = sizeof(buf);
   
-  #ifdef DEBUG
+  #ifdef DEBUGRADIO
   Serial.println(F("  Waiting for some other radio to reply...")); delay(10);
   #endif
   
   if (!rf95.waitAvailableTimeout(20000)) { 
-    #ifdef DEBUG
+    #ifdef DEBUGRADIO
     Serial.println(F("  No radio received in 20 sec.")); 
     #endif
   } else { 
     // a message was received
     if (!rf95.recv(buf, &len)) {
-      #ifdef DEBUG 
+      #ifdef DEBUGRADIO 
       Serial.println(F("Receive buffer is empty.")); 
       #endif
     } else {
       // message has a length
-      #ifdef DEBUG 
+      #ifdef DEBUGRADIO 
       RH_RF95::printBuffer("Received this radio message: ", buf, len);
       #endif
       
-      #ifdef DEBUGLEVEL2
+      #ifdef DEBUGRADIO
       Serial.println(F("Got reply:              ["));
       #endif
       decodeReply(buf, 1/*debug*/);
       //Serial.print((char*)buf);
-      #ifdef DEBUGLEVEL2
+      #ifdef DEBUGRADIO
       Serial.print(F("] RSSI: "));
       Serial.println(rf95.lastRssi(), DEC);
       #endif
@@ -559,7 +560,7 @@ void doOneRadio() {
   }
 
   // done wait for radio
-  #ifdef DEBUGLEVEL2
+  #ifdef DEBUGRADIO
   Serial.print(F("  Completed: doOneRadio. milis=")); Serial.println(millis());
   #endif 
 }
@@ -1010,14 +1011,12 @@ bool has_sent_allready = false;
 
 void setup() {
   pinMode(LEDPIN, OUTPUT);
-  delay(1000);  // https://www.thethingsnetwork.org/forum/t/got-adafruit-feather-32u4-lora-radio-to-work-and-here-is-how/6863
   
+  delay(2500);     // Give time to the ATMega32u4 port to wake up and be recognized by the OS.
   Serial.begin(115200);   // whether 9600 or 115200; the gps feed shows repeated char and cannot be interpreted, setting high value to release system time
   delay(100);
 
-  #ifdef DEBUGLEVEL2
   Serial.print(F("\nStarting device: ")); Serial.println(DEVADDR); 
-  #endif
   device_startTime = millis();
 
   gps_init(); 
@@ -1030,8 +1029,8 @@ void setup() {
   put_Volts_and_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
   doGPS_and_put_values_into_sendbuffer(); 
-  myLoraWanData[22] = MY_GAME_ID << 4 | 1;  
-  
+  myLoraWanData[22] = MY_GAME_ID << 4 | 1; 
+     
   #ifdef DEBUGLEVEL2
   Serial.print(F("  Send one lorawan message as part of system init. milis=")); Serial.println(millis());
   #endif
@@ -1048,14 +1047,13 @@ boolean radioActive = true;  // this name is for radio, not LoraWan
 boolean loraWannaBe = false;
 
 void loop() {
-  #ifdef DEBUG
   Serial.print(F("\n==== Loop starts. milis=")); Serial.println(millis());
-  #endif
   digitalWrite(LEDPIN, !digitalRead(LEDPIN)); 
 
   ////// GPS pre-loop //////////////
   // Serial.println(F("  No lengthy GPS read-till-fix is needed, the GPS will find/keep a fix as log as power is on. "));
 
+#ifdef doradio
   ////////// Radio  ///////////
   #ifdef DEBUGLEVEL2
   Serial.print(F("  Radio listen? milis=")); Serial.println(millis());
@@ -1083,6 +1081,7 @@ void loop() {
     #endif
   }
   // we keep doing this part until it is time to send one LORAWAN TX to the world
+#endif 
 
   // if we did not wait for next lora moment, we will need to do that now
   #ifdef DEBUGLEVEL2
@@ -1101,6 +1100,11 @@ void loop() {
   //Serial.print(F("\nCollect data needed just before sending a LORAWAN update. milis=")); Serial.println(millis());
   put_Volts_and_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
+  myLoraWanData[22] = MY_GAME_ID << 4 | 1; 
+
+  uint32_t LoraWan_Counter = LMIC_getSeqnoUp();  // getCounter zit NIET in LMIC_slim library
+  myLoraWanData[23] = LoraWan_Counter >> 8; 
+  myLoraWanData[24] = LoraWan_Counter; 
 
   // Clear gps buffer, or else it will retail old position if no fix is found. If no fix is found we want invalid location so TTNmapper does not get disturbed.
   l_lat = 0; l_lon = 0; l_alt = 678; hdopNumber = 99999;   // the zero position
@@ -1108,9 +1112,7 @@ void loop() {
 
   ////////// Now we need to send a LORAWAN update to the world  ///////////
   // switch the LMIC antenna to LoraWan mode
-  #ifdef DEBUGLEVEL2
-  Serial.println(F("  About to send one LoraWan. milis=")); Serial.println(millis());
-  #endif
+  Serial.println(F("   - - - - About to send one LoraWan. milis=")); Serial.println(millis());
   last_lora_time = millis();
   lmic_slim_init();
   doOneLoraWan();    

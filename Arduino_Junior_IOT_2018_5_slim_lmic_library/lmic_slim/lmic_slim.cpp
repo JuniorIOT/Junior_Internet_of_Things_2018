@@ -122,6 +122,7 @@ int LMIC_setTxData2 (uint8_t* data, uint8_t dlen) {
     return 0;
 }
 
+<<<<<<< HEAD
 uint16_t getCounter() {
 	return LMIC.seqnoUp & 0xFFFF;
 }
@@ -129,6 +130,10 @@ uint16_t getCounter() {
 void putCounterAt(int index) {
     LMIC.pendTxData[index] = (LMIC.seqnoUp >> 8) & 0xFF;
     LMIC.pendTxData[index+1] = (LMIC.seqnoUp) & 0xFF;
+=======
+uint32_t LMIC_getSeqnoUp() {
+    return LMIC.seqnoUp;
+>>>>>>> 0507bc4d429f32de8a6786dd0986217f0b00549f
 }
 
 static void buildDataFrame (void) {    
