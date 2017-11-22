@@ -1,8 +1,6 @@
 #include "Arduino.h"
 #include "sodaq_compass.h"
 #include <Wire.h>
-float headingFiltered = 0;
-int tries = 0;
 
 NBIOT_Compass::NBIOT_Compass()
 {
