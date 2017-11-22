@@ -40,6 +40,16 @@ bool ReceivedFromRadio = false;
 uint8_t buf[radioPacketSize];
 
 
+// game
+int negotiateState = 0;
+int buttonpin = -1; // pin of the gun button
+
+// nonsense
+void led_on();
+void led_off();
+void RED();
+void GREEN();
+void BLUE();
 //////////////////////////////////////////////////
 // Kaasfabriek routines for RN2483 for LoraWan
 ///////////////////////////////////////////////
@@ -65,7 +75,11 @@ void doGPS(unsigned long timeout);
 void setupCompass();
 long readCompass();
 void put_Compass_and_Btn_into_sendbuffer();
-
+//////////////////////////////////////////////////////////
+//// Game
+////////////////////////////////////////////
+uint8_t whoWasItThatTalkedToMe();
+uint8_t wasIHit();
 
 //////////////////////////////////////////////////
 // Kaasfabriek routines for RN2483 for LoraWan
@@ -192,6 +206,7 @@ void doOneRadio() {
       ReceivedFromRadio = true;
       received.getBytes(buf, received.length());
       DEBUG_STREAM.print("Received downlink immediately: " + received);
+      decodeReply(buf);
       break;
     }
     default:
@@ -235,6 +250,7 @@ void listenRadio() {
       ReceivedFromRadio = true;
       received.getBytes(buf, received.length());
       DEBUG_STREAM.print("Received downlink: " + received);
+      decodeReply(buf);
       break;
     }
     case RADIO_LISTEN_WITHOUT_RX:
@@ -268,16 +284,17 @@ void listenRadio() {
           nnnn ---- RemoteID   Value 0-31, Remote team ID
     byte 9          Validator  Hash (binary add) on message, GPS date, salt..
     */
-void formatRadioPackage(uint8_t *loopbackToData) {
-  bool didIFire = true;
-  bool didSomeoneElseFire = false;
-  
-  bool shouldITalkBack = false;
+    bool didIFire = false;
+    bool didSomeoneElseFire = false;
+    bool shouldITalkBack = false;
+    uint8_t who = 0b00000000;
+void formatRadioPackage(uint8_t *loopbackToData) {  
   uint8_t MyID = 1;
-  uint8_t buttonPressed = 0b10000000;
+  uint8_t buttonPressed = 0b00000000;
   uint8_t targetID = 0b00000000; // unknown
   
   if(didIFire) {
+    buttonPressed = 0b10000000;
     loopbackToData[0] = 0b00000001;
     loopbackToData[8] = targetID; // send unknown    
   } else if(didSomeoneElseFire && shouldITalkBack) {
@@ -343,56 +360,64 @@ void formatRadioPackage(uint8_t *loopbackToData) {
           nnnn ---- RemoteID   Value 0-31, Remote team ID
     byte 9          Validator  Hash (binary add) on message, GPS date, salt..
     */
-void decodeReply(uint8_t buf[], bool debugToSerial) {
-  if(debugToSerial) {
-    #ifdef DEBUGRADIO
-    // bytes 0
-    if((buf[0] & 0b00001111) == 0b00000001) {
-      DEBUG_STREAM.println("Radio: Someone says that he fired");
-    } else if((buf[0] & 0b00001111) == 0b00000010) {
-        DEBUG_STREAM.println("Radio: Someone talkes back to someone who fired");
-    }
-    DEBUG_STREAM.print("That someone has an id of:");
-    uint8_t id = (buf[0] >> 4) & 0b00001111;
-    DEBUG_STREAM.println((int) id,DEC);
+void decodeReply(uint8_t buf[]) {
+  
     
-    // byte 1,2,3 and 4,5,6
-    DEBUG_STREAM.print("His location is: ");
-    
-    float _lat = ((((uint32_t)buf[1]) << 16) + (((uint32_t)buf[2]) << 8) + buf[3]) / 16777215.0 * 180.0 - 90;
-    float _lng = ((((uint32_t)buf[4]) << 16) + (((uint32_t)buf[5]) << 8) + buf[6]) / 16777215.0 * 360.0 - 180;
-    DEBUG_STREAM.print("lat: ");
-    DEBUG_STREAM.print(_lat);
-    DEBUG_STREAM.print("lng: ");
-    DEBUG_STREAM.println(_lng);
-
-    // byte 7
-    uint8_t compass = buf[7] & 0b01111111; // don't want the hit indicator now
-    DEBUG_STREAM.print("His compass points to: ");
-    int _compass = (compass & 127)*3;
-    DEBUG_STREAM.println(_compass);
-
-    bool hePressedHisButton = ((buf[7] >> 7) & 0b00000001) == 0b00000001;
-    if(hePressedHisButton) DEBUG_STREAM.println("He pressed his button");
-    else DEBUG_STREAM.println("He did not press his button");
-
-    // byte 8
-    bool heWasHit = (buf[8] & 0b00000001) == 0b00000001;
-    if(heWasHit) DEBUG_STREAM.println("He was hit");
-    else DEBUG_STREAM.println("He was not hit - or doesn't know it yet");
-
-    uint8_t remoteid = (buf[8] >> 4) & 0b00001111;
-    DEBUG_STREAM.println("He was talking to id: ");
-    DEBUG_STREAM.print((int)remoteid,DEC);
-
-    // byte 9 - what is this?
-    #endif
+  // bytes 0
+  if((buf[0] & 0b00001111) == 0b00000001) {
+    DEBUG_STREAM.println("Radio: Someone says that he fired");
+    didSomeoneElseFire = true;      
+  } else if((buf[0] & 0b00001111) == 0b00000010) {
+      DEBUG_STREAM.println("Radio: Someone talkes back to someone who fired");
+      didSomeoneElseFire = false;
+  } else{
+    didSomeoneElseFire = false;
   }
+  DEBUG_STREAM.print("That someone has an id of:");
+  who = (buf[0] >> 4) & 0b00001111;
+  DEBUG_STREAM.println((unsigned int) who,DEC);
+  
+  // byte 1,2,3 and 4,5,6
+  DEBUG_STREAM.print("His location is: ");
+  
+  float _lat = ((((uint32_t)buf[1]) << 16) + (((uint32_t)buf[2]) << 8) + buf[3]) / 16777215.0 * 180.0 - 90;
+  float _lng = ((((uint32_t)buf[4]) << 16) + (((uint32_t)buf[5]) << 8) + buf[6]) / 16777215.0 * 360.0 - 180;
+  DEBUG_STREAM.print("lat: ");
+  DEBUG_STREAM.print(_lat);
+  DEBUG_STREAM.print("lng: ");
+  DEBUG_STREAM.println(_lng);
+  
+  // byte 7
+  uint8_t compass = buf[7] & 0b01111111; // don't want the hit indicator now
+  DEBUG_STREAM.print("His compass points to: ");
+  int _compass = (compass & 127)*3;
+  DEBUG_STREAM.println(_compass);
+  
+  bool hePressedHisButton = ((buf[7] >> 7) & 0b00000001) == 0b00000001;
+  if(hePressedHisButton) DEBUG_STREAM.println("He pressed his button");
+  else DEBUG_STREAM.println("He did not press his button");
+  
+  // byte 8
+  bool heWasHit = (buf[8] & 0b00000001) == 0b00000001;
+  if(heWasHit) DEBUG_STREAM.println("He was hit");
+  else DEBUG_STREAM.println("He was not hit - or doesn't know it yet");
+  
+  uint8_t remoteid = (buf[8] >> 4) & 0b00001111;
+  DEBUG_STREAM.println("He was talking to id: ");
+  DEBUG_STREAM.print((int)remoteid,DEC);
+  
+  // byte 9 - what is this?
+  
+  if(didSomeoneElseFire) shouldITalkBack = wasIHit();      
+  
+  
 }
 uint8_t whoWasItThatTalkedToMe() {
-  uint8_t who = 2; // 2 talks to me
+  
   return who;
 }
+
+// compare compass and gps with the data from the other who just shot
 uint8_t wasIHit() {
   uint8_t hit = 0b00000001; // yes i was hit
   return hit;
@@ -409,6 +434,10 @@ void setup() {
   DEBUG_STREAM.print(F("\nStarting device: ")); DEBUG_STREAM.println(DEVADDR); 
   device_startTime = millis();
 
+  // game parameters
+  negotiateState = 0;
+  didSomeoneElseFire = false;
+  didIFire = false;
   gps_init(); 
   rn2483_init();
   setupCompass();
@@ -430,7 +459,7 @@ void setup() {
   
 }
 boolean radioActive = true;  // this name is for radio, not LoraWan
-boolean loraWannaBe = false;
+boolean loraWannaBeNow = false;
 
 void loop() {
   DEBUG_STREAM.print(F("\n==== Loop starts. milis=")); DEBUG_STREAM.println(millis());
@@ -442,27 +471,28 @@ void loop() {
   // now listen a long time for a radio message which we may want to act on, or for a keypress on our side 
   // time needs to be long enough not to miss a radio, we do not worry about GPS as it will keep fix as long as powered
   if(radioActive) {
-    setupRadio();
-    while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L)) {
-    // next command is not what we want to do
-    doOneRadio();  // sends a radio message and will listen for return message for a certain time
-    delay(5000);
-    }
-    
-  } else {
-    //not listening to radio at all, we may as well use delay for a bit 
-    DEBUG_STREAM.print(F("  No radio listen required, so instead just add a delay before lorawan: \n    ")); DEBUG_STREAM.print(LORAWAN_TX_INTERVAL); DEBUG_STREAM.print(F(" sec."));
-    while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L)) {
-      /*delay(5000);   
-      DEBUG_STREAM.print(F("."));*/
+    bool loraWannaBeNow = false;
+    while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L) && !loraWannaBeNow) {
+      
+      
       // better listen to radio if nothing to do
       setupRadio();
       listenRadio();
+      DEBUG_STREAM.print(F("."));
 
       if(digitalRead(buttonpin) == HIGH) {
-        
+        didIFire = true;
+        negotiateState = 1;        
+      }
+
+      if(didIFire && negotiateState == 1) {
+        setupRadio();
+        doOneRadio();
+        loraWannaBeNow = true;
       }
     }
+    
+    
     DEBUG_STREAM.println();
   }
   // we keep doing this part until it is time to send one LORAWAN TX to the worl
