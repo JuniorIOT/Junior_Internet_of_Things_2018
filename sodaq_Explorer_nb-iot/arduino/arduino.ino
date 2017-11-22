@@ -458,6 +458,10 @@ void loop() {
       // better listen to radio if nothing to do
       setupRadio();
       listenRadio();
+
+      if(digitalRead(buttonpin) == HIGH) {
+        
+      }
     }
     DEBUG_STREAM.println();
   }
@@ -472,7 +476,7 @@ void loop() {
   */
   
   doGPS_and_put_values_into_lora_sendbuffer();
-  
+  put_Compass_and_Btn_into_sendbuffer();
   
   ////////// Now we need to send a LORAWAN update to the world  ///////////
   // switch the LMIC antenna to LoraWan mode
