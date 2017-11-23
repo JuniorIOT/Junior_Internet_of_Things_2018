@@ -80,7 +80,7 @@ void put_Compass_and_Btn_into_sendbuffer();
 ////////////////////////////////////////////
 uint8_t whoWasItThatTalkedToMe();
 uint8_t wasIHit();
-
+void IHitSomeone();
 //////////////////////////////////////////////////
 // Kaasfabriek routines for RN2483 for LoraWan
 ///////////////////////////////////////////////
@@ -288,8 +288,9 @@ void listenRadio() {
     bool didSomeoneElseFire = false;
     bool shouldITalkBack = false;
     uint8_t who = 0b00000000;
+    uint8_t MyID = 1;
 void formatRadioPackage(uint8_t *loopbackToData) {  
-  uint8_t MyID = 1;
+  
   uint8_t buttonPressed = 0b00000000;
   uint8_t targetID = 0b00000000; // unknown
   
@@ -361,7 +362,7 @@ void formatRadioPackage(uint8_t *loopbackToData) {
     byte 9          Validator  Hash (binary add) on message, GPS date, salt..
     */
 void decodeReply(uint8_t buf[]) {
-  
+  bool someoneIsTalkingBackToSomeoneWhoFired = false;
     
   // bytes 0
   if((buf[0] & 0b00001111) == 0b00000001) {
@@ -370,6 +371,8 @@ void decodeReply(uint8_t buf[]) {
   } else if((buf[0] & 0b00001111) == 0b00000010) {
       DEBUG_STREAM.println("Radio: Someone talkes back to someone who fired");
       didSomeoneElseFire = false;
+      // did i fire and is he talking to me
+      someoneIsTalkingBackToSomeoneWhoFired = true; 
   } else{
     didSomeoneElseFire = false;
   }
@@ -410,7 +413,12 @@ void decodeReply(uint8_t buf[]) {
   
   if(didSomeoneElseFire) shouldITalkBack = wasIHit();      
   
-  
+  if(someoneIsTalkingBackToSomeoneWhoFired && (negotiateState == 1)) {
+    if(remoteid == MyID) {
+      // i fired and i hit!
+      IHitSomeone();
+    }
+  }
 }
 uint8_t whoWasItThatTalkedToMe() {
   
@@ -419,10 +427,14 @@ uint8_t whoWasItThatTalkedToMe() {
 
 // compare compass and gps with the data from the other who just shot
 uint8_t wasIHit() {
+  // TODO: code to see if i was hit
   uint8_t hit = 0b00000001; // yes i was hit
   return hit;
 }
 
+void IHitSomeone() {
+  // yes!
+}
 
 void setup() {
   pinMode(LEDPIN, OUTPUT);
@@ -475,9 +487,12 @@ void loop() {
     while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L) && !loraWannaBeNow) {
       
       
-      // better listen to radio if nothing to do
+      // better listen to radio
+      // if negotiateState == 1 then check if the shot was a hit
+      // listen if someone else fired
       setupRadio();
       listenRadio();
+      
       DEBUG_STREAM.print(F("."));
 
       if(digitalRead(buttonpin) == HIGH) {
@@ -486,9 +501,19 @@ void loop() {
       }
 
       if(didIFire && negotiateState == 1) {
+        // tell other person I fired
         setupRadio();
         doOneRadio();
+        
         loraWannaBeNow = true;
+        // reset fire but keep negotiateState to know someone might reply
+        didIFire = false;
+        
+      }
+      if(didSomeoneElseFire && shouldITalkBack) {
+        // tell other person i was hit
+        setupRadio();
+        doOneRadio();
       }
     }
     
@@ -514,6 +539,10 @@ void loop() {
   last_lora_time = millis();
   rn2483_init();
   doOneLoraWan();    
+
+
+  // reset game
+  negotiateState = 0; // timeout no one replied to me firing.
   
   /////////// Loop again  //////////////
   DEBUG_STREAM.println(F("\nEnd of loop. milis=")); DEBUG_STREAM.println(millis());
