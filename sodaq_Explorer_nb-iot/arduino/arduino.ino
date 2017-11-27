@@ -43,6 +43,9 @@ uint8_t buf[radioPacketSize];
 // game
 int negotiateState = 0;
 int buttonpin = -1; // pin of the gun button
+float hitlat1, hitlng1, hitlat2, hitlng2, hitcompass;
+
+
 
 // nonsense
 void led_on();
@@ -86,7 +89,11 @@ void IHitSomeone();
 ////////////////////////////////////////////
 void put_Volts_and_Temp_into_sendbuffer();
 
-
+#include <math.h>
+// GPS intersection
+int bearing (float lat1, float lng1, float lat2, float lng2);
+float _toDeg (float rad);
+float _toRad (float deg);
 
 //////////////////////////////////////////////////
 // Kaasfabriek routines for RN2483 for LoraWan
@@ -397,12 +404,17 @@ void decodeReply(uint8_t buf[]) {
   DEBUG_STREAM.print(_lat);
   DEBUG_STREAM.print("lng: ");
   DEBUG_STREAM.println(_lng);
+  hitlat2 = _lat;
+  hitlng2 = _lng;
+  
+
   
   // byte 7
   uint8_t compass = buf[7] & 0b01111111; // don't want the hit indicator now
   DEBUG_STREAM.print("His compass points to: ");
   int _compass = (compass & 127)*3;
   DEBUG_STREAM.println(_compass);
+  hitcompass = _compass;
   
   bool hePressedHisButton = ((buf[7] >> 7) & 0b00000001) == 0b00000001;
   if(hePressedHisButton) DEBUG_STREAM.println("He pressed his button");
@@ -435,9 +447,18 @@ uint8_t whoWasItThatTalkedToMe() {
 
 // compare compass and gps with the data from the other who just shot
 uint8_t wasIHit() {
-  // TODO: code to see if i was hit
   uint8_t hit = 0b00000001; // yes i was hit
-  return hit;
+  uint8_t nothit = 0b00000000; 
+  int inaccuracy = 10; //degrees
+  float heading = bearing(hitlat1, hitlng1, hitlat2, hitlng2);
+
+  if( ((int)abs((hitcompass - heading)) % 360) <  inaccuracy) {
+    return hit;
+  }else {
+    return nothit;
+  }
+  
+  
 }
 
 void IHitSomeone() {
@@ -590,6 +611,9 @@ void find_fix(uint32_t delay_until)
       
       l_lat = sodaq_gps.getLat();
       l_lon = sodaq_gps.getLon();
+      hitlat1 = l_lat;
+      hitlng1 = l_lon;
+      
       l_alt = sodaq_gps.getAlt();
       hdopNumber = sodaq_gps.getHDOP();
       
@@ -717,7 +741,7 @@ long readCompass() {
   geo_magnetic_declination_deg = 1.09; // for our location
   
   //Calculating Heading
-  headingDegrees = atan2(Y_milliGauss, X_milliGauss)* 180/PI + geo_magnetic_declination_deg;  // heading in rad. 
+  headingDegrees = (atan2(Y_milliGauss, X_milliGauss)* (180/PI)) + geo_magnetic_declination_deg;  // heading in rad. 
   
   // Correcting when signs are reveresed or due to the addition of the geo_magnetic_declination_deg angle
   if(headingDegrees <0) headingDegrees += 2*180;
@@ -779,3 +803,45 @@ void BLUE() {
   digitalWrite(LED_GREEN, HIGH);
   digitalWrite(LED_BLUE, LOW);
 }
+
+// gps intersection
+/**
+     * Calculate the bearing between two positions as a value from 0-360
+     *
+     * @param lat1 - The latitude of the first position
+     * @param lng1 - The longitude of the first position
+     * @param lat2 - The latitude of the second position
+     * @param lng2 - The longitude of the second position
+     *
+     * @return int - The bearing between 0 and 360
+     */
+    int bearing (float lat1, float lng1, float lat2, float lng2) {
+        float dLon = (lng2-lng1);
+        float y = sin(dLon) * cos(lat2);
+        float x = (cos(lat1)*sin(lat2)) - ((sin(lat1)*cos(lat2))*cos(dLon));
+        float brng = _toDeg(atan2(y, x));
+        return 360 - (((int)brng + 360) % 360);
+    }
+
+   /**
+     * Since not all browsers implement this we have our own utility that will
+     * convert from degrees into radians
+     *
+     * @param deg - The degrees to be converted into radians
+     * @return radians
+     */
+     
+    float _toRad (float deg) {
+         return deg * PI / 180.0F;
+    }
+
+    /**
+     * Since not all browsers implement this we have our own utility that will
+     * convert from radians into degrees
+     *
+     * @param rad - The radians to be converted into degrees
+     * @return degrees
+     */
+    float _toDeg (float rad) {
+        return rad * 180.0 / PI;
+    }
