@@ -38,7 +38,7 @@ bool ReceivedFromRadio = false;
 // radio buf
 #define radioPacketSize 10
 uint8_t buf[radioPacketSize];
-
+uint8_t *decoded;
 
 // game
 int negotiateState = 0;
@@ -217,11 +217,15 @@ void doOneRadio() {
     case TX_WITH_RX:
     {
       received = myLora.getRx();
-      received = myLora.base16decode(received);
-      ReceivedFromRadio = true;
-      received.getBytes(buf, received.length());
       DEBUG_STREAM.print("Received downlink immediately: " + received);
-      decodeReply(buf);
+      
+      ReceivedFromRadio = true;
+      decoded = myLora.base16decodeBytes(received);
+      SerialUSB.print("base16: ");
+      for(int i = 0; i < radioPacketSize; i++) SerialUSB.print(decoded[i], HEX);
+      SerialUSB.println(".");
+      
+      decodeReply();
       break;
     }
     default:
@@ -261,11 +265,15 @@ void listenRadio() {
     case TX_WITH_RX:
     {
       String received = myLora.getRx();
-      received = myLora.base16decode(received);
-      ReceivedFromRadio = true;
-      received.getBytes(buf, received.length());
       DEBUG_STREAM.print("Received downlink: " + received);
-      decodeReply(buf);
+      
+      ReceivedFromRadio = true;
+      decoded = myLora.base16decodeBytes(received);
+      SerialUSB.print("base16: ");
+      for(int i = 0; i < radioPacketSize; i++) SerialUSB.print(decoded[i], HEX);
+      SerialUSB.println(".");
+      
+      decodeReply();
       break;
     }
     case RADIO_LISTEN_WITHOUT_RX:
@@ -303,7 +311,7 @@ void listenRadio() {
     bool didSomeoneElseFire = false;
     bool shouldITalkBack = false;
     uint8_t who = 0b00000000;
-    uint8_t MyID = 2;
+    uint8_t MyID = 4+1;
     bool buttonpressedForLoraWan = false;
 void formatRadioPackage(uint8_t *loopbackToData) {  
   
@@ -377,14 +385,20 @@ void formatRadioPackage(uint8_t *loopbackToData) {
           nnnn ---- RemoteID   Value 0-31, Remote team ID
     byte 9          Validator  Hash (binary add) on message, GPS date, salt..
     */
-void decodeReply(uint8_t buf[]) {
+void decodeReply() {
+  SerialUSB.print("BUF HEX: ");
+  for(byte b=0; b<10; b++)
+   {
+      SerialUSB.print(decoded[b], HEX);
+   }
+   SerialUSB.println(".");
   bool someoneIsTalkingBackToSomeoneWhoFired = false;
     
   // bytes 0
-  if((buf[0] & 0b00001111) == 0b00000001) {
+  if((decoded[0] & 0b00001111) == 0b00000001) {
     DEBUG_STREAM.println("Radio: Someone says that he fired");
     didSomeoneElseFire = true;      
-  } else if((buf[0] & 0b00001111) == 0b00000010) {
+  } else if((decoded[0] & 0b00001111) == 0b00000010) {
       DEBUG_STREAM.println("Radio: Someone talkes back to someone who fired");
       didSomeoneElseFire = false;
       // did i fire and is he talking to me
@@ -393,14 +407,14 @@ void decodeReply(uint8_t buf[]) {
     didSomeoneElseFire = false;
   }
   DEBUG_STREAM.print("That someone has an id of:");
-  who = (buf[0] >> 4) & 0b00001111;
+  who = (decoded[0] >> 4) & 0b00001111;
   DEBUG_STREAM.println((unsigned int) who,DEC);
   
   // byte 1,2,3 and 4,5,6
   DEBUG_STREAM.print("His location is: ");
   
-  float _lat = ((((uint32_t)buf[1]) << 16) + (((uint32_t)buf[2]) << 8) + buf[3]) / 16777215.0 * 180.0 - 90;
-  float _lng = ((((uint32_t)buf[4]) << 16) + (((uint32_t)buf[5]) << 8) + buf[6]) / 16777215.0 * 360.0 - 180;
+  float _lat = ((((uint32_t)decoded[1]) << 16) + (((uint32_t)decoded[2]) << 8) + decoded[3]) / 16777215.0 * 180.0 - 90;
+  float _lng = ((((uint32_t)decoded[4]) << 16) + (((uint32_t)decoded[5]) << 8) + decoded[6]) / 16777215.0 * 360.0 - 180;
   DEBUG_STREAM.print("lat: ");
   DEBUG_STREAM.print(_lat);
   DEBUG_STREAM.print("lng: ");
@@ -411,22 +425,22 @@ void decodeReply(uint8_t buf[]) {
 
   
   // byte 7
-  uint8_t compass = buf[7] & 0b01111111; // don't want the hit indicator now
+  uint8_t compass = decoded[7] & 0b01111111; // don't want the hit indicator now
   DEBUG_STREAM.print("His compass points to: ");
   int _compass = (compass & 127)*3;
   DEBUG_STREAM.println(_compass);
   hitcompass = _compass;
   
-  bool hePressedHisButton = ((buf[7] >> 7) & 0b00000001) == 0b00000001;
+  bool hePressedHisButton = ((decoded[7] >> 7) & 0b00000001) == 0b00000001;
   if(hePressedHisButton) DEBUG_STREAM.println("He pressed his button");
   else DEBUG_STREAM.println("He did not press his button");
   
   // byte 8
-  bool heWasHit = (buf[8] & 0b00000001) == 0b00000001;
+  bool heWasHit = (decoded[8] & 0b00000001) == 0b00000001;
   if(heWasHit) DEBUG_STREAM.println("He was hit");
   else DEBUG_STREAM.println("He was not hit - or doesn't know it yet");
   
-  uint8_t remoteid = (buf[8] >> 4) & 0b00001111;
+  uint8_t remoteid = (decoded[8] >> 4) & 0b00001111;
   DEBUG_STREAM.println("He was talking to id: ");
   DEBUG_STREAM.print((int)remoteid,DEC);
   
@@ -440,6 +454,7 @@ void decodeReply(uint8_t buf[]) {
       IHitSomeone();
     }
   }
+  free(decoded);
 }
 uint8_t whoWasItThatTalkedToMe() {
   
@@ -618,8 +633,11 @@ void find_fix(uint32_t delay_until)
       
       l_alt = sodaq_gps.getAlt();
       hdopNumber = sodaq_gps.getHDOP();
-      DEBUG_STREAM.print("l_lat");
-      DEBUG_STREAM.print(l_lat);
+      DEBUG_STREAM.print("l_alt");
+      DEBUG_STREAM.print(l_alt);
+      DEBUG_STREAM.print("hdop");
+      DEBUG_STREAM.print(hdopNumber);
+      
     } else {
         DEBUG_STREAM.println("No Fix");        
     }
@@ -653,8 +671,8 @@ void put_gpsvalues_into_lora_sendbuffer(bool savePrevious) {
                                                                    //      NMEAGPS alt.whole is meter value 
                                                                    //      TynyGPS long alt is meter value * 100
     if (l_alt<0) altitudeBinary=0;                                 // unsigned int wil not allow negative values and warps them to huge number  
-    uint8_t HdopBinary = hdopNumber/100;                           // we want horizontal dillution, good is 2..5, poor is >20. Note:
-                                                                   //      NMEAGPS outputs an indoor value of 600..1000. Let's divide by 100
+    uint8_t HdopBinary = hdopNumber * 10;                           // we want horizontal dillution, good is 2..5, poor is >20. Note:
+                                                                   
                                                                    //      from TinyGPS horizontal dilution of precision in 100ths? We succesfully divided by 10
                                                                    //      TinyGPSplus seems the same in 100ths as per MNEMA string. We succesfully divided by 10
     
