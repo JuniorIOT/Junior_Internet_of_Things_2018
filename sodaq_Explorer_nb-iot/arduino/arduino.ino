@@ -42,7 +42,7 @@ uint8_t buf[radioPacketSize];
 
 // game
 int negotiateState = 0;
-int buttonpin = -1; // pin of the gun button
+int buttonpin = 8; // pin of the gun button
 float hitlat1, hitlng1, hitlat2, hitlng2, hitcompass;
 
 
@@ -135,6 +135,7 @@ void rn2483_init()
   bool join_result = false;
 
   //ABP: initABP(String addr, String AppSKey, String NwkSKey);
+  myLora.init(); // come back from radio2radio
   join_result = myLora.initABP(DEVADDR, APPSKEY, NWKSKEY);
 
   //OTAA: initOTAA(String AppEUI, String AppKey);
@@ -302,7 +303,7 @@ void listenRadio() {
     bool didSomeoneElseFire = false;
     bool shouldITalkBack = false;
     uint8_t who = 0b00000000;
-    uint8_t MyID = 1;
+    uint8_t MyID = 2;
     bool buttonpressedForLoraWan = false;
 void formatRadioPackage(uint8_t *loopbackToData) {  
   
@@ -320,7 +321,7 @@ void formatRadioPackage(uint8_t *loopbackToData) {
   }
   loopbackToData[0] |= MyID << 4;
 
-  doGPS(10); // must have a gps - wait up to 10 seconds
+  doGPS(60); // must have a gps - wait up to 10 seconds
 
   // maybe we should make a function for lat lng encoding that doesnt put them to lorawan
   const double shift_lat     =    90. * 10000000.;                 // range shift from -90..90 into 0..180, note: 
@@ -350,7 +351,7 @@ void formatRadioPackage(uint8_t *loopbackToData) {
   // now add a bit for BTN (not implemented)
   loopbackToData[7] = compass_bin;
   #ifdef DEBUG
-  DEBUG_STREAM.print(F("  compass=")); DEBUG_STREAM.print(compass); DEBUG_STREAM.print(F("  deg. compass_bin=")); Serial.println(compass_bin);
+  DEBUG_STREAM.print(F("  compass=")); DEBUG_STREAM.print(compass); DEBUG_STREAM.print(F("  deg. compass_bin=")); DEBUG_STREAM.println(compass_bin);
   #endif
 
   loopbackToData[7] |= buttonPressed;
@@ -478,6 +479,7 @@ void put_Volts_and_Temp_into_sendbuffer() {
 
 void setup() {
   pinMode(LEDPIN, OUTPUT);
+  pinMode(buttonpin, INPUT_PULLUP);
   delay(1000);  // https://www.thethingsnetwork.org/forum/t/got-adafruit-feather-32u4-lora-radio-to-work-and-here-is-how/6863
   
   DEBUG_STREAM.begin(115200);   // whether 9600 or 115200; the gps feed shows repeated char and cannot be interpreted, setting high value to release system time
@@ -532,7 +534,7 @@ void loop() {
       
       DEBUG_STREAM.print(F("."));
 
-      if(digitalRead(buttonpin) == HIGH) {
+      if(digitalRead(buttonpin) == LOW) { // input pullup with ground
         didIFire = true;
         negotiateState = 1;
         buttonpressedForLoraWan = true;        
@@ -607,16 +609,17 @@ void find_fix(uint32_t delay_until)
     uint32_t start = millis();
     uint32_t timeout = delay_until * 1000; // timeout
     DEBUG_STREAM.println(String("waiting for fix ..., timeout=") + timeout + String("ms"));
-    if (sodaq_gps.scan(false, timeout)) {
+    if (sodaq_gps.scan(true, timeout)) { // true == leave on
       
-      l_lat = sodaq_gps.getLat();
-      l_lon = sodaq_gps.getLon();
+      l_lat = sodaq_gps.getLat() * 10000000;
+      l_lon = sodaq_gps.getLon() * 10000000;
       hitlat1 = l_lat;
       hitlng1 = l_lon;
       
       l_alt = sodaq_gps.getAlt();
       hdopNumber = sodaq_gps.getHDOP();
-      
+      DEBUG_STREAM.print("l_lat");
+      DEBUG_STREAM.print(l_lat);
     } else {
         DEBUG_STREAM.println("No Fix");        
     }
@@ -707,7 +710,7 @@ void put_gpsvalues_into_lora_sendbuffer(bool savePrevious) {
 }
 
 void doGPS_and_put_values_into_lora_sendbuffer() {
-  find_fix(2); // find fix in 2 seconds
+  find_fix(60); // find fix in 2 seconds
   // put gps values into send buffer
   put_gpsvalues_into_lora_sendbuffer(false); // don't put this in previous
   
