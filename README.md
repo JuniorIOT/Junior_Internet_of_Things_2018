@@ -64,19 +64,20 @@ optional:
                      │ │ ┌───────────────────────┐   ┌───────────────┐
                      │ │ │   GPS GN-801 30x30    │   │    compass    │
                      │ │ │   GPS BN-200 20x20    │   │    HMC5983    │
-                     │ │ │        3V3 GND TXD RXD│   │Vin GND SCL SDA│
+                     │ │ │        3V3 GND RXD TXD│   │Vin GND SCL SDA│
           ┌──────┐   │ │ └─┬───┬───┬───┬───┬───┬─┘   └─┬───┬───┬───┬─┘   
-          │ LIPO │   4V   blue wht │blk│red│grn│yel    │   │   │   │
+          │ LIPO │   4V            │   │   │   │       │   │   │   │
           │ 380  │   ext          3V3 GND  │   │       │   │   │   │       ant
           │ mAh  │   - +                   │   │       │   │   │   │        │
-          └─┬──┬─┘ ┌─┘ │                 rx│ tx│ Vbat/2│   │   │I2c│        │
+          │      │   │ │       ┌button─┐   │   │       │   │   │   │        │
+          └─┬──┬─┘ ┌─┘ │       │       │ tx│ rx│ Vbat/2│   │   │I2c│        │
    ╔════════│══│═══│═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╗ │
-   ║        -  +   │  BAT EN  5V  13  12  11  10   9   6   5   3   2      ║ │
-   ║    (LIPO CONN)│              LED A1      A10  A9  A7     SCL SDA     ║ │
-   │               │                               ┌────────────────┐ DIO3╬ │
-   │(USB CONN)     │   LORA32U4                    │ RFM95 / HDP13  │ DIO2╬ │
-   │   (RST BTN)   │                               │4=rst 7=irq 8=cs│     ║ │
-   ║               │                               └────────────────┘  (0)──┘
+   ║        -  +   │  BAT EN  5V  13 12│  11  10   9   6   5   3   2      ║ │
+   ║    (LIPO CONN)│             LED A1│      A10  A9  A7     SCL SDA     ║ │
+   │               │                   │           ┌────────────────┐ DIO3╬ │
+   │(USB CONN)     │   LORA32U4        │           │ RFM95 / HDP13  │ DIO2╬ │
+   │   (RST BTN)   │                   │           │4=rst 7=irq 8=cs│     ║ │
+   ║               ┼──── 100K ─────────┘                            └────────────────┘  (0)──┘
    ║               │                          15  16                      ║ 
    ║  RST 3V3 REF GND  A0  A1  A2  A3  A4 A5 SCK MOSI MISO 0   1 DIO1  ANT╬
    ╚═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╝

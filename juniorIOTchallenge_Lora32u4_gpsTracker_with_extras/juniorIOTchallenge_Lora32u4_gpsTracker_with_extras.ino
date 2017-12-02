@@ -4,7 +4,7 @@
  *******************************************************************************/ 
  
 #define DEBUG           // if DEBUG is defined, some code is added to display some basic debug info
-//#define DEBUGLEVEL2     // if DEBUGLEVEL2 is defined, some code is added to display deeper debug info
+#define DEBUGLEVEL2     // if DEBUGLEVEL2 is defined, some code is added to display deeper debug info
 //#define DEBUGRADIO      // if DEBUGLEVEL2 is defined, some code is added to display radio debug info
 //#define doradio
 
@@ -18,8 +18,8 @@
 // GPS libraries, mappings and things
 //////////////////////////////////////////////
 #define GPS_FIX_HDOP   // to prevent eror: 'const class gps_fix' has no member named 'hdop'
-#define GPS_RXD_PIN 10  // to rx arduino
-#define GPS_TXD_PIN 11    // to tx arduino
+#define GPS_RXD_PIN 10  // TXD on gps to rx arduino
+#define GPS_TXD_PIN 11    // RXD on gps to tx arduino
 
 #include <NeoSWSerial.h>  //  We now use NeoSWSerial for lower footprint end better performance than SoftwareSerial
   // an issue with Leonardo-types is fixed in branch, yet to be merged into main version library. So you may need to remove all your NeoSWSerial libraries and add \libraries\NeoSWSerial-master-DamiaBranch.zip
