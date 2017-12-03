@@ -311,7 +311,7 @@ void listenRadio() {
     bool didSomeoneElseFire = false;
     bool shouldITalkBack = false;
     uint8_t who = 0b00000000;
-    uint8_t MyID = 4+1;
+    uint8_t MyID = 5;
     bool buttonpressedForLoraWan = false;
 void formatRadioPackage(uint8_t *loopbackToData) {  
   
@@ -328,7 +328,8 @@ void formatRadioPackage(uint8_t *loopbackToData) {
     loopbackToData[8] |= wasIHit();
   }
   loopbackToData[0] |= MyID << 4;
-
+  SerialUSB.print("MyID: ");
+  SerialUSB.println(loopbackToData[0], BIN);
   doGPS(60); // must have a gps - wait up to 10 seconds
 
   // maybe we should make a function for lat lng encoding that doesnt put them to lorawan
@@ -407,6 +408,8 @@ void decodeReply() {
     didSomeoneElseFire = false;
   }
   DEBUG_STREAM.print("That someone has an id of:");
+  SerialUSB.print("MyID: ");
+  SerialUSB.println(decoded[0], BIN);
   who = (decoded[0] >> 4) & 0b00001111;
   DEBUG_STREAM.println((unsigned int) who,DEC);
   
@@ -416,9 +419,9 @@ void decodeReply() {
   float _lat = ((((uint32_t)decoded[1]) << 16) + (((uint32_t)decoded[2]) << 8) + decoded[3]) / 16777215.0 * 180.0 - 90;
   float _lng = ((((uint32_t)decoded[4]) << 16) + (((uint32_t)decoded[5]) << 8) + decoded[6]) / 16777215.0 * 360.0 - 180;
   DEBUG_STREAM.print("lat: ");
-  DEBUG_STREAM.print(_lat);
+  DEBUG_STREAM.print(_lat, 6);
   DEBUG_STREAM.print("lng: ");
-  DEBUG_STREAM.println(_lng);
+  DEBUG_STREAM.println(_lng,6);
   hitlat2 = _lat;
   hitlng2 = _lng;
   
@@ -463,15 +466,23 @@ uint8_t whoWasItThatTalkedToMe() {
 
 // compare compass and gps with the data from the other who just shot
 uint8_t wasIHit() {
+  SerialUSB.println("Checking if i was hit");
   uint8_t hit = 0b00000001; // yes i was hit
   uint8_t nothit = 0b00000000; 
   int inaccuracy = 10; //degrees
+  SerialUSB.print("His compass was: ");
+  SerialUSB.println(hitcompass);
   float heading = bearing(hitlat1, hitlng1, hitlat2, hitlng2);
-
+  SerialUSB.print("The heading between us based on both our coordinates is: ");
+  SerialUSB.println(heading);
+  SerialUSB.print("Inaccuracy allowed: ");
+  SerialUSB.println(inaccuracy);
   if( ((int)abs((hitcompass - heading)) % 360) <  inaccuracy) {
-    return hit;
+    SerialUSB.println("So i was HIT!");
+    return hit;    
   }else {
-    return nothit;
+    SerialUSB.println("So i was not hit");
+    return nothit;    
   }
   
   
