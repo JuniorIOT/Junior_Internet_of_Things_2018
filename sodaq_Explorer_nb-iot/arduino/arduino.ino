@@ -311,7 +311,7 @@ void listenRadio() {
     bool didSomeoneElseFire = false;
     bool shouldITalkBack = false;
     uint8_t who = 0b00000000;
-    uint8_t MyID = 5;
+    uint8_t MyID = 4;
     bool buttonpressedForLoraWan = false;
 void formatRadioPackage(uint8_t *loopbackToData) {  
   
@@ -449,7 +449,10 @@ void decodeReply() {
   
   // byte 9 - what is this?
   
-  if(didSomeoneElseFire) shouldITalkBack = wasIHit();      
+  if(didSomeoneElseFire) {
+    SerialUSB.println("Checking was i hit on receive");
+    shouldITalkBack = wasIHit();      
+  }
   
   if(someoneIsTalkingBackToSomeoneWhoFired && (negotiateState == 1)) {
     if(remoteid == MyID) {
