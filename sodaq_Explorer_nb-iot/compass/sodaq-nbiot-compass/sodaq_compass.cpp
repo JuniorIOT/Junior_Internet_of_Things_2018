@@ -9,8 +9,7 @@ NBIOT_Compass::NBIOT_Compass()
   _headingFiltered = 0;
 }
 
-void NBIOT_Compass::setup() 
-{
+void NBIOT_Compass::setup() {
   Wire.begin();
   Wire.beginTransmission(_address);    // Get the slave's attention, tell it we're sending a command byte
   Wire.write(0x0F);                               //  The command byte, sets pointer to register with address of 0x32
@@ -58,10 +57,10 @@ void NBIOT_Compass::setup()
   
   //CTRL_REG3_M
   /*SerialUSB.println("Writing to address 0x22 CTRL_REG3_M");
-  SerialUSB.println("[i2c enable] [always 0] [low power] [always 0] [always 0][spi only write - but not using this] [Single conversion] [Single conversion]");
+  SerialUSB.println("[i2c enable] [always 0] [low power] [always 0] [always 0][spi only write - but not using this] [continues conversion][continues conversion]");
   SerialUSB.println("0b00000000");
   */
-  set_register(0x22, 0b00000001);
+  set_register(0x22, 0b00000000);
   ;
   Wire.beginTransmission(_address);    // Get the slave's attention, tell it we're sending a command byte
   Wire.write(0x22);                               //  The command byte, sets pointer to register with address of 0x32

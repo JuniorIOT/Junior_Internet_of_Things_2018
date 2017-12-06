@@ -311,7 +311,7 @@ void listenRadio() {
     bool didSomeoneElseFire = false;
     bool shouldITalkBack = false;
     uint8_t who = 0b00000000;
-    uint8_t MyID = 4;
+    uint8_t MyID = 1;
     bool buttonpressedForLoraWan = false;
 void formatRadioPackage(uint8_t *loopbackToData) {  
   
@@ -626,7 +626,7 @@ void gps_init() {
   sodaq_gps.setDiag(DEBUG_STREAM);
   #endif
   // First time finding a fix wait 60 seconds at most
-  find_fix(60);
+  find_fix(5*60);
 }
 
 void doGPS(uint32_t delay_until) {
@@ -761,11 +761,12 @@ float X_milliGauss,Y_milliGauss,Z_milliGauss;
 float heading, headingDegrees, headingFiltered, geo_magnetic_declination_deg;
 
 long readCompass() {
-  compass.getNewValues();
-  X_milliGauss = compass.getXGauss() * 1000;
-  Y_milliGauss = compass.getYGauss() * 1000;
-  Z_milliGauss = compass.getZGauss() * 1000;
-  // TODO Marco?? this is not millisguass anymore
+  for(int i = 0; i < 2000; i++) {
+    compass.getNewValues();
+    X_milliGauss = compass.getXGauss() * 1000;
+    Y_milliGauss = compass.getYGauss() * 1000;
+    Z_milliGauss = compass.getZGauss() * 1000;
+  }
   
   // Correcting the heading with the geo_magnetic_declination_deg angle depending on your location
   // You can find your geo_magnetic_declination_deg angle at: http://www.ngdc.noaa.gov/geomag-web/
@@ -776,12 +777,18 @@ long readCompass() {
   geo_magnetic_declination_deg = 1.09; // for our location
   
   //Calculating Heading
-  headingDegrees = (atan2(Y_milliGauss, X_milliGauss)* (180/PI)) + geo_magnetic_declination_deg;  // heading in rad. 
+  headingDegrees = (((atan2(Y_milliGauss, X_milliGauss)+PI) / PI) * 180.0F);
+  /*if(Y_milliGauss>0) headingDegrees = 90 - ((atan2(Y_milliGauss, X_milliGauss)* 180.0F)/PI);
+  if(Y_milliGauss<0) headingDegrees = 270 - ((atan2(Y_milliGauss, X_milliGauss)* 180.0F)/PI);
+  if(Y_milliGauss == 0 && X_milliGauss<0) headingDegrees = 180;
+  if(Y_milliGauss == 0 && X_milliGauss>0) headingDegrees = 0;
+  */
+  //;  // heading in rad. 
   
   // Correcting when signs are reveresed or due to the addition of the geo_magnetic_declination_deg angle
-  if(headingDegrees <0) headingDegrees += 2*180;
+  /*if(headingDegrees <0) headingDegrees += 2*180;
   if(headingDegrees > 2*180) headingDegrees -= 2*180;
-  
+  */
   // Smoothing the output angle / Low pass filter --- to make changes apeare slower
   //headingFiltered = headingFiltered*0.85 + headingDegrees*0.15;
   headingFiltered = headingDegrees;
@@ -790,9 +797,9 @@ long readCompass() {
   
   //Sending the heading value through the Serial Port 
   
-  DEBUG_STREAM.print(headingDegrees);
+  DEBUG_STREAM.print(headingDegrees,6);
   DEBUG_STREAM.print(" filtered ");
-  DEBUG_STREAM.println(headingFiltered);
+  DEBUG_STREAM.println(headingFiltered,6);
   
   return headingFiltered;
 }
