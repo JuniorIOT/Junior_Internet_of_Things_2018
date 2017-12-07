@@ -111,6 +111,9 @@ void NBIOT_Compass::getNewValues() {
 }
 
 float NBIOT_Compass::getXGauss() {
+  Wire.endTransmission();
+  Wire.flush();
+  Wire.begin();
   // OUT_X_L_M 28
   // OUT_X_H_M 29
   Wire.beginTransmission(_address);    // Get the slave's attention, tell it we're sending a command byte
@@ -122,9 +125,9 @@ float NBIOT_Compass::getXGauss() {
   Wire.write(0x29);                               //  The command byte, sets pointer to register with address of 0x32
   Wire.endTransmission();
   Wire.requestFrom(_address,1);          // Tell slave we need to read 1byte from the current register
-  byte OUT_X_H_M = Wire.read();        // read that byte into 'slaveByte2' variable
+  uint16_t OUT_X_H_M = Wire.read();        // read that byte into 'slaveByte2' variable
   _xbytes = ((OUT_X_H_M << 8) | OUT_X_L_M);
-  _xguass = ((float)_xbytes) * 0.58/1000;
+  _xguass = ((float)_xbytes) /** 0.58/1000*/;
   return _xguass;
 }
 
@@ -140,9 +143,9 @@ float NBIOT_Compass::getYGauss() {
   Wire.write(0x2B);                               //  The command byte, sets pointer to register with address of 0x32
   Wire.endTransmission();
   Wire.requestFrom(_address,1);          // Tell slave we need to read 1byte from the current register
-  byte OUT_Y_H_M = Wire.read();        // read that byte into 'slaveByte2' variable
+  uint16_t OUT_Y_H_M = Wire.read();        // read that byte into 'slaveByte2' variable
   _ybytes = ((OUT_Y_H_M << 8) | OUT_Y_L_M);
-  _yguass = ((float)_ybytes) * 0.58/1000;
+  _yguass = ((float)_ybytes) /** 0.58/1000*/;
   return _yguass;
 }
 
@@ -158,9 +161,9 @@ float NBIOT_Compass::getZGauss() {
   Wire.write(0x2D);                               //  The command byte, sets pointer to register with address of 0x32
   Wire.endTransmission();
   Wire.requestFrom(_address,1);          // Tell slave we need to read 1byte from the current register
-  byte OUT_Z_H_M = Wire.read();        // read that byte into 'slaveByte2' variable
+  uint16_t OUT_Z_H_M = Wire.read();        // read that byte into 'slaveByte2' variable
   _zbytes = ((OUT_Z_H_M << 8) | OUT_Z_L_M);
-  _zguass = ((float)_zbytes) * 0.58/1000;
+  _zguass = ((float)_zbytes) /** 0.58/1000*/;
   return _zguass;
 }
 

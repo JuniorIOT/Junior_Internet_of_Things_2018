@@ -311,7 +311,7 @@ void listenRadio() {
     bool didSomeoneElseFire = false;
     bool shouldITalkBack = false;
     uint8_t who = 0b00000000;
-    uint8_t MyID = 1;
+    uint8_t MyID = 2;
     bool buttonpressedForLoraWan = false;
 void formatRadioPackage(uint8_t *loopbackToData) {  
   
@@ -757,16 +757,20 @@ void setupCompass() {
   compass.setup();  
 }
 
-float X_milliGauss,Y_milliGauss,Z_milliGauss;
+float X,Y,Z;
 float heading, headingDegrees, headingFiltered, geo_magnetic_declination_deg;
 
 long readCompass() {
-  for(int i = 0; i < 2000; i++) {
-    compass.getNewValues();
-    X_milliGauss = compass.getXGauss() * 1000;
-    Y_milliGauss = compass.getYGauss() * 1000;
-    Z_milliGauss = compass.getZGauss() * 1000;
-  }
+  float xguass, yguass, zguass;
+  
+  compass.getNewValues();
+  xguass = compass.getXGauss();    
+  yguass = compass.getYGauss();
+  zguass = compass.getZGauss();
+  
+  X = xguass / 32768; // 2^15 because a two's complement 16 bits integer has 2^15 posibilities in positive and negative
+  Y = yguass / 32768;
+  Z = zguass / 32768;
   
   // Correcting the heading with the geo_magnetic_declination_deg angle depending on your location
   // You can find your geo_magnetic_declination_deg angle at: http://www.ngdc.noaa.gov/geomag-web/
@@ -777,31 +781,17 @@ long readCompass() {
   geo_magnetic_declination_deg = 1.09; // for our location
   
   //Calculating Heading
-  headingDegrees = (((atan2(Y_milliGauss, X_milliGauss)+PI) / PI) * 180.0F);
-  /*if(Y_milliGauss>0) headingDegrees = 90 - ((atan2(Y_milliGauss, X_milliGauss)* 180.0F)/PI);
-  if(Y_milliGauss<0) headingDegrees = 270 - ((atan2(Y_milliGauss, X_milliGauss)* 180.0F)/PI);
-  if(Y_milliGauss == 0 && X_milliGauss<0) headingDegrees = 180;
-  if(Y_milliGauss == 0 && X_milliGauss>0) headingDegrees = 0;
-  */
-  //;  // heading in rad. 
-  
-  // Correcting when signs are reveresed or due to the addition of the geo_magnetic_declination_deg angle
-  /*if(headingDegrees <0) headingDegrees += 2*180;
-  if(headingDegrees > 2*180) headingDegrees -= 2*180;
-  */
-  // Smoothing the output angle / Low pass filter --- to make changes apeare slower
-  //headingFiltered = headingFiltered*0.85 + headingDegrees*0.15;
-  headingFiltered = headingDegrees;
-  // We can do this, but then we need to take multiple readings and it will still go wrong if we take readings from the previous buttonpress in account
-  // Because If i pressed a button at 180 degrees. And I press it again at 0 degrees, 180 is not relevant to be taking into account.
+  headingDegrees = 180*atan2(Y, Z)/PI;  // assume pitch, roll are 0
+ 
+  if (headingDegrees <0)
+    headingDegrees += 360;
+ 
   
   //Sending the heading value through the Serial Port 
   
-  DEBUG_STREAM.print(headingDegrees,6);
-  DEBUG_STREAM.print(" filtered ");
-  DEBUG_STREAM.println(headingFiltered,6);
+  DEBUG_STREAM.println(headingDegrees,6);
   
-  return headingFiltered;
+  return headingDegrees;
 }
 
 
