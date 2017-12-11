@@ -10,7 +10,7 @@
 #include <rn2xx3.h>
 #include "keys.h"
 #define loraSerial Serial2
-#define PAYLOADSIZE 12 // The size of the package to be sent
+#define PAYLOADSIZE 25 // The size of the package to be sent
 //create an instance of the rn2xx3 library,
 //giving the software serial as port to use
 rn2xx3 myLora(loraSerial);
@@ -18,6 +18,7 @@ rn2xx3 myLora(loraSerial);
 #define LORAWAN_TX_INTERVAL 240  // seconds between LoraWan messages
 uint8_t  myLoraWanData[40];  // including byte[0]
 unsigned long last_lora_time = millis(); // last time lorawan ran
+uint16_t packagecounter;
 
 // GPS
 #include <Arduino.h>
@@ -88,6 +89,7 @@ void IHitSomeone();
 //// Sensors lora
 ////////////////////////////////////////////
 void put_Volts_and_Temp_into_sendbuffer();
+void loraDatasetByte();
 
 #include <math.h>
 // GPS intersection
@@ -176,6 +178,7 @@ void doOneLoraWan() {
     myLora.txBytes(myLoraWanData, PAYLOADSIZE);
     DEBUG_STREAM.print("  txLora completed. milis="); DEBUG_STREAM.println(millis());
     led_off();
+    packagecounter++;
    DEBUG_STREAM.print("  send time delay completed. milis="); DEBUG_STREAM.println(millis());
   DEBUG_STREAM.print("Completed: Do one lora. milis="); DEBUG_STREAM.println(millis());
 }
@@ -506,6 +509,15 @@ void put_Volts_and_Temp_into_sendbuffer() {
 }
 
 
+void loraDatasetByte() {
+  // todo
+  //myLoraWanData[22] = 
+  myLoraWanData[23] = (packagecounter >> 8) & 0xFF;
+  myLoraWanData[24] = packagecounter & 0xFF;
+}
+
+
+
 void setup() {
   pinMode(LEDPIN, OUTPUT);
   pinMode(buttonpin, INPUT_PULLUP);
@@ -516,7 +528,8 @@ void setup() {
 
   DEBUG_STREAM.print(F("\nStarting device: ")); DEBUG_STREAM.println(DEVADDR); 
   device_startTime = millis();
-
+  packagecounter = 0;
+  
   // game parameters
   negotiateState = 0;
   didSomeoneElseFire = false;
@@ -598,6 +611,8 @@ void loop() {
   put_Compass_and_Btn_into_sendbuffer();
   doGPS_and_put_values_into_lora_sendbuffer();   
 
+  loraDatasetByte(); // what am i doing with the extra bytes - sending radio to lora or sending extra sensors
+  
   ////////// Now we need to send a LORAWAN update to the world  ///////////
   // switch the LMIC antenna to LoraWan mode
   DEBUG_STREAM.println(F("Time or button press tells us to send one LoraWan. milis=")); DEBUG_STREAM.println(millis());
