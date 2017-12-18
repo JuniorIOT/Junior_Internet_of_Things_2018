@@ -863,17 +863,21 @@ void BLUE() {
      * @return int - The bearing between 0 and 360
      */
 
-     //doesn't work maybe this is of use:
      /*
-      * https://stackoverflow.com/questions/11415106/issue-with-calcuating-compass-bearing-between-two-gps-coordinates
-      *  Nice try, but your functions are based on mathematic bearings. In maths, 0° is along the +X axis and angles proceed anti-clockwise so 90° is up the +Y axis, 180° along -X and so on. In mapping, 0° (due north) is up the +Y axis and bearings proceed clockwise so 90° (due east) is along the +X axis, 180° (due south) along -Y and so on. – RobG Jul 10 '12 at 14:54 
+      * new formula from https://www.movable-type.co.uk/scripts/latlong.html
+      * untested
       */
     int bearing (float lat1, float lng1, float lat2, float lng2) {
-        float dLon = (lng2-lng1);
+        /*float dLon = (lng2-lng1);
         float y = sin(dLon) * cos(lat2);
         float x = (cos(lat1)*sin(lat2)) - ((sin(lat1)*cos(lat2))*cos(dLon));
         float brng = _toDeg(atan2(y, x));
         return 360 - (((int)brng + 360) % 360);
+        */
+        double y = sin(lng2-lng1) * cos(lat2);
+        double x = (cos(lat1)*sin(lat2)) - (sin(lat1)*cos(lat2)*cos(lng2-lng1));
+        double brng = _toDeg(atan2(y, x));
+        return brng;
     }
 
    /**
