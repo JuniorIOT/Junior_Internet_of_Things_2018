@@ -53,7 +53,7 @@ optional:
       │ powerbank  │ controll board           (Mini USB) ---> 2A usb charge cable  
       │ enclosure  │     B- B+   S- S+          ││
       │            └──────┼─┼─────┼─┼───────────┘│
-      │┌────────────────┐ │ │  ┌──│─│──────────┐ │
+      │┌────────────────┐ │ │  ┌──│─│──────────┐ │    one or more I2c modules:
       ││ 1-5x 1800mAh  +┼─│─┤  │  - +   200 mA │ │   ┌────────────────────┐
       ││ Li-Ion 18650 - ┼─┤ │  │    solar panel│ │   │BME/BMP280 or BME680│
       │└────────────────┘ │ │  └───────────────┘ │   │Vin GND SCL SDA     │
@@ -69,14 +69,14 @@ optional:
        │   LiPo  │   ext          3V3 GND  │   │     │Vin GND SCL SDA CS SD DR│
        │ 380 mAh │   - +        <50mA      │   │     └─┬───┬───┬───┬──┬──┬──┬─┘         
        │protected│   │ │                   │   │       │   │   │   │         
-       └────┬──┬─┘ ┌─┘ │                 tx│ rx│ Vbat/2│   │   │I2c│chained ant
+       └────┬──┬─┘ ┌─┘ │                 tx│ rx│ Vbat/2│   │   │I2c│        ant
    ╔════════│══│═══│═══╬═══X═══╬═══X═══X═══╬═══╬═══╬═══X═══X═══╬═══╬═══════╗ │
    ║        -  +   │  BAT EN  5V  13  12  11  10   9   6   5   3   2       ║ │
    ║    (LIPO CONN)│             LED  A1      A10  A9  A7     SCL SDA      ║ │
    │               │           ┌──────┐            ┌────────────────┐ DIO3 R │
    │(USB CONN)     │  LORA32U4 │ATMEGA│            │ RFM95 / HDP13  │ DIO2 R │
-   │   (RST BTN)   │           │ 32U4 │            │4=rst 7=irq 8=cs│      ║ │
-   ║               │           └──────┘            └────────────────┘ ant(0)─┘
+   │               │           │ 32U4 │            │4=rst 7=irq 8=cs│      ║ │
+   ║   (RST BTN)   │           └──────┘            └────────────────┘ ant(0)─┘
    ║               │                          15  16                       ║ 
    ║  RST 3V3 REF GND  A0  A1  A2  A3  A4 A5 SCK MOSI MISO 0   1 DIO1  ANT ╬
    ╚═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══X═══X═══X═══R═══R═══R═══╬═══╬═══R═══════╝
@@ -84,17 +84,26 @@ optional:
                    └─  ┘   │   │               SPI-RFM95  serial1                                              
                 pushbutton │   │                           ?   ?      18mA
      GND BAT               │   │  GND 5V                   │   │  GND 5V
-    ┌─┼───┼─┐            ┌─┴───┴───┴───┴──┴┴┴┐           ┌─┴───┴───┴───┴──┴┴┴┐
-    │gnd Vin│            │RXD TXD GND 5V misc│           │TXD RXD GND 5V misc│
-    │step-up│            │    SDS021 60mA    │           │       MH-Z19      │
-    │GND 5V │            │  or SDS011 220mA  │           │     Co2 sensor    │
-    └─┼───┼─┘            │  PM dust sensor   │           └───────────────────┘
-                         └───────────────────┘
+    ┌─┼───┼─┐            ┌─┴───┴───┴───┴──────┴┴┴┐       ┌─┴───┴───┴───┴──┴┴┴┐
+    │gnd Vin│            │RXD TXD GND 5V     misc│       │TXD RXD GND 5V misc│
+    │step-up│            │    PM dust sensor     │       │     Co2 sensor    │
+    │GND 5V │            │SDS021 42x32x24mm 60mA │       │       MH-Z19      │
+    └─┼───┼─┘            │SDS011 71x70x23mm 220mA│       └───────────────────┘
+                         └───────────────────────┘
                     
    * R = pins connected to RFM95
-   * X = avoid main function on these pins for compatibility with Beetle
-   * for the button to work, need to enable the internal pull-up
+   * X = avoid main function on these pins for compatibility with 32u4 Beetle
+   * for pushbutton to work, need to enable the internal pull-up
    * pin-out for GPS BN-180/BN-200/BN-220 ==> (led) GND TX RX VCC (batt)
+   * pin-out for SDS021 ==> (hole) (1) 5V NC GND Rx Tx (5)
+   * pin-out for SDS011 ==> (1) CTL 1umPWM 5V 25umPWM GND Rx Tx (7) (hole)
+   * pin-out for MH-Z19 ==> 2 rows:
+                      (HD)                
+                      (SR)               PWM
+                        Tx               (AoT)
+                        Rx               GND
+         (Vout 3.3V 10 mA)               Vin 5V
+                            side window
    
 ```
 ## IOT TTN message format
