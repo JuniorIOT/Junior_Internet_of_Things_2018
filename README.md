@@ -85,7 +85,7 @@ optional:
                 pushbutton │   │                           ?   ?      18mA
      GND BAT               │   │  GND 5V                   │   │  GND 5V
     ┌─┼───┼─┐            ┌─┴───┴───┴───┴──┴┴┴┐           ┌─┴───┴───┴───┴──┴┴┴┐
-    │gnd Vin│            │RXD TXD GND 5V misc│           │RXD TXD GND 5V misc│
+    │gnd Vin│            │RXD TXD GND 5V misc│           │TXD RXD GND 5V misc│
     │step-up│            │    SDS021 60mA    │           │       MH-Z19      │
     │GND 5V │            │  or SDS011 220mA  │           │     Co2 sensor    │
     └─┼───┼─┘            │  PM dust sensor   │           └───────────────────┘
