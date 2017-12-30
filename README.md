@@ -53,36 +53,57 @@ optional:
       │ powerbank  │ controll board           (Mini USB) ---> 2A usb charge cable  
       │ enclosure  │     B- B+   S- S+          ││
       │            └──────┼─┼─────┼─┼───────────┘│
-      │┌────────────────┐ │ │  ┌──│─│──────────┐ │
-      ││ 1-5x 1800mAh  +┼─│─┤  │  - +   200 mA │ │
-      ││ Li-Ion 18650 - ┼─┤ │  │    solar panel│ │
-      │└────────────────┘ │ │  └───────────────┘ │
-      └───────────────────│─│────────────────────┘
-   ┌──────────────────────┼─┼──┐ 
-   │ Lipo protect    - + B- B+ │
-   └─────────────────┼─┼───────┘    BN-200 = (led) GND TX RX VCC (batt)
-                     │ │ ┌───────────────────────┐   ┌───────────────┐
-                     │ │ │   GPS GN-801 30x30    │   │    compass    │
-                     │ │ │   GPS BN-200 20x20    │   │    HMC5983    │
-                     │ │ │        3V3 GND RXD TXD│   │Vin GND SCL SDA│
-          ┌──────┐   │ │ └─┬───┬───┬───┬───┬───┬─┘   └─┬───┬───┬───┬─┘   
-          │ LIPO │   4V            │   │   │   │       │   │   │   │
-          │ 380  │   ext          3V3 GND  │   │       │   │   │   │       ant
-          │ mAh  │   - +                   │   │       │   │   │   │        │
-          │      │   │ │       ┌button─┐   │   │       │   │   │   │        │
-          └─┬──┬─┘ ┌─┘ │       │       │ tx│ rx│ Vbat/2│   │   │I2c│        │
-   ╔════════│══│═══│═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╗ │
-   ║        -  +   │  BAT EN  5V  13 12│  11  10   9   6   5   3   2      ║ │
-   ║    (LIPO CONN)│             LED A1│      A10  A9  A7     SCL SDA     ║ │
-   │               │                   │           ┌────────────────┐ DIO3╬ │
-   │(USB CONN)     │   LORA32U4        │           │ RFM95 / HDP13  │ DIO2╬ │
-   │   (RST BTN)   │                   │           │4=rst 7=irq 8=cs│     ║ │
-   ║               ┼──── 100K ─────────┘           └────────────────┘  (0)──┘
-   ║               │                          15  16                      ║ 
-   ║  RST 3V3 REF GND  A0  A1  A2  A3  A4 A5 SCK MOSI MISO 0   1 DIO1  ANT╬
-   ╚═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬══════╝
-                                              xxx xxx xxx  RX TX
-                                               SPI-RFM95  serial1                                              
+      │┌────────────────┐ │ │  ┌──│─│──────────┐ │    one or more I2c modules:
+      ││ 1-5x 1800mAh  +┼─│─┤  │  - +   200 mA │ │   ┌────────────────────┐
+      ││ Li-Ion 18650 - ┼─┤ │  │    solar panel│ │   │BME/BMP280 or BME680│
+      │└────────────────┘ │ │  └───────────────┘ │   │Vin GND SCL SDA     │
+      └───────────────────│─│────────────────────┘   └─┬───┬───┬───┬──────┘
+   ┌──────────────────────┼─┼──┐                       │   │   │I2c│chained 
+   │ Lipo protect    - + B- B+ │                     ┌────────────────────────┐
+   └─────────────────┼─┼───────┘                     │ GY-91 (BMP280+MPU9250) │
+                     │ │ ┌───────────────────────┐   │Vin GND SCL SDA 3 SD A B│
+                     │ │ │       GPS GN-801      │   └─┬───┬───┬───┬──┬─┬──┬─┬┘
+                     │ │ │or BN-180/BN-200/BN-220│     │   │   │I2c│chained
+                     │ │ │        3V3 GND RXD TXD│   ┌────────────────────────┐
+       ┌─────────┐   │ │ └─┬───┬───┬───┬───┬───┬─┘   │    compass HMC5983     │
+       │   LiPo  │   ext          3V3 GND  │   │     │Vin GND SCL SDA CS SD DR│
+       │ 380 mAh │   - +        <50mA      │   │     └─┬───┬───┬───┬──┬──┬──┬─┘         
+       │protected│   │ │                   │   │       │   │   │   │         
+       └────┬──┬─┘ ┌─┘ │                 tx│ rx│ Vbat/2│   │   │I2c│        ant
+   ╔════════│══│═══│═══╬═══X═══╬═══X═══X═══╬═══╬═══╬═══X═══X═══╬═══╬═══════╗ │
+   ║        -  +   │  BAT EN  5V  13  12  11  10   9   6   5   3   2       ║ │
+   ║    (LIPO CONN)│             LED  A1      A10  A9  A7     SCL SDA      ║ │
+   │               │           ┌──────┐            ┌────────────────┐ DIO3 R │
+   │(USB CONN)     │  LORA32U4 │ATMEGA│            │ RFM95 / HDP13  │ DIO2 R │
+   │               │           │ 32U4 │            │4=rst 7=irq 8=cs│      ║ │
+   ║   (RST BTN)   │           └──────┘            └────────────────┘ ant(0)─┘
+   ║               │                          15  16                       ║ 
+   ║  RST 3V3 REF GND  A0  A1  A2  A3  A4 A5 SCK MOSI MISO 0   1 DIO1  ANT ╬
+   ╚═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══X═══X═══X═══R═══R═══R═══╬═══╬═══R═══════╝
+                   │ __│   ?   ?              xxx xxx xxx  RX TX
+                   └─  ┘   │   │               SPI-RFM95  serial1                                              
+                pushbutton │   │                           ?   ?      18mA
+     GND BAT               │   │  GND 5V                   │   │  GND 5V
+    ┌─┼───┼─┐            ┌─┴───┴───┴───┴──────┴┴┴┐       ┌─┴───┴───┴───┴──┴┴┴┐
+    │gnd Vin│            │RXD TXD GND 5V     misc│       │TXD RXD GND 5V misc│
+    │step-up│            │    PM dust sensor     │       │     Co2 sensor    │
+    │GND 5V │            │SDS021 42x32x24mm 60mA │       │       MH-Z19      │
+    └─┼───┼─┘            │SDS011 71x70x23mm 220mA│       └───────────────────┘
+                         └───────────────────────┘
+                    
+   * R = pins connected to RFM95
+   * X = avoid main function on these pins for compatibility with 32u4 Beetle
+   * for pushbutton to work, need to enable the internal pull-up
+   * pin-out for GPS BN-180/BN-200/BN-220 ==> (led) GND TX RX VCC (batt)
+   * pin-out for SDS021 ==> (hole) (1) 5V NC GND Rx Tx (5)
+   * pin-out for SDS011 ==> (1) CTL 1umPWM 5V 25umPWM GND Rx Tx (7) (hole)
+   * pin-out for MH-Z19 ==> 2 rows:
+                      (HD)                
+                      (SR)               PWM
+                        Tx               (AoT)
+                        Rx               GND
+         (Vout 3.3V 10 mA)               Vin 5V
+                            side window
    
 ```
 ## IOT TTN message format
@@ -93,9 +114,9 @@ optional:
     
     -- start with TTNmapper defined format
     byte 0, 1, 2    Latitude   3 bytes, -90 to +90 degr, scaled to 0..16777215
-       note: earth circumfence is 6371 km; data is 6371*1000/16777215 = 0.4 m
-             0.4 m is much better than the GPS accuracy of 2..3 meters
     byte 3, 4, 5    Longitude  3 bytes, -180..+180 degrees, scaled 0..16777215
+       note: earth circumfence is 40.075 km; data is 40075*1000/16777215 = 2.5 m
+             2.5 m is about the GPS accuracy of 2..3 meters
     byte 6, 7       Altitude   2 bytes, in meters. 0..65025 meter
     byte 8          GPS DoP    byte, in 0.1 values. 0.25.5 DoP 
     
