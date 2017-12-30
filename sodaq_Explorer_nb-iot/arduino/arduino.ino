@@ -867,6 +867,7 @@ void BLUE() {
       * new formula from https://www.movable-type.co.uk/scripts/latlong.html
       * untested
       */
+      // phi = lat
     int bearing (double lat1, double lng1, double lat2, double lng2) {
         /*float dLon = (lng2-lng1);
         float y = sin(dLon) * cos(lat2);
@@ -881,13 +882,28 @@ void BLUE() {
         if (brng <0)
           brng += 360;
 */
-        lat1 = _toRad(lat1);
+/*      lat1 = _toRad(lat1);
         lat2 = _toRad(lat2);
         double y = sin(_toRad(lng2-lng1)) * cos(lat2);
         double x = (cos(lat1)*sin(lat2)) - (sin(lat1)*cos(lat2)*cos(_toRad(lng2-lng1)));
         double brng = _toDeg(atan2(y, x));
         brng = (int)(brng+360) % 360;
         return brng;
+*/
+    lat1 = _toRad(lat1);
+    lat2 = _toRad(lat2);
+    
+    double deltaLon = _toRad(lng2 - lng1);
+    
+    if (abs(deltaLon) > PI) deltaLon = deltaLon>0 ? -(2*PI-deltaLon) : (2*PI+deltaLon);
+    
+    double a = log(tan(PI/4 + lat2/2)/tan(PI/4+lat1/2));
+
+    double b = atan2(deltaLon, a);
+
+    return (_toDeg(b)+360) % 360;
+    
+    
     }
    /**
      * Since not all browsers implement this we have our own utility that will
