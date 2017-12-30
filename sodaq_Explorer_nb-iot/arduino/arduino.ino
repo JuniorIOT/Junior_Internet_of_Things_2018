@@ -93,7 +93,7 @@ void loraDatasetByte();
 
 #include <math.h>
 // GPS intersection
-int bearing (float lat1, float lng1, float lat2, float lng2);
+int bearing (double lat1, double lng1, double lat2, double lng2);
 float _toDeg (float rad);
 float _toRad (float deg);
 
@@ -867,19 +867,28 @@ void BLUE() {
       * new formula from https://www.movable-type.co.uk/scripts/latlong.html
       * untested
       */
-    int bearing (float lat1, float lng1, float lat2, float lng2) {
+    int bearing (double lat1, double lng1, double lat2, double lng2) {
         /*float dLon = (lng2-lng1);
         float y = sin(dLon) * cos(lat2);
         float x = (cos(lat1)*sin(lat2)) - ((sin(lat1)*cos(lat2))*cos(dLon));
         float brng = _toDeg(atan2(y, x));
         return 360 - (((int)brng + 360) % 360);
-        */
+        *//*
         double y = sin(lng2-lng1) * cos(lat2);
         double x = (cos(lat1)*sin(lat2)) - (sin(lat1)*cos(lat2)*cos(lng2-lng1));
+        double brng = atan2(y, x);
+        brng = 180.0*brng/PI;   
+        if (brng <0)
+          brng += 360;
+*/
+        lat1 = _toRad(lat1);
+        lat2 = _toRad(lat2);
+        double y = sin(_toRad(lng2-lng1)) * cos(lat2);
+        double x = (cos(lat1)*sin(lat2)) - (sin(lat1)*cos(lat2)*cos(_toRad(lng2-lng1)));
         double brng = _toDeg(atan2(y, x));
+        brng = (int)(brng+360) % 360;
         return brng;
     }
-
    /**
      * Since not all browsers implement this we have our own utility that will
      * convert from degrees into radians
@@ -888,7 +897,7 @@ void BLUE() {
      * @return radians
      */
      
-    float _toRad (float deg) {
+    double _toRad (double deg) {
          return deg * PI / 180.0F;
     }
 
@@ -899,6 +908,6 @@ void BLUE() {
      * @param rad - The radians to be converted into degrees
      * @return degrees
      */
-    float _toDeg (float rad) {
-        return rad * 180.0 / PI;
+    double _toDeg (double rad) {
+        return rad * (180.0 / PI);
     }
