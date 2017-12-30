@@ -478,16 +478,18 @@ uint8_t wasIHit() {
   int inaccuracy = 30; //degrees
   SerialUSB.print("His compass was: ");
   SerialUSB.println(hitcompass);
-  float heading = bearing(hitlat1, hitlng1, hitlat2, hitlng2);
+  float heading = bearing(hitlat2, hitlng2,hitlat1 / 10000000, hitlng1 / 10000000);
   SerialUSB.print("The heading between us based on both our coordinates is: ");
   SerialUSB.println(heading);
   SerialUSB.print("Inaccuracy allowed: ");
   SerialUSB.println(inaccuracy);
   if( ((int)abs((hitcompass - heading)) % 360) <  inaccuracy) {
     SerialUSB.println("So i was HIT!");
+    myLoraWanData[33] = 0b10000000;
     return hit;    
   }else {
     SerialUSB.println("So i was not hit");
+    myLoraWanData[33] = 0b00000000;
     return nothit;    
   }
   
@@ -534,6 +536,7 @@ void setup() {
   negotiateState = 0;
   didSomeoneElseFire = false;
   didIFire = false;
+  GREEN();
   gps_init(); 
   rn2483_init();
   setupCompass();
@@ -549,7 +552,7 @@ void setup() {
   last_lora_time = millis();
   doOneLoraWan();
   DEBUG_STREAM.print(F("\nCompleted: Setup. milis=")); DEBUG_STREAM.println(millis());
-  
+  RED();
 }
 boolean radioActive = true;  // this name is for radio, not LoraWan
 boolean loraWannaBeNow = false;
@@ -868,7 +871,21 @@ void BLUE() {
       * untested
       */
       // phi = lat
+      
     int bearing (double lat1, double lng1, double lat2, double lng2) {
+      
+      
+      
+      SerialUSB.println("Bearing inputs");
+      SerialUSB.print("lat1: ");
+      SerialUSB.println(lat1,8);
+      SerialUSB.print("lng1: ");
+      SerialUSB.println(lng1,8);
+      SerialUSB.print("lat2: ");
+      SerialUSB.println(lat2,8);
+      SerialUSB.print("lng2: ");
+      SerialUSB.println(lng2,8);
+      
         /*float dLon = (lng2-lng1);
         float y = sin(dLon) * cos(lat2);
         float x = (cos(lat1)*sin(lat2)) - ((sin(lat1)*cos(lat2))*cos(dLon));
@@ -894,17 +911,19 @@ void BLUE() {
     lat2 = _toRad(lat2);
     
     double deltaLon = _toRad(lng2 - lng1);
+
     
-    if (abs(deltaLon) > PI) deltaLon = deltaLon>0 ? -(2*PI-deltaLon) : (2*PI+deltaLon);
-    
+    if (deltaLon >  PI) deltaLon -= 2*PI;
+    if (deltaLon < -PI) deltaLon += 2*PI;
+
     double a = log(tan(PI/4 + lat2/2)/tan(PI/4+lat1/2));
 
     double b = atan2(deltaLon, a);
 
-    return (_toDeg(b)+360) % 360;
+    double returns =  ((signed int)_toDeg(b)+360) % 360;
+    return 360 - (((signed int)returns + 360) % 360);
     
-    
-    }
+}
    /**
      * Since not all browsers implement this we have our own utility that will
      * convert from degrees into radians
