@@ -45,7 +45,117 @@ uint8_t *decoded;
 int negotiateState = 0;
 int buttonpin = 8; // pin of the gun button
 float hitlat1, hitlng1, hitlat2, hitlng2, hitcompass;
+boolean radioActive = true;  // this name is for radio, not LoraWan
+boolean loraWannaBeNow = false;
 
+  /****************************************************************
+bearing.ino
+
+Calculates the disatance and bearing given two GPS location near
+each other.
+
+Author: Roel Drost
+  Date: 2017-12-30
+
+****************************************************************/
+
+//------------------------------------------------------------------------------
+// Includes
+//------------------------------------------------------------------------------
+#include <math.h>
+
+//------------------------------------------------------------------------------
+// Types
+//------------------------------------------------------------------------------
+typedef struct {
+   double latitude;  // (assumes North)
+   double longitude; // (assumes West)
+} coordinate_t;
+
+typedef struct {
+  char*        name;
+  coordinate_t location;
+} testLocation_t;
+
+//------------------------------------------------------------------------------
+// Constants
+//------------------------------------------------------------------------------
+
+/**
+ * Some test vectors
+ */
+static const testLocation_t testLocations[] = {
+  "Kaasfabriek", {52.6384638, 4.7497695},
+  "Watertoren" , {52.6365654, 4.7363240},
+  "Waagplein"  , {52.6314069, 4.7503715},
+};
+
+/**
+ * The distance to the middle point of the earth in meters for 'Alkmaar'.
+ * Note that this is different relative to the latitude.
+ */
+static const double earthRadius = 6364670;
+
+//------------------------------------------------------------------------------
+// Functions
+//------------------------------------------------------------------------------
+
+static inline double radToDeg(const double& rad) {
+  return rad * 180.0 / PI;
+}
+//------------------------------------------------------------------------------
+
+static inline double degToRad(const double& deg) {
+  return deg * PI / 180.0;
+}
+//------------------------------------------------------------------------------
+
+/**
+ * Calculates the distance and bearing between two GPS coordinates.
+ * WARNING this function is a rough simplification!!! It assumes the area where
+ * the two points are can be considered as flat! It also assumes the radius of
+ * earth is that of 'Alkmaar'.
+ * @param    from
+ *             in: the GPS location 'from'
+ * @param    to
+ *             in: the GPS locaton 'to'
+ * @param    distance
+ *             out: the calculated distance
+ * @param    bearing
+ *             out: the calculated bearing
+ */
+static void calculateNearAlkmaar(
+  const coordinate_t& from,
+  const coordinate_t& to,
+  double&             distance,
+  double&             bearing)
+{
+  const double deltaLatitude  = to.latitude  - from.latitude;
+  const double deltaLongitude = to.longitude - from.longitude;
+
+  const double aspectRatio = cos(degToRad(from.latitude));
+  const double distanceX   = (deltaLongitude / 360) * 2 * PI * earthRadius * aspectRatio;
+  const double distanceY   = (deltaLatitude  / 360) * 2 * PI * earthRadius;
+
+  distance = sqrt(distanceX*distanceX + distanceY*distanceY);
+
+  if (distanceY > 0.0) {
+    bearing = (radToDeg(atan(distanceX/distanceY)) + 360.0);
+  } else if (distanceY < 0.0) {
+    bearing = (radToDeg(atan(distanceX/distanceY)) + 180.0);
+  } else {
+    if (distanceX > 0.0) {
+      bearing = 90;
+    } else if (distanceX < 0.0) {
+      bearing = 270;
+    } else {
+      bearing = NAN;
+    }
+  }
+  if (bearing >= 360) {
+    bearing -= 360;
+  }
+}
 
 
 // nonsense
@@ -277,6 +387,7 @@ void listenRadio() {
       SerialUSB.println(".");
       
       decodeReply();
+      
       break;
     }
     case RADIO_LISTEN_WITHOUT_RX:
@@ -554,8 +665,6 @@ void setup() {
   DEBUG_STREAM.print(F("\nCompleted: Setup. milis=")); DEBUG_STREAM.println(millis());
   RED();
 }
-boolean radioActive = true;  // this name is for radio, not LoraWan
-boolean loraWannaBeNow = false;
 
 void loop() {
   DEBUG_STREAM.print(F("\n==== Loop starts. milis=")); DEBUG_STREAM.println(millis());
@@ -576,7 +685,7 @@ void loop() {
       // listen if someone else fired
       setupRadio();
       listenRadio();
-      
+      readCompass();
       DEBUG_STREAM.print(F("."));
 
       if(digitalRead(buttonpin) == LOW) { // input pullup with ground
@@ -775,10 +884,27 @@ void setupCompass() {
   compass.setup();  
 }
 
-float X,Y,Z;
+double X,Y,Z;
 float heading, headingDegrees, headingFiltered, geo_magnetic_declination_deg;
 
+double YclosestToZero = 1; 
+double ZclosestToZero = 1; 
 long readCompass() {
+  headingFiltered = compassOneValue();
+  /*for(int i = 0; i < 100; i++) {
+    heading = compassOneValue();
+    headingFiltered = (headingFiltered * 0.3) + (heading * 0.7);
+  }
+  //Sending the heading value through the Serial Port 
+  
+  SerialUSB.println(headingFiltered,6);*/
+  return headingFiltered;
+}
+
+
+
+long compassOneValue() {
+
   float xguass, yguass, zguass;
   
   compass.getNewValues();
@@ -787,8 +913,31 @@ long readCompass() {
   zguass = compass.getZGauss();
   
   X = xguass / 32768; // 2^15 because a two's complement 16 bits integer has 2^15 posibilities in positive and negative
-  Y = yguass / 32768;
-  Z = zguass / 32768;
+  Y = (yguass / 32768);
+  Z = (zguass / 32768);
+
+  /*lsm.read();
+  float xh,yh,zh,ayf,axf,azf;
+  axf = lsm.accelData.x/32768*PI;
+  ayf = lsm.accelData.y/32768*PI;
+  azf = lsm.accelData.z/32768*PI;
+ 
+  zh=Z*cos(ayf)+Y*sin(ayf)*sin(azf)-X*cos(azf)*sin(ayf);
+
+  yh=Y*cos(azf)+Z*sin(azf);
+
+ */
+/*
+  SerialUSB.print("zh");
+  SerialUSB.println(zh);
+  SerialUSB.print("yh");
+  SerialUSB.println(yh);
+  /*if(abs(0-Y) < YclosestToZero) YclosestToZero = abs(0-Y);
+  if(abs(0-Z) < ZclosestToZero) ZclosestToZero = abs(0-Z);
+  SerialUSB.print("YclosestToZero");
+  SerialUSB.println(YclosestToZero,30);
+  SerialUSB.print("ZclosestToZero");
+  SerialUSB.println(ZclosestToZero,30);*/
   
   // Correcting the heading with the geo_magnetic_declination_deg angle depending on your location
   // You can find your geo_magnetic_declination_deg angle at: http://www.ngdc.noaa.gov/geomag-web/
@@ -799,16 +948,10 @@ long readCompass() {
   geo_magnetic_declination_deg = 1.09; // for our location
   
   //Calculating Heading
-  headingDegrees = 180*atan2(Y, Z)/PI;  // assume pitch, roll are 0
- 
-  if (headingDegrees <0)
-    headingDegrees += 360;
- 
+  headingDegrees = atan2(Y,Z)*(180/PI);  
   
-  //Sending the heading value through the Serial Port 
-  
-  DEBUG_STREAM.println(headingDegrees,6);
-  
+  headingDegrees +=(2*360);
+  headingDegrees = (int)headingDegrees % 360;
   return headingDegrees;
 }
 
@@ -874,7 +1017,7 @@ void BLUE() {
       
     int bearing (double lat1, double lng1, double lat2, double lng2) {
       
-      
+      /*
       
       SerialUSB.println("Bearing inputs");
       SerialUSB.print("lat1: ");
@@ -906,7 +1049,7 @@ void BLUE() {
         double brng = _toDeg(atan2(y, x));
         brng = (int)(brng+360) % 360;
         return brng;
-*/
+*//*
     lat1 = _toRad(lat1);
     lat2 = _toRad(lat2);
     
@@ -921,7 +1064,28 @@ void BLUE() {
     double b = atan2(deltaLon, a);
 
     double returns =  ((signed int)_toDeg(b)+360) % 360;
-    return 360 - (((signed int)returns + 360) % 360);
+    */
+    static const testLocation_t currentLocationFrom = {"Kaasfabriek", {lat1, lng1}};
+    static const testLocation_t currentLocationTo = {"Kaasfabriek", {lat2, lng2}};
+    
+    const testLocation_t& from = currentLocationFrom;
+    const testLocation_t& to   = currentLocationTo;
+      
+      SerialUSB.print("From \""); SerialUSB.print(from.name);
+      SerialUSB.print("\" to \""); SerialUSB.print(to.name);
+      SerialUSB.println("\"");
+
+      double distance, bearing;
+      calculateNearAlkmaar(from.location, to.location, distance, bearing);
+
+      SerialUSB.print("\tDistance: ");
+      SerialUSB.print(distance);
+      SerialUSB.println("m");
+      
+      SerialUSB.print("\tBearing : ");
+      SerialUSB.print(bearing);
+      SerialUSB.println("°");
+    return bearing;
     
 }
    /**
@@ -946,3 +1110,5 @@ void BLUE() {
     double _toDeg (double rad) {
         return rad * (180.0 / PI);
     }
+
+  
