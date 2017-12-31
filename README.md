@@ -47,17 +47,17 @@ optional:
     Suggested pin mapping:
     -----------------------------------------------------------------------------
 
-
-      ┌──────────────────────────────────────────┐
-      │ solar      ┌────────────────────────────┐│
-      │ powerbank  │ controll board           (Mini USB) ---> 2A usb charge cable  
-      │ enclosure  │     B- B+   S- S+          ││
-      │            └──────┼─┼─────┼─┼───────────┘│
-      │┌────────────────┐ │ │  ┌──│─│──────────┐ │    one or more I2c modules:
-      ││ 1-5x 1800mAh  +┼─│─┤  │  - +   200 mA │ │   ┌────────────────────┐
-      ││ Li-Ion 18650 - ┼─┤ │  │    solar panel│ │   │BME/BMP280 or BME680│
-      │└────────────────┘ │ │  └───────────────┘ │   │Vin GND SCL SDA     │
-      └───────────────────│─│────────────────────┘   └─┬───┬───┬───┬──────┘
+                                  2A usb charge cable
+      ┌────────────────────────────────────────┐  │   one or more I2c modules:
+      │ solar      ┌──────────────────────────┐│  │  ┌───────────────┐
+      │ powerbank  │ controll board    (Mini USB)─┘  │ Oled display  │
+      │ enclosure  │     B- B+   S- S+        ││     │Vin GND SCL SDA│
+      │            └──────┼─┼────┼─┼──────────┘│     └─┬───┬───┬───┬─┘
+      │┌────────────────┐ │ │  ┌─│─│─────────┐ │       │   │   │I2c│chained 
+      ││ 1-5x 1800mAh  +┼─│─┤  │ - +  200 mA │ │     ┌────────────────────┐
+      ││ Li-Ion 18650 - ┼─┤ │  │  solar panel│ │     │BME/BMP280 or BME680│
+      │└────────────────┘ │ │  └─────────────┘ │     │Vin GND SCL SDA     │
+      └───────────────────│─│──────────────────┘     └─┬───┬───┬───┬──────┘
    ┌──────────────────────┼─┼──┐                       │   │   │I2c│chained 
    │ Lipo protect    - + B- B+ │                     ┌────────────────────────┐
    └─────────────────┼─┼───────┘                     │ GY-91 (BMP280+MPU9250) │
@@ -105,6 +105,44 @@ optional:
          (Vout 3.3V 10 mA)               Vin 5V
                             side window
    
+   or an Xtra small implementation (project X):  
+           
+                  ┌───────────┐
+                  │  │  │  │  │              
+                  │  │  │  │  │              
+                  │  │  │  │  │                 ╔═══════════════╗
+           ╔══════│  │  │  │  │══════╗   ┌────┐ ╬GND        DIO2╬
+     PM TXD╬A2                     MO╬───│──┐ └─╬MISO       DIO1╬
+     PM RDX╬A1                    SCK╬───│─┐└───╬MOSI       DIOO╬
+   GND─BTN─╬A0          SS         MI╬───┘ └────╬SCK  RFM95 3.3V╬─3V3
+   I2c sda ╬A10 D9    BEETLE      RST╬          ╬NSS        DIO4╬
+     CO2 tx╬A11 D10                5V╬          ╬RESET      DIO3╬    ant
+     CO2 rx╬D11   RX  TX SDA SCL  GND╬          ╬DIO5        GND╬     │
+           ║  D6  D0  D1  D2  D3 3V3 ║       gnd╬GND         ANA╬─────┘
+           ╚══╬═══╬═══╬═══╬═══╬═══╬══╝          ╚═══════════════╝
+                 RXD TXD I2C I2C RFM               
+                 CO2 CO2 SDA SCL 3V3
+                                   + LiPo?
+                                
+                  ┌───────────┐
+                  │  │  │  │  │              
+                  │  │  │  │  │              
+                  │  │  │  │  │                 ╔═══════════════╗
+           ╔══════│  │  │  │  │══════╗          ╬GND        DIO2╬
+           ║                       MI╬──────────╬MISO       DIO1╬
+           ║                       MO╬──────────╬MOSI       DIOO╬
+   I2c sca ╬SCA       CJMCU       SCK╬──────────╬SCK  RFM95 3.3V╬─diode─5V
+   I2c sda ╬SDA       BEETLE      RES╬          ╬NSS        DIO4╬
+     CO2 tx╬RX                    GND╬          ╬RESET      DIO3╬    ant
+     CO2 rx╬TX                     5V╬          ╬DIO5        GND╬     │
+           ║ D11 D10  D9  A0  A1  A2 ║       gnd╬GND         ANA╬─────┘
+           ╚══╬═══╬═══╬═══╬═══╬═══╬══╝          ╚═══════════════╝
+              rx  tx      │  RXD TXD                      
+             GPS GPS    push  PM  PM
+                         btn
+                          │
+                         gnd
+                            
 ```
 ## IOT TTN message format
 ```
