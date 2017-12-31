@@ -93,7 +93,7 @@ void loraDatasetByte();
 
 #include <math.h>
 // GPS intersection
-int bearing (float lat1, float lng1, float lat2, float lng2);
+int bearing (double lat1, double lng1, double lat2, double lng2);
 float _toDeg (float rad);
 float _toRad (float deg);
 
@@ -478,16 +478,18 @@ uint8_t wasIHit() {
   int inaccuracy = 30; //degrees
   SerialUSB.print("His compass was: ");
   SerialUSB.println(hitcompass);
-  float heading = bearing(hitlat1, hitlng1, hitlat2, hitlng2);
+  float heading = bearing(hitlat2, hitlng2,hitlat1 / 10000000, hitlng1 / 10000000);
   SerialUSB.print("The heading between us based on both our coordinates is: ");
   SerialUSB.println(heading);
   SerialUSB.print("Inaccuracy allowed: ");
   SerialUSB.println(inaccuracy);
   if( ((int)abs((hitcompass - heading)) % 360) <  inaccuracy) {
     SerialUSB.println("So i was HIT!");
+    myLoraWanData[33] = 0b10000000;
     return hit;    
   }else {
     SerialUSB.println("So i was not hit");
+    myLoraWanData[33] = 0b00000000;
     return nothit;    
   }
   
@@ -534,6 +536,7 @@ void setup() {
   negotiateState = 0;
   didSomeoneElseFire = false;
   didIFire = false;
+  GREEN();
   gps_init(); 
   rn2483_init();
   setupCompass();
@@ -549,7 +552,7 @@ void setup() {
   last_lora_time = millis();
   doOneLoraWan();
   DEBUG_STREAM.print(F("\nCompleted: Setup. milis=")); DEBUG_STREAM.println(millis());
-  
+  RED();
 }
 boolean radioActive = true;  // this name is for radio, not LoraWan
 boolean loraWannaBeNow = false;
@@ -867,19 +870,60 @@ void BLUE() {
       * new formula from https://www.movable-type.co.uk/scripts/latlong.html
       * untested
       */
-    int bearing (float lat1, float lng1, float lat2, float lng2) {
+      // phi = lat
+      
+    int bearing (double lat1, double lng1, double lat2, double lng2) {
+      
+      
+      
+      SerialUSB.println("Bearing inputs");
+      SerialUSB.print("lat1: ");
+      SerialUSB.println(lat1,8);
+      SerialUSB.print("lng1: ");
+      SerialUSB.println(lng1,8);
+      SerialUSB.print("lat2: ");
+      SerialUSB.println(lat2,8);
+      SerialUSB.print("lng2: ");
+      SerialUSB.println(lng2,8);
+      
         /*float dLon = (lng2-lng1);
         float y = sin(dLon) * cos(lat2);
         float x = (cos(lat1)*sin(lat2)) - ((sin(lat1)*cos(lat2))*cos(dLon));
         float brng = _toDeg(atan2(y, x));
         return 360 - (((int)brng + 360) % 360);
-        */
+        *//*
         double y = sin(lng2-lng1) * cos(lat2);
         double x = (cos(lat1)*sin(lat2)) - (sin(lat1)*cos(lat2)*cos(lng2-lng1));
+        double brng = atan2(y, x);
+        brng = 180.0*brng/PI;   
+        if (brng <0)
+          brng += 360;
+*/
+/*      lat1 = _toRad(lat1);
+        lat2 = _toRad(lat2);
+        double y = sin(_toRad(lng2-lng1)) * cos(lat2);
+        double x = (cos(lat1)*sin(lat2)) - (sin(lat1)*cos(lat2)*cos(_toRad(lng2-lng1)));
         double brng = _toDeg(atan2(y, x));
+        brng = (int)(brng+360) % 360;
         return brng;
-    }
+*/
+    lat1 = _toRad(lat1);
+    lat2 = _toRad(lat2);
+    
+    double deltaLon = _toRad(lng2 - lng1);
 
+    
+    if (deltaLon >  PI) deltaLon -= 2*PI;
+    if (deltaLon < -PI) deltaLon += 2*PI;
+
+    double a = log(tan(PI/4 + lat2/2)/tan(PI/4+lat1/2));
+
+    double b = atan2(deltaLon, a);
+
+    double returns =  ((signed int)_toDeg(b)+360) % 360;
+    return 360 - (((signed int)returns + 360) % 360);
+    
+}
    /**
      * Since not all browsers implement this we have our own utility that will
      * convert from degrees into radians
@@ -888,7 +932,7 @@ void BLUE() {
      * @return radians
      */
      
-    float _toRad (float deg) {
+    double _toRad (double deg) {
          return deg * PI / 180.0F;
     }
 
@@ -899,6 +943,6 @@ void BLUE() {
      * @param rad - The radians to be converted into degrees
      * @return degrees
      */
-    float _toDeg (float rad) {
-        return rad * 180.0 / PI;
+    double _toDeg (double rad) {
+        return rad * (180.0 / PI);
     }
