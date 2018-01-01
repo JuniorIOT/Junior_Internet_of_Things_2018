@@ -77,7 +77,7 @@ void Sodaq_UBlox_GPS::resetValues()
     _yy = 0;
     _MM = 0;
     _dd = 0;
-    _mag_heading = -1;
+    _cog_heading = -1;
 }
 
 void Sodaq_UBlox_GPS::init(int8_t enable_pin)
@@ -307,12 +307,12 @@ bool Sodaq_UBlox_GPS::parseGPRMC(const String & line)
     setDateTime(date, time);
 
     
-    String mag = getField(line, 8);
-    if(!mag.equals(""))  {
-      debugPrintLn(String(">> Mag:") + mag);
-      _mag_heading = mag.toInt();
+    String cog = getField(line, 8);
+    if(!cog.equals(""))  {
+      debugPrintLn(String(">> Cog:") + cog);
+      _cog_heading = cog.toInt();
     } else {
-      _mag_heading = -1;
+      _cog_heading = -1;
     }
 
     return true;

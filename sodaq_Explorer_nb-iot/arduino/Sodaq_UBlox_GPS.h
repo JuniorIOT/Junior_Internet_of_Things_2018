@@ -42,7 +42,7 @@ public:
     uint8_t getHour() { return _hh; }          // 0..
     uint8_t getMinute() { return _mm; }        // 0..
     uint8_t getSecond() { return _ss; }        // 0..
-    int getMagHeading() { return _mag_heading; } // -1 if not available
+    int getCogHeading() { return _cog_heading; } // -1 if not available
     // How many extra lines must scan see before it stops? This is merely for debugging
     void setMinNumOfLines(size_t num) { _minNumOfLines = num; }
 
@@ -111,7 +111,7 @@ private:
 
     bool        _trans_active;
 
-    int         _mag_heading;
+    int         _cog_heading;
 
     static const char _fieldSep;
     char *      _inputBuffer;
