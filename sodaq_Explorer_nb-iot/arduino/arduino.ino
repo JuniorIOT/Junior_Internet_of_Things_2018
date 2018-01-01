@@ -161,9 +161,6 @@ static void calculateNearAlkmaar(
 // nonsense
 void led_on();
 void led_off();
-void RED();
-void GREEN();
-void BLUE();
 //////////////////////////////////////////////////
 // Kaasfabriek routines for RN2483 for LoraWan
 ///////////////////////////////////////////////
@@ -187,7 +184,7 @@ void doGPS(unsigned long timeout);
 //// Compass LSM303_U i2c
 ////////////////////////////////////////////
 void setupCompass();
-long readCompass();
+unsigned int readCompass();
 void put_Compass_and_Btn_into_sendbuffer();
 //////////////////////////////////////////////////////////
 //// Game
@@ -256,12 +253,12 @@ void rn2483_init()
   while(!join_result)
   {
     DEBUG_STREAM.println("Unable to join. Are your keys correct, and do you have TTN coverage?");
-    RED();
+    
     delay(60000); //delay a minute before retry
     join_result = myLora.init();
   }
   DEBUG_STREAM.println("Successfully joined TTN");
-  GREEN();
+  
 
   // SF is not in the library yet - maybe add it
   
@@ -439,7 +436,7 @@ void formatRadioPackage(uint8_t *loopbackToData) {
   } else if(didSomeoneElseFire && shouldITalkBack) {
     loopbackToData[0] = 0b00000010;
     loopbackToData[8] |= whoWasItThatTalkedToMe() << 4;
-    loopbackToData[8] |= wasIHit();
+    loopbackToData[8] |= myLoraWanData[33];// better not call wasIHit(); because then it keeps repeating
   }
   loopbackToData[0] |= MyID << 4;
   SerialUSB.print("MyID: ");
@@ -469,7 +466,7 @@ void formatRadioPackage(uint8_t *loopbackToData) {
   loopbackToData[6] = LongitudeBinary & 0xFF;
 
   // maybe we should make a function for compass encoding that doesnt put them to lorawan
-  long compass = readCompass(); // 0..360 deg
+  unsigned int compass = readCompass(); // 0..360 deg
   uint8_t compass_bin = compass/3 ;  // rescale 0-360 deg into 0 - 120 values and make sure it is not bigger than one byte
   // now add a bit for BTN (not implemented)
   loopbackToData[7] = compass_bin;
@@ -544,7 +541,7 @@ void decodeReply() {
   // byte 7
   uint8_t compass = decoded[7] & 0b01111111; // don't want the hit indicator now
   DEBUG_STREAM.print("His compass points to: ");
-  int _compass = (compass & 127)*3;
+  unsigned int _compass = compass*3;
   DEBUG_STREAM.println(_compass);
   hitcompass = _compass;
   
@@ -647,7 +644,7 @@ void setup() {
   negotiateState = 0;
   didSomeoneElseFire = false;
   didIFire = false;
-  GREEN();
+  
   gps_init(); 
   rn2483_init();
   setupCompass();
@@ -663,7 +660,7 @@ void setup() {
   last_lora_time = millis();
   doOneLoraWan();
   DEBUG_STREAM.print(F("\nCompleted: Setup. milis=")); DEBUG_STREAM.println(millis());
-  RED();
+  
 }
 
 void loop() {
@@ -889,21 +886,29 @@ float heading, headingDegrees, headingFiltered, geo_magnetic_declination_deg;
 
 double YclosestToZero = 1; 
 double ZclosestToZero = 1; 
-long readCompass() {
-  headingFiltered = compassOneValue();
+unsigned int readCompass() {
+  // because compass doesn't give accurate results if gps has a heading, then rather use that
+  if(sodaq_gps.getMagHeading() != -1) {
+    headingFiltered = sodaq_gps.getMagHeading();
+    do_flash_led(LEDPIN);
+  } else {
+    headingFiltered = sodaq_gps.getMagHeading();
+    /* for testing
+    headingFiltered = compassOneValue();*/
+  }
   /*for(int i = 0; i < 100; i++) {
     heading = compassOneValue();
     headingFiltered = (headingFiltered * 0.3) + (heading * 0.7);
   }
   //Sending the heading value through the Serial Port 
-  
-  SerialUSB.println(headingFiltered,6);*/
+  */
+  SerialUSB.println(headingFiltered,6);
   return headingFiltered;
 }
 
 
 
-long compassOneValue() {
+unsigned int compassOneValue() {
 
   float xguass, yguass, zguass;
   
@@ -951,13 +956,13 @@ long compassOneValue() {
   headingDegrees = atan2(Y,Z)*(180/PI);  
   
   headingDegrees +=(2*360);
-  headingDegrees = (int)headingDegrees % 360;
+  headingDegrees = (unsigned int)headingDegrees % 360;
   return headingDegrees;
 }
 
 
 void put_Compass_and_Btn_into_sendbuffer() {
-  long compass = readCompass(); // 0..360 deg
+  unsigned int compass = readCompass(); // 0..360 deg
   uint8_t compass_bin = compass/3 ;  // rescale 0-360 deg into 0 - 120 values and make sure it is not bigger than one byte
   // now add a bit for BTN (not implemented)
   myLoraWanData[21] = compass_bin;
@@ -979,23 +984,16 @@ void led_off()
   digitalWrite(LEDPIN, 0);
 }
 
-void RED() {
-  digitalWrite(LED_RED, LOW);
-  digitalWrite(LED_GREEN, HIGH);
-  digitalWrite(LED_BLUE, HIGH);
+void do_flash_led(int pin)
+{
+    for (size_t i = 0; i < 2; ++i) {
+        delay(100);
+        digitalWrite(pin, LOW);
+        delay(100);
+        digitalWrite(pin, HIGH);
+    }
 }
 
-void GREEN() {
-  digitalWrite(LED_RED, HIGH);
-  digitalWrite(LED_GREEN, LOW);
-  digitalWrite(LED_BLUE, HIGH);
-}
-
-void BLUE() {
-  digitalWrite(LED_RED, HIGH);
-  digitalWrite(LED_GREEN, HIGH);
-  digitalWrite(LED_BLUE, LOW);
-}
 
 // gps intersection
 /**
@@ -1065,8 +1063,8 @@ void BLUE() {
 
     double returns =  ((signed int)_toDeg(b)+360) % 360;
     */
-    static const testLocation_t currentLocationFrom = {"Kaasfabriek", {lat1, lng1}};
-    static const testLocation_t currentLocationTo = {"Kaasfabriek", {lat2, lng2}};
+    static const testLocation_t currentLocationFrom = {"From", {lat1, lng1}};
+    static const testLocation_t currentLocationTo = {"To", {lat2, lng2}};
     
     const testLocation_t& from = currentLocationFrom;
     const testLocation_t& to   = currentLocationTo;

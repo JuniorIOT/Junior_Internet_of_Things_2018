@@ -288,7 +288,7 @@ bool Sodaq_UBlox_GPS::parseGPRMC(const String & line)
 {
     debugPrintLn("parseGPRMC");
     debugPrintLn(String(">> ") + line);
-    
+    SerialUSB.println(String(">> ") + line);
 
     if (getField(line, 2) == "A" && getField(line, 12) != "N") {
         _lat = convertDegMinToDecDeg(getField(line, 3));
