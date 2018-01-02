@@ -10,7 +10,7 @@
 #include <rn2xx3.h>
 #include "keys.h"
 #define loraSerial Serial2
-#define PAYLOADSIZE 25 // The size of the package to be sent
+#define PAYLOADSIZE 34 // The size of the package to be sent
 //create an instance of the rn2xx3 library,
 //giving the software serial as port to use
 rn2xx3 myLora(loraSerial);
@@ -48,115 +48,8 @@ float hitlat1, hitlng1, hitlat2, hitlng2, hitcompass;
 boolean radioActive = true;  // this name is for radio, not LoraWan
 boolean loraWannaBeNow = false;
 
-  /****************************************************************
-bearing.ino
-
-Calculates the disatance and bearing given two GPS location near
-each other.
-
-Author: Roel Drost
-  Date: 2017-12-30
-
-****************************************************************/
-
-//------------------------------------------------------------------------------
-// Includes
-//------------------------------------------------------------------------------
-#include <math.h>
-
-//------------------------------------------------------------------------------
-// Types
-//------------------------------------------------------------------------------
-typedef struct {
-   double latitude;  // (assumes North)
-   double longitude; // (assumes West)
-} coordinate_t;
-
-typedef struct {
-  char*        name;
-  coordinate_t location;
-} testLocation_t;
-
-//------------------------------------------------------------------------------
-// Constants
-//------------------------------------------------------------------------------
-
-/**
- * Some test vectors
- */
-static const testLocation_t testLocations[] = {
-  "Kaasfabriek", {52.6384638, 4.7497695},
-  "Watertoren" , {52.6365654, 4.7363240},
-  "Waagplein"  , {52.6314069, 4.7503715},
-};
-
-/**
- * The distance to the middle point of the earth in meters for 'Alkmaar'.
- * Note that this is different relative to the latitude.
- */
-static const double earthRadius = 6364670;
-
-//------------------------------------------------------------------------------
-// Functions
-//------------------------------------------------------------------------------
-
-static inline double radToDeg(const double& rad) {
-  return rad * 180.0 / PI;
-}
-//------------------------------------------------------------------------------
-
-static inline double degToRad(const double& deg) {
-  return deg * PI / 180.0;
-}
-//------------------------------------------------------------------------------
-
-/**
- * Calculates the distance and bearing between two GPS coordinates.
- * WARNING this function is a rough simplification!!! It assumes the area where
- * the two points are can be considered as flat! It also assumes the radius of
- * earth is that of 'Alkmaar'.
- * @param    from
- *             in: the GPS location 'from'
- * @param    to
- *             in: the GPS locaton 'to'
- * @param    distance
- *             out: the calculated distance
- * @param    bearing
- *             out: the calculated bearing
- */
-static void calculateNearAlkmaar(
-  const coordinate_t& from,
-  const coordinate_t& to,
-  double&             distance,
-  double&             bearing)
-{
-  const double deltaLatitude  = to.latitude  - from.latitude;
-  const double deltaLongitude = to.longitude - from.longitude;
-
-  const double aspectRatio = cos(degToRad(from.latitude));
-  const double distanceX   = (deltaLongitude / 360) * 2 * PI * earthRadius * aspectRatio;
-  const double distanceY   = (deltaLatitude  / 360) * 2 * PI * earthRadius;
-
-  distance = sqrt(distanceX*distanceX + distanceY*distanceY);
-
-  if (distanceY > 0.0) {
-    bearing = (radToDeg(atan(distanceX/distanceY)) + 360.0);
-  } else if (distanceY < 0.0) {
-    bearing = (radToDeg(atan(distanceX/distanceY)) + 180.0);
-  } else {
-    if (distanceX > 0.0) {
-      bearing = 90;
-    } else if (distanceX < 0.0) {
-      bearing = 270;
-    } else {
-      bearing = NAN;
-    }
-  }
-  if (bearing >= 360) {
-    bearing -= 360;
-  }
-}
-
+// GPS heading formula
+#include "roeldrost.h"
 
 // nonsense
 void led_on();
@@ -178,7 +71,7 @@ void put_gpsvalues_into_sendbuffer();
 void gps_init();
 void find_fix(uint32_t delay_until);
 void doGPS_and_put_values_into_lora_sendbuffer();
-void put_gpsvalues_into_lora_sendbuffer();
+void put_gpsvalues_into_lora_sendbuffer(bool savePrevious);
 void doGPS(unsigned long timeout);
 //////////////////////////////////////////////////////////
 //// Compass LSM303_U i2c
@@ -197,6 +90,15 @@ void IHitSomeone();
 ////////////////////////////////////////////
 void put_Volts_and_Temp_into_sendbuffer();
 void loraDatasetByte();
+//////////////////////////////////////////////////
+// Kaasfabriek routines for RN2483 radio 2 radio
+///////////////////////////////////////////////
+void doOneRadio();
+void setupRadio();
+void listenRadio();
+void formatRadioPackage(uint8_t *loopbackToData);
+void decodeReply();
+
 
 #include <math.h>
 // GPS intersection
@@ -207,372 +109,17 @@ float _toRad (float deg);
 //////////////////////////////////////////////////
 // Kaasfabriek routines for RN2483 for LoraWan
 ///////////////////////////////////////////////
-void rn2483_init()
-{
-  loraSerial.begin(57600); //serial port to radio
-  
-  //reset rn2483
-  pinMode(12, OUTPUT);
-  digitalWrite(12, LOW);
-  delay(500);
-  digitalWrite(12, HIGH);
+#include "lorawan.h"
 
-  delay(100); //wait for the RN2xx3's startup message
-  loraSerial.flush();
-
-  //Autobaud the rn2483 module to 9600. The default would otherwise be 57600.
-  myLora.autobaud();
-
-  //check communication with radio
-  String hweui = myLora.hweui();
-  while(hweui.length() != 16)
-  {
-    DEBUG_STREAM.println("Communication with RN2xx3 unsuccessful. Power cycle the board.");
-    DEBUG_STREAM.println(hweui);
-    delay(10000);
-    hweui = myLora.hweui();
-  }
-
-  //print out the HWEUI so that we can register it via ttnctl
-  DEBUG_STREAM.println("When using OTAA, register this DevEUI: ");
-  DEBUG_STREAM.println(myLora.hweui());
-  DEBUG_STREAM.println("RN2xx3 firmware version:");
-  DEBUG_STREAM.println(myLora.sysver());
-
-  //configure your keys and join the network
-  DEBUG_STREAM.println("Trying to join TTN");
-  bool join_result = false;
-
-  //ABP: initABP(String addr, String AppSKey, String NwkSKey);
-  myLora.init(); // come back from radio2radio
-  join_result = myLora.initABP(DEVADDR, APPSKEY, NWKSKEY);
-
-  //OTAA: initOTAA(String AppEUI, String AppKey);
-  //join_result = myLora.initOTAA("70B3D57ED00001A6", "A23C96EE13804963F8C2BD6285448198");
-
-  while(!join_result)
-  {
-    DEBUG_STREAM.println("Unable to join. Are your keys correct, and do you have TTN coverage?");
-    
-    delay(60000); //delay a minute before retry
-    join_result = myLora.init();
-  }
-  DEBUG_STREAM.println("Successfully joined TTN");
-  
-
-  // SF is not in the library yet - maybe add it
-  
-}
-
-void print_myLoraWanData() {
-  DEBUG_STREAM.print(F("  myLoraWanData = [")); 
-  //DEBUG_STREAM.print((char*)myLoraWanData); DEBUG_STREAM.println("]"); DEBUG_STREAM.print(F("                  [ "));  
-  for(int i=0; i<30; i++) {  
-    if (myLoraWanData[i] < 16) DEBUG_STREAM.print("0"); 
-    DEBUG_STREAM.print(myLoraWanData[i], HEX); 
-    DEBUG_STREAM.print(F(" "));  
-  }  
-  DEBUG_STREAM.println(F(" .. ]"));
-}
-
-void doOneLoraWan() {
-  DEBUG_STREAM.print("\nStart: Do one lora. milis="); DEBUG_STREAM.println(millis());
-  print_myLoraWanData();
-    led_on();
-
-    
-    DEBUG_STREAM.print("  txLora. milis="); DEBUG_STREAM.println(millis());
-    myLora.txBytes(myLoraWanData, PAYLOADSIZE);
-    DEBUG_STREAM.print("  txLora completed. milis="); DEBUG_STREAM.println(millis());
-    led_off();
-    packagecounter++;
-   DEBUG_STREAM.print("  send time delay completed. milis="); DEBUG_STREAM.println(millis());
-  DEBUG_STREAM.print("Completed: Do one lora. milis="); DEBUG_STREAM.println(millis());
-}
-
-
-///////////////////////////////////////////////
-//  arduino init and main
-///////////////////////////////////////////
 
 unsigned long device_startTime;
 bool has_sent_allready = false;
 
+//////////////////////////////////////////////////
+// Kaasfabriek routines for RN2483 radio 2 radio
+///////////////////////////////////////////////
+#include "loraradio.h"
 
-
-void doOneRadio() {
-  String received = "";
-  DEBUG_STREAM.print("\nStart: Do one radio. milis="); DEBUG_STREAM.println(millis());  
-  
-  
-  uint8_t radiopacket[radioPacketSize];
-  
-  formatRadioPackage(&radiopacket[0]);
-  
-  DEBUG_STREAM.println("Sending..."); delay(10);
-  
-
-  switch(myLora.txBytes(radiopacket, radioPacketSize)) //one byte, blocking function
-  {
-    case TX_FAIL:
-    {
-      DEBUG_STREAM.println("TX unsuccessful or not acknowledged");
-      break;
-    }
-    case TX_SUCCESS:
-    {
-      DEBUG_STREAM.println("TX successful and acknowledged");
-      break;
-    }
-    case TX_WITH_RX:
-    {
-      received = myLora.getRx();
-      DEBUG_STREAM.print("Received downlink immediately: " + received);
-      
-      ReceivedFromRadio = true;
-      decoded = myLora.base16decodeBytes(received);
-      SerialUSB.print("base16: ");
-      for(int i = 0; i < radioPacketSize; i++) SerialUSB.print(decoded[i], HEX);
-      SerialUSB.println(".");
-      
-      decodeReply();
-      break;
-    }
-    default:
-    {
-      DEBUG_STREAM.println("Unknown response from TX function");
-    }
-  }  
-
-  
-  // end loop
-  
-  DEBUG_STREAM.print("\nCompleted: Do one radio. milis="); DEBUG_STREAM.println(millis());
-  
-  
-}; 
-void setupRadio() {
-  myLora.autobaud();
-
-  DEBUG_STREAM.println("DevEUI? ");DEBUG_STREAM.print(F("> "));
-  DEBUG_STREAM.println(myLora.hweui());
-  DEBUG_STREAM.println("Version?");DEBUG_STREAM.print(F("> "));
-  DEBUG_STREAM.println(myLora.sysver());
-  DEBUG_STREAM.println(F("--------------------------------"));
-
-  DEBUG_STREAM.println(F("Setting up for listening for another explorer"));
-  bool join_result = false;
-
-
-  // point to point
-  if(join_result = myLora.initP2P())  
-  DEBUG_STREAM.println("\u2713 Successfully Activated radio 2 radio");
-};
-
-void listenRadio() {
-  DEBUG_STREAM.print("\nStart: Listen radio. milis="); DEBUG_STREAM.println(millis());  
-  switch(myLora.listenP2P()) {
-    case TX_WITH_RX:
-    {
-      String received = myLora.getRx();
-      DEBUG_STREAM.print("Received downlink: " + received);
-      
-      ReceivedFromRadio = true;
-      decoded = myLora.base16decodeBytes(received);
-      SerialUSB.print("base16: ");
-      for(int i = 0; i < radioPacketSize; i++) SerialUSB.print(decoded[i], HEX);
-      SerialUSB.println(".");
-      
-      decodeReply();
-      
-      break;
-    }
-    case RADIO_LISTEN_WITHOUT_RX:
-    { 
-      DEBUG_STREAM.println("Listened timeout but no downlink");
-      break;
-    }
-    
- 
-  }  
-  DEBUG_STREAM.print("\nCompleted: Listen radio. milis="); DEBUG_STREAM.println(millis());
-
-}
-
-/*
-   byte 0          My ID      My ID and message type
-        0b0000 0000            
-          ---- nnnn MessType   
-          ---- 0001 msg#1      Yelling out loud that I have fired
-          ---- 0010 msg#2      You have fired and here is my answer 
-          nnnn ---- MyID       
-    byte 1, 2, 3    MyLat      
-    byte 4, 5, 6    MyLon      
-    byte 7          MyComp ++   
-        0b0000 0000            
-          -nnn nnnn MyComp     
-          1--- ---- MyBtn#1       
-    byte 8          RemoteID   Your ID, hey I am talkming to you
-        0b0000 0000            
-          ---- ---n WasIhit    Hit indicator
-          nnnn ---- RemoteID   Value 0-31, Remote team ID
-    byte 9          Validator  Hash (binary add) on message, GPS date, salt..
-    */
-    bool didIFire = false;
-    bool didSomeoneElseFire = false;
-    bool shouldITalkBack = false;
-    uint8_t who = 0b00000000;
-    uint8_t MyID = 2;
-    bool buttonpressedForLoraWan = false;
-void formatRadioPackage(uint8_t *loopbackToData) {  
-  
-  uint8_t buttonPressed = 0b00000000;
-  uint8_t targetID = 0b00000000; // unknown
-  
-  if(didIFire) {
-    buttonPressed = 0b10000000;
-    loopbackToData[0] = 0b00000001;
-    loopbackToData[8] = targetID; // send unknown    
-  } else if(didSomeoneElseFire && shouldITalkBack) {
-    loopbackToData[0] = 0b00000010;
-    loopbackToData[8] |= whoWasItThatTalkedToMe() << 4;
-    loopbackToData[8] |= myLoraWanData[33];// better not call wasIHit(); because then it keeps repeating
-  }
-  loopbackToData[0] |= MyID << 4;
-  SerialUSB.print("MyID: ");
-  SerialUSB.println(loopbackToData[0], BIN);
-  doGPS(60); // must have a gps - wait up to 10 seconds
-
-  // maybe we should make a function for lat lng encoding that doesnt put them to lorawan
-  const double shift_lat     =    90. * 10000000.;                 // range shift from -90..90 into 0..180, note: 
-                                                                 //      NMEAGPS long lat&lon are degree values * 10.000.000
-                                                                 //      TynyGPS long lat&lon are degree values * 1.000.000
-  const double max_old_lat   =   180. * 10000000.;                 // max value for lat is now 180
-  const double max_3byte     =         16777215.;                   // max value that fits in 3 bytes
-  double lat_DOUBLE         = l_lat;                              // put 4byte LONG into a more precise floating point to prevent rounding during calcs 
-  lat_DOUBLE = (lat_DOUBLE + shift_lat) * max_3byte / max_old_lat; // rescale into 3 byte integer range
-  uint32_t LatitudeBinary  = lat_DOUBLE;                          // clips off anything after the decimal point    
-  const double shift_lon     =   180. * 10000000.;                 // range shift from -180..180 into 0..360
-  const double max_old_lon   = 360. * 10000000.;                   // max value longitude is now 360, note the value is too big for Long type
-  double lon_DOUBLE = l_lon;                                      // put the 4byte LONG into a precise floating point memory space
-  lon_DOUBLE = (lon_DOUBLE + shift_lon) * max_3byte / max_old_lon; // rescale into 3 byte integer range
-  uint32_t LongitudeBinary = lon_DOUBLE;                          // clips off anything after the decimal point  
-
-  loopbackToData[1] = ( LatitudeBinary >> 16 ) & 0xFF;
-  loopbackToData[2] = ( LatitudeBinary >> 8 ) & 0xFF;
-  loopbackToData[3] = LatitudeBinary & 0xFF;
-  loopbackToData[4] = ( LongitudeBinary >> 16 ) & 0xFF;
-  loopbackToData[5] = ( LongitudeBinary >> 8 ) & 0xFF;
-  loopbackToData[6] = LongitudeBinary & 0xFF;
-
-  // maybe we should make a function for compass encoding that doesnt put them to lorawan
-  unsigned int compass = readCompass(); // 0..360 deg
-  uint8_t compass_bin = compass/3 ;  // rescale 0-360 deg into 0 - 120 values and make sure it is not bigger than one byte
-  // now add a bit for BTN (not implemented)
-  loopbackToData[7] = compass_bin;
-  #ifdef DEBUG
-  DEBUG_STREAM.print(F("  compass=")); DEBUG_STREAM.print(compass); DEBUG_STREAM.print(F("  deg. compass_bin=")); DEBUG_STREAM.println(compass_bin);
-  #endif
-
-  loopbackToData[7] |= buttonPressed;
-
-  loopbackToData[9] = 0x00; // What is this?
-}
-/*
-   byte 0          My ID      My ID and message type
-        0b0000 0000            
-          ---- nnnn MessType   
-          ---- 0001 msg#1      Yelling out loud that I have fired
-          ---- 0010 msg#2      You have fired and here is my answer 
-          nnnn ---- MyID       
-    byte 1, 2, 3    MyLat      
-    byte 4, 5, 6    MyLon      
-    byte 7          MyComp ++   
-        0b0000 0000            
-          -nnn nnnn MyComp     
-          1--- ---- MyBtn#1       
-    byte 8          RemoteID   Your ID, hey I am talkming to you
-        0b0000 0000            
-          ---- ---n WasIhit    Hit indicator
-          nnnn ---- RemoteID   Value 0-31, Remote team ID
-    byte 9          Validator  Hash (binary add) on message, GPS date, salt..
-    */
-void decodeReply() {
-  SerialUSB.print("BUF HEX: ");
-  for(byte b=0; b<10; b++)
-   {
-      SerialUSB.print(decoded[b], HEX);
-   }
-   SerialUSB.println(".");
-  bool someoneIsTalkingBackToSomeoneWhoFired = false;
-    
-  // bytes 0
-  if((decoded[0] & 0b00001111) == 0b00000001) {
-    DEBUG_STREAM.println("Radio: Someone says that he fired");
-    didSomeoneElseFire = true;      
-  } else if((decoded[0] & 0b00001111) == 0b00000010) {
-      DEBUG_STREAM.println("Radio: Someone talkes back to someone who fired");
-      didSomeoneElseFire = false;
-      // did i fire and is he talking to me
-      someoneIsTalkingBackToSomeoneWhoFired = true; 
-  } else{
-    didSomeoneElseFire = false;
-  }
-  DEBUG_STREAM.print("That someone has an id of:");
-  SerialUSB.print("MyID: ");
-  SerialUSB.println(decoded[0], BIN);
-  who = (decoded[0] >> 4) & 0b00001111;
-  DEBUG_STREAM.println((unsigned int) who,DEC);
-  
-  // byte 1,2,3 and 4,5,6
-  DEBUG_STREAM.print("His location is: ");
-  
-  float _lat = ((((uint32_t)decoded[1]) << 16) + (((uint32_t)decoded[2]) << 8) + decoded[3]) / 16777215.0 * 180.0 - 90;
-  float _lng = ((((uint32_t)decoded[4]) << 16) + (((uint32_t)decoded[5]) << 8) + decoded[6]) / 16777215.0 * 360.0 - 180;
-  DEBUG_STREAM.print("lat: ");
-  DEBUG_STREAM.print(_lat, 6);
-  DEBUG_STREAM.print("lng: ");
-  DEBUG_STREAM.println(_lng,6);
-  hitlat2 = _lat;
-  hitlng2 = _lng;
-  
-
-  
-  // byte 7
-  uint8_t compass = decoded[7] & 0b01111111; // don't want the hit indicator now
-  DEBUG_STREAM.print("His compass points to: ");
-  unsigned int _compass = compass*3;
-  DEBUG_STREAM.println(_compass);
-  hitcompass = _compass;
-  
-  bool hePressedHisButton = ((decoded[7] >> 7) & 0b00000001) == 0b00000001;
-  if(hePressedHisButton) DEBUG_STREAM.println("He pressed his button");
-  else DEBUG_STREAM.println("He did not press his button");
-  
-  // byte 8
-  bool heWasHit = (decoded[8] & 0b00000001) == 0b00000001;
-  if(heWasHit) DEBUG_STREAM.println("He was hit");
-  else DEBUG_STREAM.println("He was not hit - or doesn't know it yet");
-  
-  uint8_t remoteid = (decoded[8] >> 4) & 0b00001111;
-  DEBUG_STREAM.println("He was talking to id: ");
-  DEBUG_STREAM.print((int)remoteid,DEC);
-  
-  // byte 9 - what is this?
-  
-  if(didSomeoneElseFire) {
-    SerialUSB.println("Checking was i hit on receive");
-    shouldITalkBack = wasIHit();      
-  }
-  
-  if(someoneIsTalkingBackToSomeoneWhoFired && (negotiateState == 1)) {
-    if(remoteid == MyID) {
-      // i fired and i hit!
-      IHitSomeone();
-    }
-  }
-  free(decoded);
-}
 uint8_t whoWasItThatTalkedToMe() {
   
   return who;
@@ -626,6 +173,9 @@ void loraDatasetByte() {
   myLoraWanData[24] = packagecounter & 0xFF;
 }
 
+///////////////////////////////////////////////
+//  arduino init and main
+///////////////////////////////////////////
 
 
 void setup() {
@@ -743,235 +293,12 @@ void loop() {
 //////////////////////////////////////////////////////////
 //// Kaasfabriek routines for gps
 ////////////////////////////////////////////
-
-void gps_init() {
-  sodaq_gps.init(6);
-  #ifdef DEBUG
-  sodaq_gps.setDiag(DEBUG_STREAM);
-  #endif
-  // First time finding a fix wait 60 seconds at most
-  find_fix(5*60);
-}
-
-void doGPS(uint32_t delay_until) {
-  find_fix(delay_until);
-}
-
-void find_fix(uint32_t delay_until)
-{
-    uint32_t start = millis();
-    uint32_t timeout = delay_until * 1000; // timeout
-    DEBUG_STREAM.println(String("waiting for fix ..., timeout=") + timeout + String("ms"));
-    if (sodaq_gps.scan(true, timeout)) { // true == leave on
-      
-      l_lat = sodaq_gps.getLat() * 10000000;
-      l_lon = sodaq_gps.getLon() * 10000000;
-      hitlat1 = l_lat;
-      hitlng1 = l_lon;
-      
-      l_alt = sodaq_gps.getAlt();
-      hdopNumber = sodaq_gps.getHDOP();
-      DEBUG_STREAM.print("l_alt");
-      DEBUG_STREAM.print(l_alt);
-      DEBUG_STREAM.print("hdop");
-      DEBUG_STREAM.print(hdopNumber);
-      
-    } else {
-        DEBUG_STREAM.println("No Fix");        
-    }
-}
-
-void put_gpsvalues_into_lora_sendbuffer(bool savePrevious) {
-
-  if(!savePrevious) {
-    DEBUG_STREAM.println(F("Started: put_gpsvalues_into_sendbuffer"));
-    
-    //   GPS reading = Satellite time hh:mm:18, lat 526326595, lon 47384133, alt 21, hdop 990, sat count = 12
-    // With the larger precision in LONG values in NMEAGPS, 
-    //    when rescaling, the values exceed the range for type LONG  -2.147.483.648 .. 2.147.483.647
-    //    so we need to use DOUBLE with 15 digits precision, not preferred is FLOAT with 7 digits
-    //    our values such as 526326595 have 9 digits
-      
-    const double shift_lat     =    90. * 10000000.;                 // range shift from -90..90 into 0..180, note: 
-                                                                   //      NMEAGPS long lat&lon are degree values * 10.000.000
-                                                                   //      TynyGPS long lat&lon are degree values * 1.000.000
-    const double max_old_lat   =   180. * 10000000.;                 // max value for lat is now 180
-    const double max_3byte     =         16777215.;                   // max value that fits in 3 bytes
-    double lat_DOUBLE         = l_lat;                              // put 4byte LONG into a more precise floating point to prevent rounding during calcs 
-    lat_DOUBLE = (lat_DOUBLE + shift_lat) * max_3byte / max_old_lat; // rescale into 3 byte integer range
-    uint32_t LatitudeBinary  = lat_DOUBLE;                          // clips off anything after the decimal point    
-    const double shift_lon     =   180. * 10000000.;                 // range shift from -180..180 into 0..360
-    const double max_old_lon   = 360. * 10000000.;                   // max value longitude is now 360, note the value is too big for Long type
-    double lon_DOUBLE = l_lon;                                      // put the 4byte LONG into a precise floating point memory space
-    lon_DOUBLE = (lon_DOUBLE + shift_lon) * max_3byte / max_old_lon; // rescale into 3 byte integer range
-    uint32_t LongitudeBinary = lon_DOUBLE;                          // clips off anything after the decimal point  
-    uint16_t altitudeBinary  = l_alt    ;                          // we want altitudeGps in meters, note:
-                                                                   //      NMEAGPS alt.whole is meter value 
-                                                                   //      TynyGPS long alt is meter value * 100
-    if (l_alt<0) altitudeBinary=0;                                 // unsigned int wil not allow negative values and warps them to huge number  
-    uint8_t HdopBinary = hdopNumber * 10;                           // we want horizontal dillution, good is 2..5, poor is >20. Note:
-                                                                   
-                                                                   //      from TinyGPS horizontal dilution of precision in 100ths? We succesfully divided by 10
-                                                                   //      TinyGPSplus seems the same in 100ths as per MNEMA string. We succesfully divided by 10
-    
-  //  DEBUG_STREAM.print(F("  shift_lat = "));//DEBUG_STREAM.println(shift_lat);
-  //  DEBUG_STREAM.print(F("  max_old_lat = "));//DEBUG_STREAM.println(max_old_lat);
-  //  DEBUG_STREAM.print(F("  max_3byte = "));//DEBUG_STREAM.println(max_3byte);
-  //  DEBUG_STREAM.print(F("  l_lat = "));//DEBUG_STREAM.println(l_lat);
-  //  DEBUG_STREAM.print(F("  lat_float = "));//DEBUG_STREAM.println(lat_float);
-  //  DEBUG_STREAM.print(F("  LatitudeBinary = "));//DEBUG_STREAM.println(LatitudeBinary);
-  //  
-  //  DEBUG_STREAM.print(F("\n  shift_lon = "));//DEBUG_STREAM.println(shift_lon);
-  //  DEBUG_STREAM.print(F("  max_old_lon = "));//DEBUG_STREAM.println(max_old_lon);
-  //  DEBUG_STREAM.print(F("  l_lon = "));//DEBUG_STREAM.println(l_lon);
-  //  DEBUG_STREAM.print(F("  lon_float = "));//DEBUG_STREAM.println(lon_float);
-  //  DEBUG_STREAM.print(F("  LongitudeBinary = "));//DEBUG_STREAM.println(LongitudeBinary);
-  //  
-  //  DEBUG_STREAM.print(F("\n  l_alt = "));//DEBUG_STREAM.println(l_alt);
-  //  DEBUG_STREAM.print(F("  altitudeBinary = "));//DEBUG_STREAM.println(altitudeBinary);
-  //  
-  //  //DEBUG_STREAM.print(F("\n  hdopNumber = "));//DEBUG_STREAM.println(hdopNumber);
-  //  //DEBUG_STREAM.print(F("  HdopBinary = "));//DEBUG_STREAM.println(HdopBinary);
-    
-    myLoraWanData[0] = ( LatitudeBinary >> 16 ) & 0xFF;
-    myLoraWanData[1] = ( LatitudeBinary >> 8 ) & 0xFF;
-    myLoraWanData[2] = LatitudeBinary & 0xFF;
-    myLoraWanData[3] = ( LongitudeBinary >> 16 ) & 0xFF;
-    myLoraWanData[4] = ( LongitudeBinary >> 8 ) & 0xFF;
-    myLoraWanData[5] = LongitudeBinary & 0xFF;
-    // altitudeGps in meters into unsigned int
-    myLoraWanData[6] = ( altitudeBinary >> 8 ) & 0xFF;
-    myLoraWanData[7] = altitudeBinary & 0xFF;
-    // hdop in tenths of meter
-    myLoraWanData[8] = HdopBinary & 0xFF;
-  
-    print_myLoraWanData();
-  
-    
-  //  Dummy satellite values: time hh:mm:5, lat 52632400, lon 4738800, alt 678, hdop 2345, sat count = 12
-  //       0  1  2  3  4  5  6  7  8   
-  //     [87 7C 49 80 56 44 02 A6 17 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  .. ]
-  } else {
-    DEBUG_STREAM.println("Saving previous gps");
-    myLoraWanData[9] = myLoraWanData[0];
-    myLoraWanData[10] = myLoraWanData[1];
-    myLoraWanData[11] = myLoraWanData[2];
-    myLoraWanData[12] = myLoraWanData[3];
-    myLoraWanData[13] = myLoraWanData[4];
-    myLoraWanData[14] = myLoraWanData[5];
-    myLoraWanData[15] = myLoraWanData[6];
-    myLoraWanData[16] = myLoraWanData[7];
-    myLoraWanData[17] = myLoraWanData[8];
-  }
-}
-
-void doGPS_and_put_values_into_lora_sendbuffer() {
-  find_fix(60); // find fix in 2 seconds
-  // put gps values into send buffer
-  put_gpsvalues_into_lora_sendbuffer(false); // don't put this in previous
-  
-  DEBUG_STREAM.print(F("\Completed: doGPS_and_put_values_into_sendbuffer. milis=")); DEBUG_STREAM.println(millis());
-  
-}
+#include "gps.h"
 
 //////////////////////////////////////////////////////////
 //// Compass LSM303_U i2c
 ////////////////////////////////////////////
-void setupCompass() {
-  compass.setup();  
-}
-
-double X,Y,Z;
-float heading, headingDegrees, headingFiltered, geo_magnetic_declination_deg;
-
-double YclosestToZero = 1; 
-double ZclosestToZero = 1; 
-unsigned int readCompass() {
-  // because compass doesn't give accurate results if gps has a heading, then rather use that
-  if(sodaq_gps.getCogHeading() != -1) {
-    headingFiltered = sodaq_gps.getCogHeading();
-    do_flash_led(LEDPIN);
-  } else {
-    headingFiltered = sodaq_gps.getCogHeading();
-    /* for testing
-    headingFiltered = compassOneValue();*/
-  }
-  /*for(int i = 0; i < 100; i++) {
-    heading = compassOneValue();
-    headingFiltered = (headingFiltered * 0.3) + (heading * 0.7);
-  }
-  //Sending the heading value through the Serial Port 
-  */
-  SerialUSB.println(headingFiltered,6);
-  return headingFiltered;
-}
-
-
-
-unsigned int compassOneValue() {
-
-  float xguass, yguass, zguass;
-  
-  compass.getNewValues();
-  xguass = compass.getXGauss();    
-  yguass = compass.getYGauss();
-  zguass = compass.getZGauss();
-  
-  X = xguass / 32768; // 2^15 because a two's complement 16 bits integer has 2^15 posibilities in positive and negative
-  Y = (yguass / 32768);
-  Z = (zguass / 32768);
-
-  /*lsm.read();
-  float xh,yh,zh,ayf,axf,azf;
-  axf = lsm.accelData.x/32768*PI;
-  ayf = lsm.accelData.y/32768*PI;
-  azf = lsm.accelData.z/32768*PI;
- 
-  zh=Z*cos(ayf)+Y*sin(ayf)*sin(azf)-X*cos(azf)*sin(ayf);
-
-  yh=Y*cos(azf)+Z*sin(azf);
-
- */
-/*
-  SerialUSB.print("zh");
-  SerialUSB.println(zh);
-  SerialUSB.print("yh");
-  SerialUSB.println(yh);
-  /*if(abs(0-Y) < YclosestToZero) YclosestToZero = abs(0-Y);
-  if(abs(0-Z) < ZclosestToZero) ZclosestToZero = abs(0-Z);
-  SerialUSB.print("YclosestToZero");
-  SerialUSB.println(YclosestToZero,30);
-  SerialUSB.print("ZclosestToZero");
-  SerialUSB.println(ZclosestToZero,30);*/
-  
-  // Correcting the heading with the geo_magnetic_declination_deg angle depending on your location
-  // You can find your geo_magnetic_declination_deg angle at: http://www.ngdc.noaa.gov/geomag-web/
-  // At zzz location it's 4.2 degrees => 0.073 rad
-  // Haarlem                    2017-10-20  1° 4' E  ± 0° 22'  changing by  0° 9' E per year
-  // Amsterdam                  2017-10-20  1° 9' E  ± 0° 22'  changing by  0° 9' E per year
-  // Alkmaar 52.6324 4.7534     2017-10-20  1.09° E  ± 0.38°  changing by  0.14° E per year
-  geo_magnetic_declination_deg = 1.09; // for our location
-  
-  //Calculating Heading
-  headingDegrees = atan2(Y,Z)*(180/PI);  
-  
-  headingDegrees +=(2*360);
-  headingDegrees = (unsigned int)headingDegrees % 360;
-  return headingDegrees;
-}
-
-
-void put_Compass_and_Btn_into_sendbuffer() {
-  unsigned int compass = readCompass(); // 0..360 deg
-  uint8_t compass_bin = compass/3 ;  // rescale 0-360 deg into 0 - 120 values and make sure it is not bigger than one byte
-  // now add a bit for BTN (not implemented)
-  myLoraWanData[21] = compass_bin;
-  #ifdef DEBUG
-  DEBUG_STREAM.print(F("  compass=")); DEBUG_STREAM.print(compass); DEBUG_STREAM.print(F("  deg. compass_bin=")); DEBUG_STREAM.println(compass_bin);
-  #endif
-  if(buttonpressedForLoraWan) myLoraWanData[21] |= 0b10000000;
-  else myLoraWanData[21] &= 0b01111111;
-}
+#include "compass.h"
 
 // Leds
 void led_on()
