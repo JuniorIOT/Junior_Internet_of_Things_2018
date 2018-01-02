@@ -7,7 +7,9 @@ void doOneRadio() {
   
   
   uint8_t radiopacket[radioPacketSize];
-  
+  for(int i = 0; i < radioPacketSize; i++) {
+    radiopacket[i] = 0b00000000;
+  }
   formatRadioPackage(&radiopacket[0]);
   
   DEBUG_STREAM.println("Sending..."); delay(10);
@@ -130,18 +132,25 @@ void formatRadioPackage(uint8_t *loopbackToData) {
   uint8_t buttonPressed = 0b00000000;
   uint8_t targetID = 0b00000000; // unknown
   
+  
   if(didIFire) {
     buttonPressed = 0b10000000;
     loopbackToData[0] = 0b00000001;
     loopbackToData[8] = targetID; // send unknown    
   } else if(didSomeoneElseFire && shouldITalkBack) {
     loopbackToData[0] = 0b00000010;
+    SerialUSB.print("Target: ");
+    SerialUSB.println(whoWasItThatTalkedToMe());
     loopbackToData[8] |= whoWasItThatTalkedToMe() << 4;
-    loopbackToData[8] |= myLoraWanData[33];// better not call wasIHit(); because then it keeps repeating
+    SerialUSB.println(loopbackToData[8], BIN);
+    loopbackToData[8] |= (myLoraWanData[33] >> 7) & 0b00000001;// better not call wasIHit(); because then it keeps repeating
+    SerialUSB.println(loopbackToData[8], BIN);
   }
   loopbackToData[0] |= MyID << 4;
   SerialUSB.print("MyID: ");
   SerialUSB.println(loopbackToData[0], BIN);
+
+  
   doGPS(60); // must have a gps - wait up to 10 seconds
 
   // maybe we should make a function for lat lng encoding that doesnt put them to lorawan
@@ -227,6 +236,14 @@ void decodeReply() {
   
   // byte 1,2,3 and 4,5,6
   DEBUG_STREAM.print("His location is: ");
+
+  // tell lorawan
+  myLoraWanData[26] = decoded[1];
+  myLoraWanData[27] = decoded[2];
+  myLoraWanData[28] = decoded[3];
+  myLoraWanData[29] = decoded[4];
+  myLoraWanData[30] = decoded[5];
+  myLoraWanData[31] = decoded[6];
   
   float _lat = ((((uint32_t)decoded[1]) << 16) + (((uint32_t)decoded[2]) << 8) + decoded[3]) / 16777215.0 * 180.0 - 90;
   float _lng = ((((uint32_t)decoded[4]) << 16) + (((uint32_t)decoded[5]) << 8) + decoded[6]) / 16777215.0 * 360.0 - 180;
@@ -240,7 +257,8 @@ void decodeReply() {
 
   
   // byte 7
-  uint8_t compass = decoded[7] & 0b01111111; // don't want the hit indicator now
+  myLoraWanData[32] = decoded[7];
+  uint8_t compass = decoded[7] & 0b01111111; // don't want the hit indicator now    
   DEBUG_STREAM.print("His compass points to: ");
   unsigned int _compass = compass*3;
   DEBUG_STREAM.println(_compass);
@@ -258,6 +276,8 @@ void decodeReply() {
   uint8_t remoteid = (decoded[8] >> 4) & 0b00001111;
   DEBUG_STREAM.println("He was talking to id: ");
   DEBUG_STREAM.print((int)remoteid,DEC);
+
+  myLoraWanData[25] = remoteid << 4;
   
   // byte 9 - what is this?
   
@@ -265,9 +285,15 @@ void decodeReply() {
     SerialUSB.println("Checking was i hit on receive");
     shouldITalkBack = wasIHit();      
   }
-  
+
+  SerialUSB.println("someoneIsTalkingBackToSomeoneWhoFired?");
   if(someoneIsTalkingBackToSomeoneWhoFired && (negotiateState == 1)) {
-    if(remoteid == MyID) {
+    SerialUSB.println("someoneIsTalkingBackToSomeoneWhoFired!");
+    SerialUSB.print("remoteid: ");
+    SerialUSB.println(remoteid);
+    SerialUSB.print("MyID: ");
+    SerialUSB.println(MyID & 0b00001111);
+    if((remoteid&0b00001111) == (MyID&0b00001111)) {
       // i fired and i hit!
       IHitSomeone();
     }

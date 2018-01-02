@@ -21,7 +21,7 @@ void rn2483_init()
   String hweui = myLora.hweui();
   while(hweui.length() != 16)
   {
-    DEBUG_STREAM.println("Communication with RN2xx3 unsuccessful. Power cycle the board.");
+    DEBUG_STREAM.println("Communication with RN2xx3 unsuccessful. After programming unplug the usb cable and reconnect.");
     DEBUG_STREAM.println(hweui);
     delay(10000);
     hweui = myLora.hweui();

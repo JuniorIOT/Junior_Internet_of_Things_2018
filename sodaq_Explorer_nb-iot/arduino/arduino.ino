@@ -1,6 +1,7 @@
 /*******************************************************************************
  * Modified By DenniZr & Marco van Schagen for Junior IOT - Smart City Challenge 2018 #juniorIOTchallenge2018
  * Modified By Marco van Schagen for Junior IOT Challenge 2018
+ * Modified By Roel Drost Calculates the disatance and bearing given two GPS location near each other.
  *******************************************************************************/ 
  
 #define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
@@ -47,6 +48,8 @@ int buttonpin = 8; // pin of the gun button
 float hitlat1, hitlng1, hitlat2, hitlng2, hitcompass;
 boolean radioActive = true;  // this name is for radio, not LoraWan
 boolean loraWannaBeNow = false;
+int buzzerPin = 9;
+#include "starwars.h"
 
 // GPS heading formula
 #include "roeldrost.h"
@@ -153,6 +156,7 @@ uint8_t wasIHit() {
 
 void IHitSomeone() {
   // yes!
+  soundLoopOnce();
 }
 
 void put_Volts_and_Temp_into_sendbuffer() {
@@ -233,6 +237,7 @@ void loop() {
       setupRadio();
       listenRadio();
       readCompass();
+      
       DEBUG_STREAM.print(F("."));
 
       if(digitalRead(buttonpin) == LOW) { // input pullup with ground
@@ -243,19 +248,33 @@ void loop() {
 
       if(didIFire && negotiateState == 1) {
         // tell other person I fired
+        tone(buzzerPin, 261, 250);
         setupRadio();
-        doOneRadio();
+        doOneRadio();      
+        
+
+        // if you fired you wait 3 times for someone to say something back
+        for(int i = 0; i < 3; i++) {
+          DEBUG_STREAM.println("Waiting for the other person to say he was hit");
+          tone(buzzerPin, 349, 250);
+          setupRadio();
+          listenRadio();          
+        }
         
         loraWannaBeNow = true;
         // reset fire but keep negotiateState to know someone might reply
         didIFire = false;
-        
       }
+      
       if(didSomeoneElseFire && shouldITalkBack) {
         // tell other person i was hit
+        DEBUG_STREAM.println("Telling other person I was hit");
         setupRadio();
         doOneRadio();
+        didSomeoneElseFire = false;
+        shouldITalkBack = false;
       }
+      
     }
     
     
