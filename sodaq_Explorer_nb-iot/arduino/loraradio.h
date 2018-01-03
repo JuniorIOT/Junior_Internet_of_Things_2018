@@ -124,17 +124,14 @@ void listenRadio() {
     bool didIFire = false;
     bool didSomeoneElseFire = false;
     bool shouldITalkBack = false;
-    uint8_t who = 0b00000000;
-    uint8_t MyID = 2;
+    uint8_t who = 0b00000000;    
     bool buttonpressedForLoraWan = false;
 void formatRadioPackage(uint8_t *loopbackToData) {  
-  
-  uint8_t buttonPressed = 0b00000000;
+    
   uint8_t targetID = 0b00000000; // unknown
   
   
-  if(didIFire) {
-    buttonPressed = 0b10000000;
+  if(didIFire) {    
     loopbackToData[0] = 0b00000001;
     loopbackToData[8] = targetID; // send unknown    
   } else if(didSomeoneElseFire && shouldITalkBack) {
@@ -187,6 +184,12 @@ void formatRadioPackage(uint8_t *loopbackToData) {
   loopbackToData[7] |= buttonPressed;
 
   loopbackToData[9] = 0x00; // What is this?
+  // now add radiohead compatibility
+  for(int i = 0; i < (radioPacketSize-4); i++) loopbackToData[i+4] = loopbackToData[i];
+  loopbackToData[0]=255; // to all
+  loopbackToData[1]=MyID; // from
+  loopbackToData[2]=packagecounter%0xFF; // headerid
+  loopbackToData[3]=0x00; // flags
 }
 /*
    byte 0          My ID      My ID and message type
@@ -207,7 +210,12 @@ void formatRadioPackage(uint8_t *loopbackToData) {
           nnnn ---- RemoteID   Value 0-31, Remote team ID
     byte 9          Validator  Hash (binary add) on message, GPS date, salt..
     */
+    bool therewasaradioreceived = false;
 void decodeReply() {
+  // radiohead compatibility
+  for(int i = 0; i < (radioPacketSize-4); i++) decoded[i] = decoded[i+4];
+  
+  therewasaradioreceived = true;
   SerialUSB.print("BUF HEX: ");
   for(byte b=0; b<10; b++)
    {

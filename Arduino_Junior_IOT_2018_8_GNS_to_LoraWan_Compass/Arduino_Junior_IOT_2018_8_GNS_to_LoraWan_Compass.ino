@@ -585,6 +585,7 @@ void setupRadio() {
     //while (1);
     halt_stressed();
   }
+
   #ifdef DEBUGLEVEL2
   Serial.print("Freq is set to: "); 
   Serial.println(RF95_FREQ);

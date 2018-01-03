@@ -37,8 +37,8 @@ NBIOT_Compass compass;
 // radio
 int16_t packetnum = 0;  // packet counter, we increment per transmission
 bool ReceivedFromRadio = false;
-// radio buf
-#define radioPacketSize 10
+// radio buf + 4 for radiohead compatibility
+#define radioPacketSize (10+4)
 uint8_t buf[radioPacketSize];
 uint8_t *decoded;
 
@@ -50,6 +50,9 @@ boolean radioActive = true;  // this name is for radio, not LoraWan
 boolean loraWannaBeNow = false;
 int buzzerPin = 9;
 #include "starwars.h"
+uint8_t MyTeamID = 1;
+uint8_t MyID = 2;
+uint8_t buttonPressed;
 
 // GPS heading formula
 #include "roeldrost.h"
@@ -172,7 +175,11 @@ void put_Volts_and_Temp_into_sendbuffer() {
 
 void loraDatasetByte() {
   // todo
-  //myLoraWanData[22] = 
+  if(therewasaradioreceived) {
+    myLoraWanData[22] = 0b00001000;
+    therewasaradioreceived = false;
+  }
+  myLoraWanData[22] |= (MyTeamID & 0b00001111) << 4;
   myLoraWanData[23] = (packagecounter >> 8) & 0xFF;
   myLoraWanData[24] = packagecounter & 0xFF;
 }
@@ -244,6 +251,9 @@ void loop() {
         didIFire = true;
         negotiateState = 1;
         buttonpressedForLoraWan = true;        
+        buttonPressed = 0b10000000;
+      } else {
+        buttonPressed = 0b00000000;
       }
 
       if(didIFire && negotiateState == 1) {
