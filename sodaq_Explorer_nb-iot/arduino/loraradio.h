@@ -185,7 +185,7 @@ void formatRadioPackage(uint8_t *loopbackToData) {
 
   loopbackToData[9] = 0x00; // What is this?
   // now add radiohead compatibility
-  for(int i = 0; i < (radioPacketSize-4); i++) loopbackToData[i+4] = loopbackToData[i];
+  for(int i = (radioPacketSize-4) - 1; i >= 0; i--) loopbackToData[i+4] = loopbackToData[i];
   loopbackToData[0]=255; // to all
   loopbackToData[1]=MyID; // from
   loopbackToData[2]=packagecounter%0xFF; // headerid
