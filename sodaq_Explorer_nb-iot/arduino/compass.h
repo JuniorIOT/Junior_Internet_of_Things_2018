@@ -14,9 +14,10 @@ unsigned int readCompass() {
   // because compass doesn't give accurate results if gps has a heading, then rather use that
   if(sodaq_gps.getCogHeading() != -1) {
     headingFiltered = sodaq_gps.getCogHeading();
-    do_flash_led(LEDPIN);
+    digitalWrite(hasWalkingDirectionLED, HIGH);
   } else {
     headingFiltered = sodaq_gps.getCogHeading();
+    digitalWrite(hasWalkingDirectionLED, LOW);
     /* for testing
     headingFiltered = compassOneValue();*/
   }

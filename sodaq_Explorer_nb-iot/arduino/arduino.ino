@@ -32,7 +32,7 @@ int hdopNumber;
 // compass - library in nb-iot compass folder
 #include <sodaq_compass.h>
 NBIOT_Compass compass;
-
+#define hasWalkingDirectionLED 10
 
 // radio
 int16_t packetnum = 0;  // packet counter, we increment per transmission
@@ -191,6 +191,8 @@ void loraDatasetByte() {
 
 void setup() {
   pinMode(LEDPIN, OUTPUT);
+  pinMode(hasWalkingDirectionLED, OUTPUT);
+  digitalWrite(hasWalkingDirectionLED, HIGH);
   pinMode(buttonpin, INPUT_PULLUP);
   delay(1000);  // https://www.thethingsnetwork.org/forum/t/got-adafruit-feather-32u4-lora-radio-to-work-and-here-is-how/6863
   
@@ -221,7 +223,7 @@ void setup() {
   last_lora_time = millis();
   doOneLoraWan();
   DEBUG_STREAM.print(F("\nCompleted: Setup. milis=")); DEBUG_STREAM.println(millis());
-  
+  digitalWrite(hasWalkingDirectionLED, LOW);
 }
 
 void loop() {
