@@ -4,8 +4,3 @@
 
 # A leading "**" followed by a slash means match in all directories. For example, "**/foo" matches file or directory "foo" anywhere
 **/keys.h
-Balloon-rfm95/keys.h
-Balloon-rfm95-otaa/keys.h
-Arduino_Junior_IOT_2018_5_slim_lmic_library/keys.h
-Arduino_Junior_IOT_2018_6_node2node2lora_lmic_slim/keys.h
-Arduino_Junior_IOT_2018_7_encoded_data_radio_lmic_slim/keys.h
