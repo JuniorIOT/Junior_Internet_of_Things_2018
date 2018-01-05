@@ -3,6 +3,26 @@
  * Modified By Marco van Schagen for Junior IOT Challenge 2018
  * Modified By Roel Drost Calculates the disatance and bearing given two GPS location near each other.
  *******************************************************************************/ 
+
+// TODO prepare your Arduino IDE:
+//   install some standard libraries, get the generic version:
+//      - Sodaq_nbIOT
+//   install adjusted version of libraries, YOU NEED TO GET THESE FROM YOUR PROJECT FOLDERS
+//      - sodaq_compass
+//      - RN2483-Arduino-Library-master_kaasfabriek.zip  --> you need to uninstall your existing RN2xx3 library by JPmeijers ==> delete folder Documents\Arduino\libraries\RN2483-Arduino-Library-master
+//          --> OR YOU WILL GET ERROR  case TX_FAIL: 'TX_FAIL' was not declared in this scope
+
+//   Make a file keys.h in the project folder and insert your variables which you copy from your device definition in TTN console
+//     static const PROGMEM String NWKSKEY = "C6F8438D6E06B46.....1FCA829654B";
+//     static const PROGMEM String APPSKEY = "F16C600925A36A1D1.....103A2D8D308";
+//     static const String DEVADDR = "26....BD";
+//      --> use strings, not arrays OR YOU WILL GET ERROR IN FUNCTION void rn2483_init()
+
+// TODO wire your buttons and tie up your shoelaces
+//     D8 --> pushbutton --> ground
+//     D9 --> speaker --> ground
+[//    D10 --> led + resistor --> ground 
+
  
 #define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
 #define DEBUG_STREAM SerialUSB
@@ -23,15 +43,15 @@ uint16_t packagecounter;
 
 // GPS
 #include <Arduino.h>
-#include <Sodaq_nbIOT.h>
-#include "Sodaq_UBlox_GPS.h"
-Sodaq_nbIOT nbiot;
+#include <Sodaq_nbIOT.h>  // Standard library to be installed into Arduino IDE
+#include "Sodaq_UBlox_GPS.h"  // this is just a good reference to a code file in your folder
+Sodaq_nbIOT nbiot;            // declares an object to handle specific stuff for you
 long l_lat, l_lon, l_alt;
 int hdopNumber;
 
 // compass - library in nb-iot compass folder
-#include <sodaq_compass.h>
-NBIOT_Compass compass;
+#include <sodaq_compass.h>  // library to be added from Zip in this project
+NBIOT_Compass compass;      // declares an object to handle specific stuff for you
 #define hasWalkingDirectionLED 10
 
 // radio
