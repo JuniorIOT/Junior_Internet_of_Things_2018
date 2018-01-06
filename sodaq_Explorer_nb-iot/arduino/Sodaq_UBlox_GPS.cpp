@@ -311,8 +311,6 @@ bool Sodaq_UBlox_GPS::parseGPRMC(const String & line)
     if(!cog.equals(""))  {
       debugPrintLn(String(">> Cog:") + cog);
       _cog_heading = cog.toInt();
-    } else {
-      _cog_heading = -1;
     }
 
     return true;

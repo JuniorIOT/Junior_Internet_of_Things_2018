@@ -212,7 +212,7 @@ void formatRadioPackage(uint8_t *loopbackToData) {
     */
     bool therewasaradioreceived = false;
 void decodeReply() {
-  // radiohead compatibility
+    // radiohead compatibility
   for(int i = 0; i < (radioPacketSize-4); i++) decoded[i] = decoded[i+4];
   
   therewasaradioreceived = true;

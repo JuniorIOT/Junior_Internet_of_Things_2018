@@ -73,6 +73,8 @@ int buzzerPin = 9;
 uint8_t MyTeamID = 1;
 uint8_t MyID = 2;
 uint8_t buttonPressed;
+#define SHOT_RESPONSE_WAIT_TIME (15+1)
+bool shot_response = false;
 
 // GPS heading formula
 #include "roeldrost.h"
@@ -185,7 +187,7 @@ uint8_t wasIHit() {
 }
 
 void IHitSomeone() {
-  // yes!
+  shot_response = true;
   soundLoopOnce();
 }
 
@@ -207,6 +209,7 @@ void loraDatasetByte() {
 
 
 void setup() {
+  
   pinMode(LEDPIN, OUTPUT);
   pinMode(hasWalkingDirectionLED, OUTPUT);
   digitalWrite(hasWalkingDirectionLED, HIGH);
@@ -256,13 +259,13 @@ void loop() {
   // time needs to be long enough not to miss a radio, we do not worry about GPS as it will keep fix as long as powered
   if(radioActive) {
     bool loraWannaBeNow = false;
+    setupRadio();
     while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L) && !loraWannaBeNow) {
       
       
       // better listen to radio
       // if negotiateState == 1 then check if the shot was a hit
-      // listen if someone else fired
-      setupRadio();
+      // listen if someone else fired      
       listenRadio();
       readCompass();
       
@@ -279,16 +282,16 @@ void loop() {
 
       if(didIFire && negotiateState == 1) {
         // tell other person I fired
-        tone(buzzerPin, 261, 250);
-        setupRadio();
+        tone(buzzerPin, 261, 250);        
         doOneRadio();      
         
 
         // if you fired you wait 3 times for someone to say something back
-        for(int i = 0; i < 3; i++) {
+        unsigned long begin_wait_response = millis();
+        shot_response = false;
+        while((millis() - begin_wait_response) < (SHOT_RESPONSE_WAIT_TIME * 1000L) && !shot_response) {
           DEBUG_STREAM.println("Waiting for the other person to say he was hit");
-          tone(buzzerPin, 349, 250);
-          setupRadio();
+          tone(buzzerPin, 349, 250);          
           listenRadio();          
         }
         
@@ -299,8 +302,7 @@ void loop() {
       
       if(didSomeoneElseFire && shouldITalkBack) {
         // tell other person i was hit
-        DEBUG_STREAM.println("Telling other person I was hit");
-        setupRadio();
+        DEBUG_STREAM.println("Telling other person I was hit");        
         doOneRadio();
         didSomeoneElseFire = false;
         shouldITalkBack = false;
