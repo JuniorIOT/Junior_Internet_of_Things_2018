@@ -14,7 +14,9 @@ uint32_t AESAUX[16/sizeof(uint32_t)];
 uint32_t AESKEY[11*16/sizeof(uint32_t)];
 
 void spi_start() {
+    #ifndef DONTUSEHARDWARESPI
     SPI.begin();
+    #endif 
 }
      
 void radio_init () {	
@@ -30,11 +32,40 @@ static void setopmode (uint8_t mode) {
 static void writeReg (uint8_t addr, uint8_t data ) {
     hal_pin_nss(0);
     //digitalWrite(LED_BUILTIN,HIGH);
+    #ifndef DONTUSEHARDWARESPI
     SPI.transfer(addr | 0x80);
     SPI.transfer(data);    
+    #else
+    hal_spi(addr | 0x80);
+    hal_spi(data);
+    #endif
     hal_pin_nss(1);
     //digitalWrite(LED_BUILTIN,LOW);
 }
+
+#ifndef DONTUSEHARDWARESPI
+#error "doesn't work"
+#endif
+
+#ifdef DONTUSEHARDWARESPI
+uint8_t hal_spi (uint8_t out) {                                                   // Emuleer een SPI interface met de RFM96
+  for(int i=0; i<8; i++)  
+  {
+      if (bitRead(out, 7-i)==1) {
+      PORTB = 0b00000001;                                                         // Een één versturen: MOSI hoog, dan CLK hoog, dan CLK laag
+      PORTB = 0b00000101;
+      PORTB = 0b00000001;
+      }
+      else {
+      PORTB = 0b00000000;                                                         // Een nul versturen: MOSI laag, dan CLK hoog, dan CLK laag
+      PORTB = 0b00000100;
+      PORTB = 0b00000000;
+      }
+  }
+  uint8_t res = 0x00;
+  return res;
+}
+#endif
 
 void hal_pin_nss (uint8_t val) {
     digitalWrite(SS_pin, val);                      // nss pin = PB5
@@ -89,9 +120,17 @@ static void txlora () {                             // start transmitter (buf=LM
 
 static void writeBuf (uint8_t addr, uint8_t* buf, uint8_t len) {
     hal_pin_nss(0);
+    #ifndef DONTUSEHARDWARESPI
     SPI.transfer(addr | 0x80);
+    #else
+    hal_spi(addr | 0x80);
+    #endif
     for (uint8_t i=0; i<len; i++) {
+    #ifndef DONTUSEHARDWARESPI
         SPI.transfer(buf[i]);
+    #else
+    hal_spi(buf[i]);
+    #endif
     }
     hal_pin_nss(1);
 }
@@ -122,18 +161,8 @@ int LMIC_setTxData2 (uint8_t* data, uint8_t dlen) {
     return 0;
 }
 
-<<<<<<< HEAD
-uint16_t getCounter() {
-	return LMIC.seqnoUp & 0xFFFF;
-}
-
-void putCounterAt(int index) {
-    LMIC.pendTxData[index] = (LMIC.seqnoUp >> 8) & 0xFF;
-    LMIC.pendTxData[index+1] = (LMIC.seqnoUp) & 0xFF;
-=======
 uint32_t LMIC_getSeqnoUp() {
     return LMIC.seqnoUp;
->>>>>>> 0507bc4d429f32de8a6786dd0986217f0b00549f
 }
 
 static void buildDataFrame (void) {    
