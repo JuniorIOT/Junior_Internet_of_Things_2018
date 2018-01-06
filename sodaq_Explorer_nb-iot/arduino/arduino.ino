@@ -80,6 +80,10 @@ uint8_t buttonPressed;
 // nonsense
 void led_on();
 void led_off();
+
+// sensors
+#include "temperature.h"
+
 //////////////////////////////////////////////////
 // Kaasfabriek routines for RN2483 for LoraWan
 ///////////////////////////////////////////////
@@ -116,6 +120,9 @@ void IHitSomeone();
 ////////////////////////////////////////////
 void put_Volts_and_Temp_into_sendbuffer();
 void loraDatasetByte();
+bool setupTemperature();
+int readTemperatureFromShield();
+double readHumidityFromShield();
 //////////////////////////////////////////////////
 // Kaasfabriek routines for RN2483 radio 2 radio
 ///////////////////////////////////////////////
@@ -182,16 +189,6 @@ void IHitSomeone() {
   soundLoopOnce();
 }
 
-void put_Volts_and_Temp_into_sendbuffer() {
-/* TODO: 
- *   -- now our 'regular' values
-    byte 18         VCC        byte, 50ths, 0 - 5.10 volt -- secret voltmeter
-    byte 19         CPUtemp    byte, -100 - 155 deg C     -- secret thermometer
-    byte 20         Vbat       byte, 50ths, 0 - 5.10 volt -- hardwired Lora32u4
-*/
-
-}
-
 
 void loraDatasetByte() {
   // todo
@@ -231,7 +228,9 @@ void setup() {
   gps_init(); 
   rn2483_init();
   setupCompass();
-
+  if(!setupTemperature()) {
+    DEBUG_STREAM.println("Could not get temperature sensor");
+  }
   DEBUG_STREAM.print(F("\nInit values. milis=")); DEBUG_STREAM.println(millis());
 
   put_Volts_and_Temp_into_sendbuffer();
