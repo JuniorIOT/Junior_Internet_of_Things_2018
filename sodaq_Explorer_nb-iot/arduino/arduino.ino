@@ -21,7 +21,7 @@
 // TODO wire your buttons and tie up your shoelaces
 //     D8 --> pushbutton --> ground
 //     D9 --> speaker --> ground
-[//    D10 --> led + resistor --> ground 
+//    D10 --> led + resistor --> ground 
 
  
 #define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
