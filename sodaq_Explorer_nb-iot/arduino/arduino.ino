@@ -71,7 +71,7 @@ boolean loraWannaBeNow = false;
 int buzzerPin = 9;
 #include "starwars.h"
 uint8_t MyTeamID = 1;
-uint8_t MyID = 2;
+uint8_t MyID = 1;
 uint8_t buttonPressed;
 #define SHOT_RESPONSE_WAIT_TIME (15+1)
 bool shot_response = false;
@@ -122,6 +122,7 @@ void IHitSomeone();
 ////////////////////////////////////////////
 void put_Volts_and_Temp_into_sendbuffer();
 void loraDatasetByte();
+void resetSomeLoraValues();
 bool setupTemperature();
 int readTemperatureFromShield();
 double readHumidityFromShield();
@@ -244,6 +245,7 @@ void setup() {
 
   last_lora_time = millis();
   doOneLoraWan();
+  resetSomeLoraValues();
   DEBUG_STREAM.print(F("\nCompleted: Setup. milis=")); DEBUG_STREAM.println(millis());
   digitalWrite(hasWalkingDirectionLED, LOW);
 }
@@ -259,6 +261,7 @@ void loop() {
   // time needs to be long enough not to miss a radio, we do not worry about GPS as it will keep fix as long as powered
   if(radioActive) {
     bool loraWannaBeNow = false;
+    int fireBuzzCount = 0;
     setupRadio();
     while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L) && !loraWannaBeNow) {
       
@@ -266,26 +269,36 @@ void loop() {
       // better listen to radio
       // if negotiateState == 1 then check if the shot was a hit
       // listen if someone else fired      
+      if(didIFire) {
+        tone(buzzerPin, 349, 100);
+        fireBuzzCount++;
+        if(fireBuzzCount % 12 == 0) {
+          didIFire = false;
+          fireBuzzCount = 0;  
+        }
+        
+      }
       listenRadio();
       readCompass();
       
       DEBUG_STREAM.print(F("."));
 
-      if(digitalRead(buttonpin) == LOW) { // input pullup with ground
-        didIFire = true;
-        negotiateState = 1;
-        buttonpressedForLoraWan = true;        
-        buttonPressed = 0b10000000;
-      } else {
-        buttonPressed = 0b00000000;
+      if(fireBuzzCount == 0) {
+        if(digitalRead(buttonpin) == LOW) { // input pullup with ground
+          didIFire = true;
+          fireBuzzCount = 1;
+          negotiateState = 1;
+          buttonpressedForLoraWan = true;        
+          buttonPressed = 0b10000000;
+        } else {
+          buttonPressed = 0b00000000;
+        }
       }
-
       if(didIFire && negotiateState == 1) {
         // tell other person I fired
-        tone(buzzerPin, 261, 250);        
         doOneRadio();      
         
-
+        /* this causes stealmate bug
         // if you fired you wait 3 times for someone to say something back
         unsigned long begin_wait_response = millis();
         shot_response = false;
@@ -295,9 +308,9 @@ void loop() {
           listenRadio();          
         }
         
-        loraWannaBeNow = true;
+        */
         // reset fire but keep negotiateState to know someone might reply
-        didIFire = false;
+        
       }
       
       if(didSomeoneElseFire && shouldITalkBack) {
@@ -306,6 +319,7 @@ void loop() {
         doOneRadio();
         didSomeoneElseFire = false;
         shouldITalkBack = false;
+        loraWannaBeNow = true;
       }
       
     }
