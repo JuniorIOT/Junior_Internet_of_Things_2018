@@ -7,6 +7,10 @@ void gps_init() {
   #ifdef DEBUG
   sodaq_gps.setDiag(DEBUG_STREAM);
   #endif
+
+  l_lat = 0; l_lon = 0; l_alt = 678; hdopNumber = 99999;   // the zero position
+  l_lat_hist = 0; l_lon_hist = 0; l_lat_movement = 0; l_lon_movement = 0; // movement detection
+
   // First time finding a fix wait 60 seconds at most
   find_fix(5*60);
 }
@@ -18,23 +22,42 @@ void doGPS(uint32_t delay_until) {
 void find_fix(uint32_t delay_until)
 {
     uint32_t start = millis();
+    int hasfix=0;
     uint32_t timeout = delay_until * 1000; // timeout
-    DEBUG_STREAM.println(String("waiting for fix ..., timeout=") + timeout + String("ms"));
-    if (sodaq_gps.scan(true, timeout)) { // true == leave on
+    uint32_t mini_timeout = timeout / 1000; 
+    if (mini_timeout < 2200 ) mini_timeout = 2200;
+    DEBUG_STREAM.println(String("GPS scanning till fix, timeout=") + timeout + String("ms"));
+    
+    while( !hasfix and (millis() - start) < (timeout) ) {
+      if (sodaq_gps.scan(true, mini_timeout)) { // true == leave on
       
-      l_lat = sodaq_gps.getLat() * 10000000;
-      l_lon = sodaq_gps.getLon() * 10000000;
-      hitlat1 = l_lat;
-      hitlng1 = l_lon;
-      
-      l_alt = sodaq_gps.getAlt();
-      hdopNumber = sodaq_gps.getHDOP();
-      DEBUG_STREAM.print("l_alt");
-      DEBUG_STREAM.print(l_alt);
-      DEBUG_STREAM.print("hdop");
-      DEBUG_STREAM.print(hdopNumber);
-      
-    } else {
+        hasfix = 1;
+        
+        l_lat = sodaq_gps.getLat() * 10000000;
+        l_lon = sodaq_gps.getLon() * 10000000;
+        hitlat1 = l_lat;
+        hitlng1 = l_lon;
+    
+        // movement detection
+        if(l_lat_hist==0) l_lat_hist=l_lat;
+        if(l_lon_hist==0) l_lon_hist=l_lon;
+        l_lat_movement = abs(l_lat_hist - l_lat);
+        l_lon_movement = abs(l_lon_hist - l_lon);
+        l_lat_hist= (2*l_lat_hist + l_lat)/3; 
+        l_lon_hist= (2*l_lon_hist + l_lon)/3; 
+          
+        l_alt = sodaq_gps.getAlt();
+        hdopNumber = sodaq_gps.getHDOP();
+        DEBUG_STREAM.print("\nHas found a Fix, "); 
+        DEBUG_STREAM.print(" l_alt ");
+        DEBUG_STREAM.print(l_alt);
+        DEBUG_STREAM.print(" hdop ");
+        DEBUG_STREAM.println(hdopNumber);
+      }
+      DEBUG_STREAM.print(".");
+      led_toggle();
+    }
+    if (!hasfix) {
         DEBUG_STREAM.println("No Fix");        
     }
 }

@@ -21,7 +21,7 @@
 #include <Wire.h>
 #include "Sodaq_UBlox_GPS.h"
 
-#define DEBUG 1
+#define xDEBUG 1
 #ifdef DEBUG
 #define debugPrintLn(...) { if (this->_diagStream) this->_diagStream->println(__VA_ARGS__); }
 #define debugPrint(...) { if (this->_diagStream) this->_diagStream->print(__VA_ARGS__); }
@@ -231,6 +231,7 @@ bool Sodaq_UBlox_GPS::parseGPGGA(const String & line)
 {
     debugPrintLn("parseGPGGA");
     debugPrintLn(String(">> ") + line);
+    
     if (getField(line, 6) != "0") {
         _lat = convertDegMinToDecDeg(getField(line, 2));
         if (getField(line, 3) == "S") {
@@ -260,8 +261,8 @@ bool Sodaq_UBlox_GPS::parseGPGGA(const String & line)
 bool Sodaq_UBlox_GPS::parseGPGSA(const String & line)
 {
     // Not (yet) used
-    debugPrintLn("parseGPGSA");
-    debugPrintLn(String(">> ") + line);
+//    debugPrintLn("parseGPGSA");
+//    debugPrintLn(String(">> ") + line);
     return false;
 }
 
@@ -286,8 +287,8 @@ bool Sodaq_UBlox_GPS::parseGPGSA(const String & line)
  */
 bool Sodaq_UBlox_GPS::parseGPRMC(const String & line)
 {
-    debugPrintLn("parseGPRMC");
-    debugPrintLn(String(">> ") + line);
+//    debugPrintLn("parseGPRMC");
+//    debugPrintLn(String(">> ") + line);
     
 
     if (getField(line, 2) == "A" && getField(line, 12) != "N") {
@@ -352,8 +353,8 @@ bool Sodaq_UBlox_GPS::parseGPGSV(const String & line)
 bool Sodaq_UBlox_GPS::parseGPGLL(const String & line)
 {
     // Not (yet) used
-    debugPrintLn("parseGPGLL");
-    debugPrintLn(String(">> ") + line);
+//    debugPrintLn("parseGPGLL");
+//    debugPrintLn(String(">> ") + line);
     return false;
 }
 
@@ -364,8 +365,8 @@ bool Sodaq_UBlox_GPS::parseGPGLL(const String & line)
 bool Sodaq_UBlox_GPS::parseGPVTG(const String & line)
 {
     // Not (yet) used
-    debugPrintLn("parseGPVTG");
-    debugPrintLn(String(">> ") + line);
+//    debugPrintLn("parseGPVTG");
+//    debugPrintLn(String(">> ") + line);
     
     return false;
 }
