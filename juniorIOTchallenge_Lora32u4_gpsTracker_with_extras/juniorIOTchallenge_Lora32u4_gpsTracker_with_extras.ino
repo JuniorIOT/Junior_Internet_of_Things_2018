@@ -21,7 +21,7 @@
    // MIN = shortest wait time if movement was detected
 #define LORAWAN_TX_INTERVAL_MIN 15  // seconds between LoraWan messages
 #define LORAWAN_TX_INTERVAL_MAX 240
-#define TXTRIGGER_gps_movement 5000 // will send if Min interval reached and GPS movement > value
+#define TXTRIGGER_gps_movement 8000 // will send if Min interval reached and GPS movement > value
     // gps coordinates in Long value means 52.6324510 translates into 526324510
     // 5000 trigger value means 25-30 meters
    
