@@ -271,8 +271,8 @@ void loop() {
       // if negotiateState == 1 then check if the shot was a hit
       // listen if someone else fired
       setupRadio();
-      DEBUG_STREAM.print(F("21."));
-      listenRadio();  // does this have a hardcoded time in library?
+      DEBUG_STREAM.print(F("2."));
+      listenRadio();                // does this have a hardcoded time in library?
       DEBUG_STREAM.print(F("3."));
       readCompass();      
       DEBUG_STREAM.print(F("4."));
