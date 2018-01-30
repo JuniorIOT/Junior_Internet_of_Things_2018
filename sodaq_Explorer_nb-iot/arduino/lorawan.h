@@ -84,4 +84,9 @@ void doOneLoraWan() {
   DEBUG_STREAM.print("Completed: Do one lora. milis="); DEBUG_STREAM.println(millis());
 }
 
+void resetSomeLoraValues() {
+  /*for(int i = 18; i < PAYLOADSIZE; i++) {
+    if(!(i == 33))myLoraWanData[i] = 0x00;
+  }*/
+}
 
