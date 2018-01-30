@@ -3,16 +3,27 @@
  * Modified By Marco van Schagen for Junior IOT Challenge 2018
  *******************************************************************************/ 
  
-#define DEBUG           // if DEBUG is defined, some code is added to display some basic debug info
-#define DEBUGLEVEL2     // if DEBUGLEVEL2 is defined, some code is added to display deeper debug info
+// build options: 
+//   Lora32u4            - compile as adafruit feather 32u4
+//   SS micro atmega32u4 - compile as ??   bricked --> use reset to GND at programming time 
+
+ 
+//#define DEBUG           // if DEBUG is defined, some code is added to display some basic debug info
+//#define DEBUGLEVEL2     // if DEBUGLEVEL2 is defined, some code is added to display deeper debug info
 //#define DEBUGRADIO      // if DEBUGLEVEL2 is defined, some code is added to display radio debug info
 //#define doradio
 
 #define VBATPIN A9
 #define LEDPIN 13 
-#define LORAWAN_TX_INTERVAL 240  // seconds between LoraWan messages
+   // seconds between LoraWan messages
    // 240 = every 4 minutes,  was original 10/26
-   //  60 = once a minute, that is okay when war-driving with only few minutes daily within range
+   //  60 = once a minute
+   // MIN = shortest wait time if movement was detected
+#define LORAWAN_TX_INTERVAL_MIN 15  // seconds between LoraWan messages
+#define LORAWAN_TX_INTERVAL_MAX 240
+#define TXTRIGGER_gps_movement 5000 // will send if Min interval reached and GPS movement > value
+    // gps coordinates in Long value means 52.6324510 translates into 526324510
+    // 5000 trigger value means 25-30 meters
    
 //////////////////////////////////////////////
 // GPS libraries, mappings and things
@@ -38,6 +49,8 @@ long gps_nofix_count = 0;
 unsigned long gps_last_time = millis();
 //unsigned long gps_gets_time = 5000;
 
+
+
 //////////////////////////////////////////////
 // LoraWan libraries, mappings and things
 //////////////////////////////////////////////
@@ -50,7 +63,8 @@ unsigned long gps_last_time = millis();
 
 int TX_COMPLETE_was_triggered = 0;  // 20170220 added to allow full controll in main Loop
 uint8_t  myLoraWanData[40];  // including byte[0]
-unsigned long last_lora_time = millis(); // last time lorawan ran
+unsigned long last_lora_time = millis(); // last time lorawan 
+unsigned long last_check_time = millis(); // last time we checked for movement detection
 
 //////////////////////////////////////////////////////////
 //// Compass HMC5983
@@ -114,7 +128,7 @@ void loop();
 //////////////////////////////////////////////////////////
 //// Kaasfabriek routines for gps
 ////////////////////////////////////////////
-long l_lat, l_lon, l_alt;
+long l_lat, l_lon, l_alt, l_lat_hist, l_lon_hist, l_lat_movement, l_lon_movement;
 int hdopNumber;
 
 void put_gpsvalues_into_sendbuffer() {
@@ -247,6 +261,15 @@ void doGPS(unsigned long gps_listen_timeout) {
   #ifdef DEBUGLEVEL2
   Serial.println(F("Completed listening to GPS."));
   #endif
+  if(hasFix) {
+    // movement detection
+    if(l_lat_hist==0) l_lat_hist=l_lat;
+    if(l_lon_hist==0) l_lon_hist=l_lon;
+    l_lat_movement = abs(l_lat_hist - l_lat);
+    l_lon_movement = abs(l_lon_hist - l_lon);
+    l_lat_hist= (2*l_lat_hist + l_lat)/3; 
+    l_lon_hist= (2*l_lon_hist + l_lon)/3; 
+  }
 }
 void doGPS_and_put_values_into_sendbuffer() {
   #ifdef DEBUG
@@ -269,6 +292,7 @@ void gps_init() {
   // load the send buffer with dummy location 0,0. This location 0,0 is recognized as dummy by TTN Mapper and will be ignored
   //l_lat = 526324000; l_lon = 47388000; l_alt = 678; hdopNumber = 23459;   // Alkmaar
   l_lat = 0; l_lon = 0; l_alt = 678; hdopNumber = 99999;   // the zero position
+  l_lat_hist = 0; l_lon_hist = 0; l_lat_movement = 0; l_lon_movement = 0; // movement detection
   put_gpsvalues_into_sendbuffer(); 
   
 //  Serial.print( F("The NeoGps people are proud to show their smallest possible size:\n") );
@@ -1035,6 +1059,7 @@ void setup() {
   Serial.print(F("  Send one lorawan message as part of system init. milis=")); Serial.println(millis());
   #endif
   last_lora_time = millis();
+  last_check_time = millis();
   lmic_slim_init();
   doOneLoraWan();    
   
@@ -1053,6 +1078,22 @@ void loop() {
   ////// GPS pre-loop //////////////
   // Serial.println(F("  No lengthy GPS read-till-fix is needed, the GPS will find/keep a fix as log as power is on. "));
 
+
+//  unsigned long gps_listen_startTime = millis(); 
+//  unsigned long gps_timeout = 3;  // sec
+//  
+//  int times_without_char=0;
+//  while((millis() - gps_listen_startTime) < (gps_timeout * 1000L)) {
+//    // for debugging
+//    if (ss.available()) {
+//      char c = ss.read();
+//      Serial.write(c);
+//    }
+//    if(times_without_char++>30 && times_without_char<60) Serial.write(".");
+//  }
+//  Serial.println();
+
+
 #ifdef doradio
   ////////// Radio  ///////////
   #ifdef DEBUGLEVEL2
@@ -1062,7 +1103,7 @@ void loop() {
   // time needs to be long enough not to miss a radio, we do not worry about GPS as it will keep fix as long as powered
   if(radioActive) {
     Radio_init();
-    while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L)) {
+    while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL_MAX * 1000L)) {
     // next command is not what we want to do
     doOneRadio();  // sends a radio message and will listen for return message for a certain time
     delay(5000);
@@ -1083,14 +1124,8 @@ void loop() {
   // we keep doing this part until it is time to send one LORAWAN TX to the world
 #endif 
 
-  // if we did not wait for next lora moment, we will need to do that now
-  #ifdef DEBUGLEVEL2
-  Serial.print(F("  Delay before lorawan if needed: expected interval ")); 
-  Serial.print(LORAWAN_TX_INTERVAL); Serial.print(F(" sec. "));
-  Serial.print(F("time left: ")); 
-  Serial.print((millis() - last_lora_time)/1000); Serial.print(F(" sec."));
-  #endif
-  while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L)) {
+  // nothing more to do, need to delay till next send time/action time
+  while((millis() - last_check_time) < (LORAWAN_TX_INTERVAL_MIN * 1000L)) {
     delay(5000);   
     Serial.print(F("."));
   }
@@ -1110,13 +1145,28 @@ void loop() {
   l_lat = 0; l_lon = 0; l_alt = 678; hdopNumber = 99999;   // the zero position
   doGPS_and_put_values_into_sendbuffer();
 
-  ////////// Now we need to send a LORAWAN update to the world  ///////////
+  ////////// Now CHECK IF we need to send a LORAWAN update to the world  ///////////
   // switch the LMIC antenna to LoraWan mode
-  Serial.println(F("   - - - - About to send one LoraWan. milis=")); Serial.println(millis());
-  last_lora_time = millis();
-  lmic_slim_init();
-  doOneLoraWan();    
+  if ( (millis() - last_lora_time) > ((LORAWAN_TX_INTERVAL_MAX) * 1000L)
+      or (l_lat_movement > TXTRIGGER_gps_movement) 
+      or (l_lon_movement > TXTRIGGER_gps_movement) ) {
+    Serial.print(F("   - - - - About to send one LoraWan. ")); 
+    last_lora_time = millis();
+    lmic_slim_init();
+    doOneLoraWan();    
+  } else {
+    Serial.print(F("   - Not sending. ")); 
+  }
+  last_check_time = millis();
   
+  Serial.print(F(" milis=")); Serial.println(millis());
+  Serial.print(F("     l_lat=")); Serial.print(l_lat);
+  Serial.print(F("; l_lat_hist=")); Serial.print(l_lat_hist);
+  Serial.print(F("; l_lat_movement=")); Serial.println(l_lat_movement);
+  Serial.print(F("     l_lon=")); Serial.print(l_lon);
+  Serial.print(F("; l_lon_hist=")); Serial.print(l_lon_hist);      
+  Serial.print(F("; l_lon_movement=")); Serial.println(l_lon_movement);
+      
   /////////// Loop again  //////////////
   #ifdef DEBUGLEVEL2
   Serial.println(F("  End of loop. milis=")); Serial.println(millis());

@@ -137,8 +137,8 @@ void formatRadioPackage(uint8_t *loopbackToData) {
   } else if(didSomeoneElseFire && shouldITalkBack) {
     loopbackToData[0] = 0b00000010;
     SerialUSB.print("Target: ");
-    SerialUSB.println(whoWasItThatTalkedToMe());
-    loopbackToData[8] |= whoWasItThatTalkedToMe() << 4;
+    SerialUSB.println(whoTalkedToMe());
+    loopbackToData[8] |= whoTalkedToMe() << 4;
     SerialUSB.println(loopbackToData[8], BIN);
     loopbackToData[8] |= (myLoraWanData[33] >> 7) & 0b00000001;// better not call wasIHit(); because then it keeps repeating
     SerialUSB.println(loopbackToData[8], BIN);

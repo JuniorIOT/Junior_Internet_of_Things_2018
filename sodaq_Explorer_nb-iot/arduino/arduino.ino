@@ -4,6 +4,8 @@
  * Modified By Roel Drost Calculates the disatance and bearing given two GPS location near each other.
  *******************************************************************************/ 
 
+//  Sodaq explorer board --> compile for Sodaq Explorer
+
 // TODO prepare your Arduino IDE:
 //   install some standard libraries, get the generic version:
 //      - Sodaq_nbIOT
@@ -36,9 +38,10 @@
 //giving the software serial as port to use
 rn2xx3 myLora(loraSerial);
 #define LEDPIN LED_BUILTIN
-#define LORAWAN_TX_INTERVAL 240  // seconds between LoraWan messages
+#define LORAWAN_TX_INTERVAL_MAX 240  // seconds between LoraWan messages
 uint8_t  myLoraWanData[40];  // including byte[0]
 unsigned long last_lora_time = millis(); // last time lorawan ran
+unsigned long last_check_time = millis();  // last time we did movement detection 
 uint16_t packagecounter;
 
 // GPS
@@ -64,7 +67,7 @@ uint8_t *decoded;
 
 // game
 int negotiateState = 0;
-int buttonpin = 8; // pin of the gun button
+int buttonpin = 8; // pin of the push button
 float hitlat1, hitlng1, hitlat2, hitlng2, hitcompass;
 boolean radioActive = true;  // this name is for radio, not LoraWan
 boolean loraWannaBeNow = false;
@@ -112,7 +115,7 @@ void put_Compass_and_Btn_into_sendbuffer();
 //////////////////////////////////////////////////////////
 //// Game
 ////////////////////////////////////////////
-uint8_t whoWasItThatTalkedToMe();
+uint8_t whoTalkedToMe();
 uint8_t wasIHit();
 void IHitSomeone();
 //////////////////////////////////////////////////////////
@@ -153,7 +156,7 @@ bool has_sent_allready = false;
 ///////////////////////////////////////////////
 #include "loraradio.h"
 
-uint8_t whoWasItThatTalkedToMe() {
+uint8_t whoTalkedToMe() {
   
   return who;
 }
@@ -256,7 +259,7 @@ void loop() {
   // time needs to be long enough not to miss a radio, we do not worry about GPS as it will keep fix as long as powered
   if(radioActive) {
     bool loraWannaBeNow = false;
-    while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL * 1000L) && !loraWannaBeNow) {
+    while((millis() - last_lora_time) < (LORAWAN_TX_INTERVAL_MAX * 1000L) && !loraWannaBeNow) {
       
       
       // better listen to radio
