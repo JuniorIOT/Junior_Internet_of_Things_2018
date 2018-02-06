@@ -18,8 +18,12 @@
     somepin2 to Yellow (RX into sensor)
 */
 
-//SoftwareSerial pm_serial(10, 11); // RX, TX
-#define pm_serial Serial  // hardwareserial on D0, D1
+
+//#define pm_serial Serial  // hardwareserial on D0, D1  --> werkt niet met shield erop
+//SoftwareSerial pm_serial(pin_PM_TXD_rx, pin_PM_RXD_tx); // RX, TX  --> standaard SofrwareSerial werkt niet op Sodaq Explorer
+//NeoSWSerial pm_serial(pin_PM_TXD_rx, pin_PM_RXD_tx);  // tx, rx
+
+SoftwareSerial pm_serial(pin_PM_TXD_rx, pin_PM_RXD_tx); // RX, TX  --> samd SoftwareSerial werkt niet op Sodaq Explorer
 
 float pm25; //2.5um particles detected in ug/m3
 float pm10; //10um particles detected in ug/m3
@@ -210,6 +214,4 @@ void pm_measure()
     DEBUG_STREAM.println("PM Timeout or CRC error");
     DEBUG_STREAM.println("PM Double check connections");
   }
-
-  delay(5);
 }

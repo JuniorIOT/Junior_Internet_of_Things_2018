@@ -154,18 +154,18 @@ optional:
 ## Pin mapping for Sodaq Explorer & NB-IOT gps shield
 ```
 
-                                                                             ┌───────────────────────┐
-                                                                             │    PM dust sensor     │
-                                                                             │SDS021 42x32x24mm 60mA │
-                                                                             │SDS011 71x70x23mm 220mA│
-                                                                             │RXD TXD GND 5V     misc│
-                             ┌───┐           ┌───┐                           └─┬───┬───┬───┬────┬─┬─┬┘
-                             │  led  ┌───┐   │  push                           │   │   │   │
-   SODAQ                     │   │   │  spk  │  btn                            │   │  gnd  5v
-   EXPLORER   I2c            │   │   │   │   │   │                             │   │    
+                                                                     ┌───────────────────────┐
+                                                                     │    PM dust sensor     │
+                                                                     │SDS021 42x32x24mm 60mA │
+                                                                     │SDS011 71x70x23mm 220mA│
+                                                                     │RXD TXD GND 5V     misc│
+                             ┌───┐           ┌───┐                   └─┬───┬───┬───┬────┬─┬─┬┘
+                             │  led  ┌───┐   │  push                   │   │   │   │
+   SODAQ                     │   │   │  spk  │  btn                    │   │  gnd  5v
+   EXPLORER   I2c            │   │   │   │   │   │                     │   │    
    ╔═════════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═╗═════════╗ 
    ║RSTBTN  SCL SDA  X  GND D13 D12 D11 D10  D9 D8  - D7  D6  D5  D4  D3  D2  D1  D0 ║     lora║ 
-   ║                        SCK MI  MO  SS                                    TX  RX ║      ant║
+   ║                        SCK MI  MO  SS                            tx  rx  TX  RX ║      ant║
    ║    LED-BUILTIN                                                           Serial ║         ║
    ║                   TEMP_SENSOR       LED_RED                                     \\        ║
    │USBCONN             analog           LED_GREEN                                    \\       ║

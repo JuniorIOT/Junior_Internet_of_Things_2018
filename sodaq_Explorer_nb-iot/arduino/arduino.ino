@@ -1,3 +1,4 @@
+
 /*******************************************************************************
  * Modified By DenniZr & Marco van Schagen for Junior IOT - Smart City Challenge 2018 #juniorIOTchallenge2018
  * Modified By Marco van Schagen for Junior IOT Challenge 2018
@@ -20,11 +21,7 @@
 //     static const String DEVADDR = "26....BD";
 //      --> use strings, not arrays OR YOU WILL GET ERROR IN FUNCTION void rn2483_init()
 
-// TODO wire your buttons and tie up your shoelaces
-//     D8 --> pushbutton --> D9
-//     D10 --> speaker --> D11
-//    D12 --> led + resistor --> D13 
-
+// TODO wire your buttons
 // define wirings
 #define pin_button 8  
 #define gnd_button 9         // pin of the push button
@@ -32,7 +29,8 @@
 #define gnd_buzzer 11
 #define led_directionfound 12
 #define gnd_directionfound 13
-
+#define pin_PM_TXD_rx 2
+#define pin_PM_RXD_tx 3
 
  
 #define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
@@ -91,6 +89,7 @@ uint8_t buttonPressed;
 #include "roeldrost.h"
 
 // sensors
+#include "SoftwareSerial.h"  // samd version; constructor: SoftwareSerial
 #include "temperature.h"
 #include "wh-z19b.h"
 #include "sds021.h"
@@ -245,10 +244,10 @@ void setup() {
   //sensors
   setup_pm();
   pm_getFirmwareVersion();
-//  pm_goToSleep();
-//  delay(1000);
-//  pm_wakeUp();
-//  while(1){pm_measure();};  // this line for testing PM only
+  pm_goToSleep();
+  delay(1000);
+  pm_wakeUp();
+  while(1){pm_measure();delay(5);};  // this line for testing PM only
   
   // game parameters
   negotiateState = 0;

@@ -1,4 +1,4 @@
-equired libraries:
+required libraries:
 - Sodaq_nbIOT https://github.com/SodaqMoja/Sodaq_nbIOT
 - Sodaq_wdt https://github.com/SodaqMoja/Sodaq_wdt
 
