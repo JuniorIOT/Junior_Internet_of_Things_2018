@@ -154,18 +154,52 @@ optional:
 ## Pin mapping for Sodaq Explorer & NB-IOT gps shield
 ```
     -----------------------------------------------------------------------------
-    
-   ╔════════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═ ═════╗ 
-   ║       SCL SDA  X  GND D13 D12 D11 D10  D9  D8  - D7  D6  D5  D4  D3  D2  D1  D0║     ║ 
-   ║ (RST BTN)                                                               TX  RX ║  ant║
-   │                                                                                 \\   ║
-   │(USB CONN)                     SODAQ EXPLORER & NB-IOT SHIE                       ║   ║
-   │            A7  A8                                                                ║   ║
-   ║    GND 3V D11 D12  o o+                                                          ║   ║
-   ║      o  o  o  o   batt                                                           ║   ║
-   ║    GND 3V SCA SCL  o o+                                                          ║   ║
-   ║      o  o  o  o   solr X   X  RES 3.3 5V  GND  GND BAT - A0  A1  A2  A3  A4  A5 //   ║
-   ╚════════════════════════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═════╬═══╬═══╬═══╬═══╬═══╬═ ═════╝
+   SODAQ
+   EXPLORER   
+   ╔═════════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═╗═════╗ 
+   ║RSTBTN  SCL SDA  X  GND D13 D12 D11 D10  D9 D8  - D7  D6  D5  D4  D3  D2  D1  D0 ║ lora║ 
+   ║                                                                          TX  RX ║  ant║
+   ║    LED-BUILTIN                      LED_RED                              Serial ║     ║
+   ║                   TEMP_SENSOR       LED_GREEN                                   \\    ║
+   │USBCONN                              LED_BLUE                                     \\   ║
+   │SerialUsb                                          < ATSAMD21 >                    ║   ║
+   │                                                                                   ║   ║
+   │               A7  A8                                                              ║   ║
+   ║       GND 3V D11 D12  o o+                                                        ║   ║
+   ║         o  o  o  o    batt      o int          [ lora RN2483   ]                  ║   ║
+   ║BTN                    o o+      o              [   Serial2     ]                  ║   ║
+   ║       GND 3V SCA SCL  solr      o ext                                             ║   ║
+   ║BLE      o  o  o  o                                                               //   ║
+   ║Serial1                  X   X  RES 3.3 5V  GND GND BAT - A0  A1  A2  A3  A4  A5 //    ║
+   ╚═════════════════════════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═════╬═══╬═══╬═══╬═══╬═══╬═╝═════╝
+   
+   NB-IOT
+   SHIELD   
+   ╔═════════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═╗ 
+   ║        SCL SDA  X  GND D13 D12 D11 D10  D9 D8  - D7  D6  D5  D4  D3  D2  D1  D0 ║ 
+   ║                                                                          TX  RX ║
+   ║                               LSM303AGR/LSM303C ACCEL & MAGNETO          Serial ║ 
+   ║         [                  ]  I2C-address ACCEL 0x1D, MAG 0x1E                   \
+   ║nb-iot   [      NB-IOT      ]                                                      \
+   ║ant      [ UBLOX SARA N200  ]  HTS221 TEMP&HUM                                     ║ 
+   ║         [                  ]  I2C-address 0x5F            [                   ]   ║ 
+   ║           Serial                                          [        GPS        ]   ║ 
+   ║                               LPS22HB BAROMETRIC          [ UBLOX SAM-M8Q-0-10]   ║ 
+   ║                               I2C-address is 0x5D         [                   ]   ║   
+   ║                                                              I2C-address 0x42     ║   
+   ║  SD CARD                                    RSTBTN                                ║ 
+   ║                                                                                   /
+   ║                         X   X  RES 3.3 5V  GND GND BAT - A0  A1  A2  A3  A4  A5  /
+   ╚═════════════════════════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═════╬═══╬═══╬═══╬═══╬═══╬═╝
+   
+   	   LPS22HB BAROMETRIC 
+       I2C-address is 0x5D       
+       
+       HTS221 TEMP&HUM   
+       I2C-address 0x5F
+       
+       
+       
 
 ```
 ## IOT TTN message format
