@@ -84,12 +84,14 @@ uint8_t buttonPressed;
 // GPS heading formula
 #include "roeldrost.h"
 
+// sensors
+#include "temperature.h"
+#include "wh-z19b.h"
+#include "sds021.h"
+
 // led on is used to signal to the user that a loop is completing
 void led_on();
 void led_off();
-
-// sensors
-#include "temperature.h"
 
 //////////////////////////////////////////////////
 // Kaasfabriek routines for RN2483 for LoraWan
@@ -160,8 +162,7 @@ bool has_sent_allready = false;
 ///////////////////////////////////////////////
 #include "loraradio.h"
 
-uint8_t whoTalkedToMe() {
-  
+uint8_t whoTalkedToMe() {  
   return who;
 }
 

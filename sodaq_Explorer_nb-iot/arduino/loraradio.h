@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////
-// Kaasfabriek routines for RN2483 radio 2 radio
+// JuniorIOTchallenge routines for RN2483 radio 2 radio
 ///////////////////////////////////////////////
 void doOneRadio() {
   String received = "";

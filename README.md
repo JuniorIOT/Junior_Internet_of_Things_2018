@@ -42,9 +42,8 @@ optional:
 - tbd1       https://github.com/tbd1
 - tb21       https://github.com/tbd2
 
-## Pin mapping
+## Pin mapping for Lora32u4
 ```
-    Suggested pin mapping:
     -----------------------------------------------------------------------------
 
                                   2A usb charge cable
@@ -104,9 +103,12 @@ optional:
                         Rx               GND
          (Vout 3.3V 10 mA)               Vin 5V
                             side window
-   
-   or an Xtra small implementation (project X):  
-           
+
+```
+## Pin mapping for Xtra small implementation (project X) on 3.3V SS Beetle
+```
+    -----------------------------------------------------------------------------
+  
                   ┌───────────┐
                   │  │  │  │  │              
                   │  │  │  │  │              
@@ -123,6 +125,11 @@ optional:
                  RXD TXD I2C I2C RFM               
                  CO2 CO2 SDA SCL 3V3
                                    + LiPo?
+```
+## Pin mapping for Xtra small on 5V CJMCU Beetle
+```
+    -----------------------------------------------------------------------------
+  
                                 
                   ┌───────────┐
                   │  │  │  │  │              

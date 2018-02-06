@@ -1,3 +1,5 @@
+//JuniorIOTchallenge
+
 #include "Sodaq_HTS221.h"
 
 bool setupTemperature() {

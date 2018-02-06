@@ -1,4 +1,4 @@
-const int c = 261;
+// JuniorIOTchallengeconst int c = 261;
 const int d = 294;
 const int e = 329;
 const int f = 349;
