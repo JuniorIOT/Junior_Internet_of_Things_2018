@@ -15,10 +15,10 @@ unsigned int readCompass() {
   doGPS(1000);
   if(sodaq_gps.getCogHeading() != -1) {
     headingFiltered = sodaq_gps.getCogHeading();
-    digitalWrite(hasWalkingDirectionLED, HIGH);
+    digitalWrite(led_directionfound, HIGH);
   } else {
     headingFiltered = sodaq_gps.getCogHeading();
-    digitalWrite(hasWalkingDirectionLED, LOW);
+    digitalWrite(led_directionfound, LOW);
     /* for testing
     headingFiltered = compassOneValue();*/
   }

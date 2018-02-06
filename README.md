@@ -153,28 +153,35 @@ optional:
 ```  
 ## Pin mapping for Sodaq Explorer & NB-IOT gps shield
 ```
-    -----------------------------------------------------------------------------
-   SODAQ
-   EXPLORER   
-   ╔═════════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═╗═════╗ 
-   ║RSTBTN  SCL SDA  X  GND D13 D12 D11 D10  D9 D8  - D7  D6  D5  D4  D3  D2  D1  D0 ║ lora║ 
-   ║                                                                          TX  RX ║  ant║
-   ║    LED-BUILTIN                      LED_RED                              Serial ║     ║
-   ║                   TEMP_SENSOR       LED_GREEN                                   \\    ║
-   │USBCONN                              LED_BLUE                                     \\   ║
-   │SerialUsb                                          < ATSAMD21 >                    ║   ║
-   │                                                                                   ║   ║
-   │               A7  A8                                                              ║   ║
-   ║       GND 3V D11 D12  o o+                                                        ║   ║
-   ║         o  o  o  o    batt      o int          [ lora RN2483   ]                  ║   ║
-   ║BTN                    o o+      o              [   Serial2     ]                  ║   ║
-   ║       GND 3V SCA SCL  solr      o ext                                             ║   ║
-   ║BLE      o  o  o  o                                                               //   ║
-   ║Serial1                  X   X  RES 3.3 5V  GND GND BAT - A0  A1  A2  A3  A4  A5 //    ║
-   ╚═════════════════════════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═════╬═══╬═══╬═══╬═══╬═══╬═╝═════╝
+
+                                                                             ┌───────────────────────┐
+                                                                             │    PM dust sensor     │
+                                                                             │SDS021 42x32x24mm 60mA │
+                                                                             │SDS011 71x70x23mm 220mA│
+                                                                             │RXD TXD GND 5V     misc│
+                             ┌───┐           ┌───┐                           └─┬───┬───┬───┬────┬─┬─┬┘
+                             │  led  ┌───┐   │  push                           │   │   │   │
+   SODAQ                     │   │   │  spk  │  btn                            │   │  gnd  5v
+   EXPLORER   I2c            │   │   │   │   │   │                             │   │    
+   ╔═════════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═╗═════════╗ 
+   ║RSTBTN  SCL SDA  X  GND D13 D12 D11 D10  D9 D8  - D7  D6  D5  D4  D3  D2  D1  D0 ║     lora║ 
+   ║                        SCK MI  MO  SS                                    TX  RX ║      ant║
+   ║    LED-BUILTIN                                                           Serial ║         ║
+   ║                   TEMP_SENSOR       LED_RED                                     \\        ║
+   │USBCONN             analog           LED_GREEN                                    \\       ║
+   │SerialUsb                            LED_BLUE      < ATSAMD21 >                    ║       ║
+   │                                                                                   ║       ║
+   │               A7  A8                                                              ║       ║
+   ║       GND 3V D11 D12  o o+                                                        ║       ║
+   ║         o  o  o  o    batt      o int          [ lora RN2483   ]                  ║       ║
+   ║BTN                    o o+      o              [   Serial2     ]                  ║       ║
+   ║       GND 3V SCA SCL  solr      o ext                                             ║       ║
+   ║BLE      o  o  o  o                                                     SDA1 SCL1 //       ║
+   ║Serial1                  X   X  RES 3.3 5V  GND GND BAT - A0  A1  A2  A3  A4  A5 //        ║
+   ╚═════════════════════════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═════╬═══╬═══╬═══╬═══╬═══╬═╝═════════╝
    
    NB-IOT
-   SHIELD   
+   SHIELD     I2c
    ╔═════════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═╗ 
    ║        SCL SDA  X  GND D13 D12 D11 D10  D9 D8  - D7  D6  D5  D4  D3  D2  D1  D0 ║ 
    ║                                                                          TX  RX ║

@@ -29,7 +29,7 @@ void beep(int note, int duration);
 void setupSound()
 {
   //Setup pin modes
-  pinMode(buzzerPin, OUTPUT);
+  pinMode(pin_buzzer, OUTPUT);
 }
  
 void soundLoopOnce()
@@ -71,8 +71,8 @@ void soundLoopOnce()
  
 void beep(int note, int duration)
 {
-  //Play tone on buzzerPin
-  tone(buzzerPin, note, duration);
+  //Play tone on pin_buzzer
+  tone(pin_buzzer, note, duration);
  
   //Play different LED depending on value of 'counter'
   if(counter % 2 == 0)
@@ -83,8 +83,8 @@ void beep(int note, int duration)
     delay(duration);
   }
  
-  //Stop tone on buzzerPin
-  noTone(buzzerPin);
+  //Stop tone on pin_buzzer
+  noTone(pin_buzzer);
  
   delay(50);
  

@@ -21,9 +21,18 @@
 //      --> use strings, not arrays OR YOU WILL GET ERROR IN FUNCTION void rn2483_init()
 
 // TODO wire your buttons and tie up your shoelaces
-//     D8 --> pushbutton --> ground
-//     D9 --> speaker --> ground
-//    D10 --> led + resistor --> ground 
+//     D8 --> pushbutton --> D9
+//     D10 --> speaker --> D11
+//    D12 --> led + resistor --> D13 
+
+// define wirings
+#define pin_button 8  
+#define gnd_button 9         // pin of the push button
+#define pin_buzzer 10
+#define gnd_buzzer 11
+#define led_directionfound 12
+#define gnd_directionfound 13
+
 
  
 #define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
@@ -59,7 +68,6 @@ int hdopNumber;
 // compass - library in nb-iot compass folder
 #include <sodaq_compass.h>  // library to be added from Zip in this project
 NBIOT_Compass compass;      // declares an object to handle specific stuff for you
-#define hasWalkingDirectionLED 10
 
 // radio
 int16_t packetnum = 0;  // packet counter, we increment per transmission
@@ -71,11 +79,9 @@ uint8_t *decoded;
 
 // game
 int negotiateState = 0;
-int buttonpin = 8; // pin of the push button
 float hitlat1, hitlng1, hitlat2, hitlng2, hitcompass;
 boolean radioActive = true;  // this name is for radio, not LoraWan
 boolean loraNeedsSendNow = false;  // an explanation could be given
-int buzzerPin = 9;
 #include "starwars.h"
 uint8_t MyTeamID = 1;
 uint8_t MyID = 2;
@@ -188,8 +194,6 @@ uint8_t wasIHit() {
     myLoraWanData[33] = 0b00000000;
     return nothit;    
   }
-  
-  
 }
 
 void IHitSomeone() {
@@ -216,9 +220,19 @@ void loraDatasetByte() {
 
 void setup() {
   pinMode(LEDPIN, OUTPUT);
-  pinMode(hasWalkingDirectionLED, OUTPUT);
-  digitalWrite(hasWalkingDirectionLED, HIGH);
-  pinMode(buttonpin, INPUT_PULLUP);
+  
+  pinMode(led_directionfound, OUTPUT);
+  pinMode(gnd_directionfound, OUTPUT);
+  digitalWrite(led_directionfound, HIGH);
+  digitalWrite(gnd_directionfound, LOW);
+  
+  pinMode(gnd_buzzer, OUTPUT);
+  digitalWrite(gnd_buzzer, LOW);
+  
+  pinMode(pin_button, INPUT_PULLUP);
+  pinMode(gnd_button, OUTPUT);
+  digitalWrite(gnd_button, LOW);
+  
   delay(1000);  // https://www.thethingsnetwork.org/forum/t/got-adafruit-feather-32u4-lora-radio-to-work-and-here-is-how/6863
   
   DEBUG_STREAM.begin(115200);   // whether 9600 or 115200; the gps feed shows repeated char and cannot be interpreted, setting high value to release system time
@@ -227,6 +241,14 @@ void setup() {
   DEBUG_STREAM.print(F("\nStarting device: ")); DEBUG_STREAM.println(DEVADDR); 
   device_startTime = millis();
   packagecounter = 0;
+  
+  //sensors
+  setup_pm();
+  pm_getFirmwareVersion();
+//  pm_goToSleep();
+//  delay(1000);
+//  pm_wakeUp();
+//  while(1){pm_measure();};  // this line for testing PM only
   
   // game parameters
   negotiateState = 0;
@@ -251,7 +273,8 @@ void setup() {
   last_check_time = millis();
   doOneLoraWan();
   DEBUG_STREAM.print(F("\nCompleted: Setup. milis=")); DEBUG_STREAM.println(millis());
-  digitalWrite(hasWalkingDirectionLED, LOW);
+  digitalWrite(led_directionfound, LOW);
+
 }
 
 void loop() {
@@ -278,7 +301,7 @@ void loop() {
       readCompass();      
       DEBUG_STREAM.print(F("4."));
 
-      if(digitalRead(buttonpin) == LOW) { // input pullup with ground
+      if(digitalRead(pin_button) == LOW) { // input pullup with ground
         didIFire = true;
         negotiateState = 1;
         buttonpressedForLoraWan = true;        
@@ -289,14 +312,14 @@ void loop() {
 
       if(didIFire && negotiateState == 1) {
         // tell other person I fired
-        tone(buzzerPin, 261, 250);
+        tone(pin_buzzer, 261, 250);
         setupRadio();
         doOneRadio();      
         
         // if you fired you wait 3 times for someone to say something back
         for(int i = 0; i < 3; i++) {
           DEBUG_STREAM.println("Waiting for the other person to say he was hit");
-          tone(buzzerPin, 349, 250);
+          tone(pin_buzzer, 349, 250);
           setupRadio();
           listenRadio();          
         }
@@ -328,6 +351,8 @@ void loop() {
   put_Volts_and_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
   doGPS_and_put_values_into_lora_sendbuffer();   
+
+  pm_measure(); //hier moeten we nog wat mee
 
   loraDatasetByte(); // what am i doing with the extra bytes - sending radio to lora or sending extra sensors
   
