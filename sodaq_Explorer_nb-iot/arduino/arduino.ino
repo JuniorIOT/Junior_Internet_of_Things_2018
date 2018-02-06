@@ -244,10 +244,10 @@ void setup() {
   //sensors
   setup_pm();
   pm_getFirmwareVersion();
-  pm_goToSleep();
-  delay(1000);
-  pm_wakeUp();
-  while(1){pm_measure();delay(5);};  // this line for testing PM only
+//  pm_goToSleep();
+//  delay(1000);
+//  pm_wakeUp();
+//  while(1){pm_measure();delay(5);};  // this line for testing PM only
   
   // game parameters
   negotiateState = 0;
