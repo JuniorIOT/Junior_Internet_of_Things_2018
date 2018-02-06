@@ -218,6 +218,8 @@ void loraDatasetByte() {
 
 
 void setup() {
+  delay(1000);  // https://www.thethingsnetwork.org/forum/t/got-adafruit-feather-32u4-lora-radio-to-work-and-here-is-how/6863
+  
   pinMode(LEDPIN, OUTPUT);
   
   pinMode(led_directionfound, OUTPUT);
@@ -232,8 +234,6 @@ void setup() {
   pinMode(gnd_button, OUTPUT);
   digitalWrite(gnd_button, LOW);
   
-  delay(1000);  // https://www.thethingsnetwork.org/forum/t/got-adafruit-feather-32u4-lora-radio-to-work-and-here-is-how/6863
-  
   DEBUG_STREAM.begin(115200);   // whether 9600 or 115200; the gps feed shows repeated char and cannot be interpreted, setting high value to release system time
   delay(100);
 
@@ -244,6 +244,7 @@ void setup() {
   //sensors
   setup_pm();
   pm_getFirmwareVersion();
+  pm_measure();
 //  pm_goToSleep();
 //  delay(1000);
 //  pm_wakeUp();
@@ -351,7 +352,7 @@ void loop() {
   put_Compass_and_Btn_into_sendbuffer();
   doGPS_and_put_values_into_lora_sendbuffer();   
 
-  pm_measure(); //hier moeten we nog wat mee
+  pm_measure(); //hier moeten we nog wat met de resultaten doen
 
   loraDatasetByte(); // what am i doing with the extra bytes - sending radio to lora or sending extra sensors
   

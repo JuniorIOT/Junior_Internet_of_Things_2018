@@ -78,12 +78,11 @@ boolean pm_dataAvailable(void)
   }
   else if (sensorValue[1] == 0xC5) //Response to command
   {
-    DEBUG_STREAM.println();
     DEBUG_STREAM.println("pm Response to command found");
 
     if (sensorValue[2] == 7) //Firmware response
     {
-      DEBUG_STREAM.print("Firmware version Y/M/D: ");
+      DEBUG_STREAM.print("pm Firmware version Y/M/D: ");
       DEBUG_STREAM.print(sensorValue[3]);
       DEBUG_STREAM.print("/");
       DEBUG_STREAM.print(sensorValue[4]);
@@ -100,8 +99,6 @@ boolean pm_dataAvailable(void)
         else if (sensorValue[4] == 1) DEBUG_STREAM.println("work");
       }
     }
-
-    DEBUG_STREAM.println();
   }
 
 //  DEBUG_STREAM.print("pm Raw data:");
@@ -194,7 +191,7 @@ void pm_wakeUp(void)
 
 void setup_pm()
 {
-  DEBUG_STREAM.println("Setup Pm sensor");
+  DEBUG_STREAM.println("pm Setup sensor");
   pm_serial.begin(9600);          //SDS021 reports at 1Hz at 9600bps
 }
 
@@ -202,7 +199,7 @@ void pm_measure()
 {
   if (pm_dataAvailable())
   {
-    DEBUG_STREAM.print("Particle Matter [2.5]:");
+    DEBUG_STREAM.print("pm Particle Matter [2.5]:");
     DEBUG_STREAM.print(pm25, 1);
     DEBUG_STREAM.print("ug/m3 [10]:");
     DEBUG_STREAM.print(pm10, 1);
