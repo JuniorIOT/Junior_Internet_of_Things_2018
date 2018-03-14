@@ -43,10 +43,6 @@ static void writeReg (uint8_t addr, uint8_t data ) {
     //digitalWrite(LED_BUILTIN,LOW);
 }
 
-#ifndef DONTUSEHARDWARESPI
-#error "doesn't work"
-#endif
-
 #ifdef DONTUSEHARDWARESPI
 uint8_t hal_spi (uint8_t out) {                                                   // Emuleer een SPI interface met de RFM96
   for(int i=0; i<8; i++)  
