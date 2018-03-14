@@ -7,6 +7,14 @@
 //   Lora32u4            - compile as adafruit feather 32u4
 //   SS micro atmega32u4 - compile as ??   bricked --> use reset to GND at programming time 
 
+// Libraries to add from our libraries subfolder: 
+//    <NeoSWSerial.h>  --> C:\arduino_port\GitHub\Junior_Internet_of_Things_2018\libraries\NeoSWSerial-master-DamiaBranch.zip
+//    <NMEAGPS.h>      --> C:\arduino_port\GitHub\Junior_Internet_of_Things_2018\libraries\NeoGPS-master.zip
+//    <lmic_slim.h>    --> C:\arduino_port\GitHub\Junior_Internet_of_Things_2018\libraries\lmic_slim.zip
+//    <RH_RF95.h>      --> C:\arduino_port\GitHub\Junior_Internet_of_Things_2018\libraries\RadioHead-1.79.zip
+//         --> C:\arduino_port\GitHub\Junior_Internet_of_Things_2018\libraries\
+//         --> C:\arduino_port\GitHub\Junior_Internet_of_Things_2018\libraries\
+//         --> C:\arduino_port\GitHub\Junior_Internet_of_Things_2018\libraries\
  
 //#define DEBUG           // if DEBUG is defined, some code is added to display some basic debug info
 //#define DEBUGLEVEL2     // if DEBUGLEVEL2 is defined, some code is added to display deeper debug info
