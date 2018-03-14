@@ -5,15 +5,19 @@
  * Modified By Roel Drost Calculates the disatance and bearing given two GPS location near each other.
  *******************************************************************************/ 
 
+
+// build options: 
 //  Sodaq explorer board --> compile for Sodaq Explorer
 
-// TODO prepare your Arduino IDE:
-//   install some standard libraries, get the generic version:
-//      - Sodaq_nbIOT
-//   install adjusted version of libraries, YOU NEED TO GET THESE FROM YOUR PROJECT FOLDERS
-//      - sodaq_compass
-//      - RN2483-Arduino-Library-master_kaasfabriek.zip  --> you need to uninstall your existing RN2xx3 library by JPmeijers ==> delete folder Documents\Arduino\libraries\RN2483-Arduino-Library-master
-//          --> OR YOU WILL GET ERROR  case TX_FAIL: 'TX_FAIL' was not declared in this scope
+// Libraries to UNINSTALL standard libraries: 
+//      UNINSTALL  your existing RN2xx3 library by JPmeijers ==> delete folder Documents\Arduino\libraries\RN2483-Arduino-Library-master
+// Libraries to add standard libraries: 
+//      <Sodaq_nbIOT.h>
+//      <Sodaq_wdt.h>
+// Libraries to add from our libraries subfolder: 
+//      <rn2xx3.h>          --> C:\arduino_port\GitHub\Junior_Internet_of_Things_2018\sodaq_Explorer_nb-iot\libraries\RN2483-Arduino-Library-master_kaasfabriek.zip
+//      <sodaq_compass.h>   --> C:\arduino_port\GitHub\Junior_Internet_of_Things_2018\sodaq_Explorer_nb-iot\libraries\sodaq-nbiot-compass.zip
+
 
 //   Make a file keys.h in the project folder and insert your variables which you copy from your device definition in TTN console
 //     static const PROGMEM String NWKSKEY = "C6F8438D6E06B46.....1FCA829654B";
@@ -21,7 +25,7 @@
 //     static const String DEVADDR = "26....BD";
 //      --> use strings, not arrays OR YOU WILL GET ERROR IN FUNCTION void rn2483_init()
 
-// TODO wire your buttons
+// TODO wire your buttons, see schematic on our github
 // define wirings
 #define pin_button 8  
 #define gnd_button 9         // pin of the push button
