@@ -3,21 +3,26 @@
 ///////////////////////////////////////////////
 void rn2483_init()
 {
+  DEBUG_STREAM.println("welcome to rn");
   loraSerial.begin(57600); //serial port to radio
-  
+  DEBUG_STREAM.println("baudrate");
   //reset rn2483
-  pinMode(12, OUTPUT);
-  digitalWrite(12, LOW);
+  DEBUG_STREAM.println("12 reset");
+  pinMode(LORA_RESET, OUTPUT);
+  digitalWrite(LORA_RESET, LOW);
   delay(500);
-  digitalWrite(12, HIGH);
+  digitalWrite(LORA_RESET, HIGH);
 
   delay(100); //wait for the RN2xx3's startup message
-  loraSerial.flush();
+  //DEBUG_STREAM.println("flush");
+  //loraSerial.flush();
 
   //Autobaud the rn2483 module to 9600. The default would otherwise be 57600.
+  DEBUG_STREAM.println("autobaud");
   myLora.autobaud();
 
   //check communication with radio
+  DEBUG_STREAM.println("hweui");
   String hweui = myLora.hweui();
   while(hweui.length() != 16)
   {
@@ -38,6 +43,7 @@ void rn2483_init()
   bool join_result = false;
 
   //ABP: initABP(String addr, String AppSKey, String NwkSKey);
+  DEBUG_STREAM.println("init");
   myLora.init(); // come back from radio2radio
   join_result = myLora.initABP(DEVADDR, APPSKEY, NWKSKEY);
 
@@ -55,7 +61,7 @@ void rn2483_init()
   
 
   // SF is not in the library yet - maybe add it
-  
+  DEBUG_STREAM.println("end rn");
 }
 
 void print_myLoraWanData() {

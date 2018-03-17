@@ -259,8 +259,11 @@ void setup() {
   didSomeoneElseFire = false;
   didIFire = false;
   
+  SerialUSB.println("GPS init start");
   gps_init(); 
+  SerialUSB.println("rn2483 init start");
   rn2483_init();
+  SerialUSB.println("setup compass start");
   setupCompass();
   if(!setupTemperature()) {
     DEBUG_STREAM.println("Could not get temperature sensor");
