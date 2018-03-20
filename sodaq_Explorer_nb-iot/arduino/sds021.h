@@ -78,11 +78,11 @@ boolean pm_dataAvailable(void)
   }
   else if (sensorValue[1] == 0xC5) //Response to command
   {
-    DEBUG_STREAM.println("pm Response to command found");
+    DEBUG_STREAM.println("  pm Response to command found");
 
     if (sensorValue[2] == 7) //Firmware response
     {
-      DEBUG_STREAM.print("pm Firmware version Y/M/D: ");
+      DEBUG_STREAM.print("  pm Firmware version Y/M/D: ");
       DEBUG_STREAM.print(sensorValue[3]);
       DEBUG_STREAM.print("/");
       DEBUG_STREAM.print(sensorValue[4]);
@@ -94,14 +94,14 @@ boolean pm_dataAvailable(void)
     {
       if (sensorValue[3] == 1) //Response to set mode
       {
-        DEBUG_STREAM.print("pm Sensor is going to ");
+        DEBUG_STREAM.print("  pm Sensor, status going to ");
         if (sensorValue[4] == 0) DEBUG_STREAM.println("sleep");
         else if (sensorValue[4] == 1) DEBUG_STREAM.println("work");
       }
     }
   }
 
-//  DEBUG_STREAM.print("pm Raw data:");
+//  DEBUG_STREAM.print("  pm Raw data:");
 //  for (int x = 1 ; x < 10 ; x++)
 //  {
 //    DEBUG_STREAM.print(" ");
@@ -191,7 +191,7 @@ void pm_wakeUp(void)
 
 void setup_pm()
 {
-  DEBUG_STREAM.println("pm Setup sensor");
+  DEBUG_STREAM.println("  pm Setup sensor");
   pm_serial.begin(9600);          //SDS021 reports at 1Hz at 9600bps
 }
 
@@ -199,16 +199,15 @@ void pm_measure()
 {
   if (pm_dataAvailable())
   {
-    DEBUG_STREAM.print("pm Particle Matter [2.5]:");
+    DEBUG_STREAM.print("  pm Particle Matter [2.5]: ");
     DEBUG_STREAM.print(pm25, 1);
-    DEBUG_STREAM.print("ug/m3 [10]:");
+    DEBUG_STREAM.print("ug/m3 [10]: ");
     DEBUG_STREAM.print(pm10, 1);
     DEBUG_STREAM.print("ug/m3");
     DEBUG_STREAM.println();
   }
   else
   {
-    DEBUG_STREAM.println("PM Timeout or CRC error");
-    DEBUG_STREAM.println("PM Double check connections");
+    DEBUG_STREAM.println("  pm Timeout or CRC error, please check connections");
   }
 }

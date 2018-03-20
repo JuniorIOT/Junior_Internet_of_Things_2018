@@ -51,7 +51,7 @@ rn2xx3 myLora(loraSerial);
 #define LEDPIN LED_BUILTIN
 #define LORAWAN_TX_INTERVAL_MIN 15  // seconds between LoraWan messages
 #define LORAWAN_TX_INTERVAL_MAX 240  
-#define TXTRIGGER_gps_movement 8000 // will send if Min interval reached and GPS movement > value
+#define TXTRIGGER_gps_movement 5000 // will send if GPS movement compared to avg( last 3 points) > value
     // gps coordinates in Long value means 52.6324510 translates into 526324510
     // 5000 trigger value means 25-30 meters
 uint8_t  myLoraWanData[40];  // including byte[0]
@@ -204,7 +204,6 @@ void IHitSomeone() {
   soundLoopOnce();
 }
 
-
 void loraDatasetByte() {
   // todo
   if(therewasaradioreceived) {
@@ -220,10 +219,21 @@ void loraDatasetByte() {
 //  arduino init and main
 ///////////////////////////////////////////
 
-
 void setup() {
   delay(1000);  // https://www.thethingsnetwork.org/forum/t/got-adafruit-feather-32u4-lora-radio-to-work-and-here-is-how/6863
   
+  // enable debug stream
+  DEBUG_STREAM.begin(115200);   // whether 9600 or 115200; the gps feed shows repeated char and cannot be interpreted, setting high value to release system time
+  delay(100);
+  DEBUG_STREAM.print(F("Starting device: ")); DEBUG_STREAM.println(DEVADDR); 
+  device_startTime = millis();
+
+  // first activate GPS and leave on so it can find a fix quicker
+  SerialUSB.println("setup: GPS_init");
+  gps_init(); 
+  
+  // setup and test leds
+  DEBUG_STREAM.print(F("setup: Wake up and test leds. milis=")); DEBUG_STREAM.println(millis());
   pinMode(LEDPIN, OUTPUT);
   
   pinMode(led_directionfound, OUTPUT);
@@ -231,18 +241,26 @@ void setup() {
   digitalWrite(led_directionfound, HIGH);
   digitalWrite(gnd_directionfound, LOW);
   
+  led_on(); do_flash_led(led_directionfound); delay(2000); led_off(); do_flash_led(led_directionfound); delay(2000);
+  led_on(); do_flash_led(led_directionfound); delay(1000); led_off(); do_flash_led(led_directionfound); delay(1000);
+  led_on(); do_flash_led(led_directionfound); delay(500); led_off(); do_flash_led(led_directionfound); delay(500); 
+  led_on(); do_flash_led(led_directionfound); delay(500); led_off(); do_flash_led(led_directionfound); delay(500); 
+  led_on(); do_flash_led(led_directionfound); delay(200); led_off(); do_flash_led(led_directionfound); delay(200); 
+  led_on(); do_flash_led(led_directionfound); delay(200); led_off(); do_flash_led(led_directionfound); delay(200);
+  DEBUG_STREAM.print(F("\nsetup: Leds tested. milis=")); DEBUG_STREAM.println(millis());
+  
+  // setup and test sound
   pinMode(gnd_buzzer, OUTPUT);
   digitalWrite(gnd_buzzer, LOW);
-  
+  soundLoopOnce();
+  DEBUG_STREAM.print(F("setup: Played sound. milis=")); DEBUG_STREAM.println(millis());
+
+  // enable pushbutton
   pinMode(pin_button, INPUT_PULLUP);
   pinMode(gnd_button, OUTPUT);
   digitalWrite(gnd_button, LOW);
-  
-  DEBUG_STREAM.begin(115200);   // whether 9600 or 115200; the gps feed shows repeated char and cannot be interpreted, setting high value to release system time
-  delay(100);
 
-  DEBUG_STREAM.print(F("\nStarting device: ")); DEBUG_STREAM.println(DEVADDR); 
-  device_startTime = millis();
+  // lora package
   packagecounter = 0;
   
   //sensors
@@ -258,30 +276,29 @@ void setup() {
   negotiateState = 0;
   didSomeoneElseFire = false;
   didIFire = false;
-  
-  SerialUSB.println("GPS init start");
-  gps_init(); 
-  SerialUSB.println("rn2483 init start");
+
+  SerialUSB.println("setup: rn2483-init");
   rn2483_init();
-  SerialUSB.println("setup compass start");
+  SerialUSB.println("setup: setupCompass");
   setupCompass();
   if(!setupTemperature()) {
-    DEBUG_STREAM.println("Could not get temperature sensor");
+    DEBUG_STREAM.println("setup: Could not get temperature sensor");
+  } else  {
+    DEBUG_STREAM.println("setup: temperature sensor found");
   }
-  DEBUG_STREAM.print(F("\nInit values. milis=")); DEBUG_STREAM.println(millis());
-
+  
+  DEBUG_STREAM.print(F("setup: get first measurements. milis=")); DEBUG_STREAM.println(millis());
   put_Volts_and_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
+  DEBUG_STREAM.print(F("setup: doGPS_and_put_values_into_lora_sendbuffer. milis=")); DEBUG_STREAM.println(millis());
   doGPS_and_put_values_into_lora_sendbuffer();   
 
-  DEBUG_STREAM.print(F("\nSend one lorawan message as part of system init. milis=")); DEBUG_STREAM.println(millis());
-
+  DEBUG_STREAM.print(F("setup: Send one lorawan message as part of system init. milis=")); DEBUG_STREAM.println(millis());
   last_lora_time = millis();
   last_check_time = millis();
   doOneLoraWan();
-  DEBUG_STREAM.print(F("\nCompleted: Setup. milis=")); DEBUG_STREAM.println(millis());
   digitalWrite(led_directionfound, LOW);
-
+  DEBUG_STREAM.print(F("\nsetup: Completed. milis=")); DEBUG_STREAM.println(millis());
 }
 
 void loop() {
@@ -290,23 +307,22 @@ void loop() {
   // DEBUG_STREAM.println(F("\nNo lengthy GPS read-till-fix is needed, the GPS will find/keep a fix as log as power is on. "));
 
   ////////// Radio  ///////////
-  DEBUG_STREAM.print(F("\nRadio listen? milis=")); DEBUG_STREAM.println(millis());
+  DEBUG_STREAM.print(F("\nloop: Radio listen? milis=")); DEBUG_STREAM.println(millis());
   // now listen a long time for a radio message which we may want to act on, or for a keypress on our side 
   // time needs to be long enough not to miss a radio, we do not worry about GPS as it will keep fix as long as powered
   if(radioActive) {
     bool loraNeedsSendNow = false;
     while((millis() - last_check_time) < (LORAWAN_TX_INTERVAL_MIN * 1000L) && !loraNeedsSendNow) {
       
-      DEBUG_STREAM.print(F("1."));
-      // better listen to radio
+      DEBUG_STREAM.println(F("loop: 1. setupRadio. milis=")); DEBUG_STREAM.println(millis());
       // if negotiateState == 1 then check if the shot was a hit
       // listen if someone else fired
       setupRadio();
-      DEBUG_STREAM.print(F("2."));
+      DEBUG_STREAM.print(F("loop: 2. listenRadio. milis=")); DEBUG_STREAM.println(millis());
       listenRadio();                // does this have a hardcoded time in library?
-      DEBUG_STREAM.print(F("3."));
+      DEBUG_STREAM.print(F("loop: 3. readCompass. milis=")); DEBUG_STREAM.println(millis());
       readCompass();      
-      DEBUG_STREAM.print(F("4."));
+      DEBUG_STREAM.print(F("loop: 4. check button press. milis=")); DEBUG_STREAM.println(millis());
 
       if(digitalRead(pin_button) == LOW) { // input pullup with ground
         didIFire = true;
@@ -325,7 +341,7 @@ void loop() {
         
         // if you fired you wait 3 times for someone to say something back
         for(int i = 0; i < 3; i++) {
-          DEBUG_STREAM.println("Waiting for the other person to say he was hit");
+          DEBUG_STREAM.println("loop: Waiting for the other person to say he was hit");
           tone(pin_buzzer, 349, 250);
           setupRadio();
           listenRadio();          
@@ -335,17 +351,18 @@ void loop() {
         // reset fire but keep negotiateState to know someone might reply
         didIFire = false;
       }            
-      DEBUG_STREAM.print(F("5."));
+      
+      DEBUG_STREAM.print(F("loop: 5. check if fired or hit. milis=")); DEBUG_STREAM.println(millis());
       
       if(didSomeoneElseFire && shouldITalkBack) {
         // tell other person i was hit
-        DEBUG_STREAM.println("Telling other person I was hit");
+        DEBUG_STREAM.println("loop: Telling other person I was hit");
         setupRadio();
         doOneRadio();
         didSomeoneElseFire = false;
         shouldITalkBack = false;
       }      
-      DEBUG_STREAM.print(F("6."));
+      DEBUG_STREAM.print(F("loop: 6."));
     }
     
     DEBUG_STREAM.println();
@@ -353,7 +370,7 @@ void loop() {
   // we keep doing this part until it is time to send one LORAWAN TX to the worl
 
   ////////// Collect data needed just before sending a LORAWAN update to the world  ///////////
-  DEBUG_STREAM.println(F("\nCollect data needed just before sending a LORAWAN update. milis=")); DEBUG_STREAM.println(millis());
+  DEBUG_STREAM.print(F("\nloop: Collect data needed just before sending a LORAWAN update. milis=")); DEBUG_STREAM.println(millis());
   
   put_Volts_and_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
@@ -364,17 +381,20 @@ void loop() {
   loraDatasetByte(); // what am i doing with the extra bytes - sending radio to lora or sending extra sensors
   
   ////////// Now CHECK IF we need to send a LORAWAN update to the world  ///////////
+  
+  DEBUG_STREAM.print(F("\nloop: Collect data needed just before sending a LORAWAN update. milis=")); DEBUG_STREAM.println(millis());
   if (loraNeedsSendNow
         or (millis() - last_lora_time) > (LORAWAN_TX_INTERVAL_MAX * 1000L)
-        or (l_lat_movement > TXTRIGGER_gps_movement) 
-        or (l_lon_movement > TXTRIGGER_gps_movement) ) {
+        or ((abs(l_lat_movement) + abs(l_lon_movement)) > TXTRIGGER_gps_movement) ) {
     // switch the LMIC antenna to LoraWan mode
-    DEBUG_STREAM.println(F("Time or button press or movement detection tells us to send one LoraWan. milis=")); DEBUG_STREAM.println(millis());
+    DEBUG_STREAM.print(F("loop: Time or button press or movement detection tells us to send one LoraWan. milis=")); DEBUG_STREAM.println(millis());
+    DEBUG_STREAM.print(F("loop: trigger distance=")); DEBUG_STREAM.println(TXTRIGGER_gps_movement);
+    DEBUG_STREAM.print(F("loop: measured distance=")); DEBUG_STREAM.println((abs(l_lat_movement) + abs(l_lon_movement)));
     last_lora_time = millis();
     rn2483_init();
     doOneLoraWan();    
   } else {
-    DEBUG_STREAM.println(F("   - Not sending. ")); 
+    DEBUG_STREAM.println(F("loop: Lora does not need sending at this time (no movement detected, no button press). ")); 
   }
   last_check_time = millis();
   

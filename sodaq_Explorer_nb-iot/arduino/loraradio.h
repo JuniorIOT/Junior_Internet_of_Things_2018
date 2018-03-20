@@ -3,7 +3,7 @@
 ///////////////////////////////////////////////
 void doOneRadio() {
   String received = "";
-  DEBUG_STREAM.print("\nStart: Do one radio. milis="); DEBUG_STREAM.println(millis());  
+  DEBUG_STREAM.print("\nStart: doOneRadio. milis="); DEBUG_STREAM.println(millis());  
   
   
   uint8_t radiopacket[radioPacketSize];
@@ -12,19 +12,19 @@ void doOneRadio() {
   }
   formatRadioPackage(&radiopacket[0]);
   
-  DEBUG_STREAM.println("Sending..."); delay(10);
+  DEBUG_STREAM.println("  ra Sending..."); delay(10);
   
 
   switch(myLora.txBytes(radiopacket, radioPacketSize)) //one byte, blocking function
   {
     case TX_FAIL:
     {
-      DEBUG_STREAM.println("TX unsuccessful or not acknowledged");
+      DEBUG_STREAM.println("  ra TX unsuccessful or not acknowledged");
       break;
     }
     case TX_SUCCESS:
     {
-      DEBUG_STREAM.println("TX successful and acknowledged");
+      DEBUG_STREAM.println("  ra TX successful and acknowledged");
       break;
     }
     case TX_WITH_RX:
@@ -34,72 +34,62 @@ void doOneRadio() {
       
       ReceivedFromRadio = true;
       decoded = myLora.base16decodeBytes(received);
-      SerialUSB.print("base16: ");
+      SerialUSB.print("  ra base16: ");
       for(int i = 0; i < radioPacketSize; i++) SerialUSB.print(decoded[i], HEX);
-      SerialUSB.println(".");
+      SerialUSB.println("");
       
       decodeReply();
       break;
     }
     default:
     {
-      DEBUG_STREAM.println("Unknown response from TX function");
+      DEBUG_STREAM.println("  ra Unknown response from TX function");
     }
   }  
-
   
-  // end loop
-  
-  DEBUG_STREAM.print("\nCompleted: Do one radio. milis="); DEBUG_STREAM.println(millis());
-  
-  
+  // end loop  
+  DEBUG_STREAM.print("  ra doOneRadio completed. milis="); DEBUG_STREAM.println(millis());  
 }; 
+
 void setupRadio() {
   myLora.autobaud();
 
-  DEBUG_STREAM.println("DevEUI? ");DEBUG_STREAM.print(F("> "));
-  DEBUG_STREAM.println(myLora.hweui());
-  DEBUG_STREAM.println("Version?");DEBUG_STREAM.print(F("> "));
-  DEBUG_STREAM.println(myLora.sysver());
-  DEBUG_STREAM.println(F("--------------------------------"));
+  DEBUG_STREAM.print("  radio DevEUI= ");DEBUG_STREAM.println(myLora.hweui());
+  DEBUG_STREAM.println("  radio Version= ");DEBUG_STREAM.println(myLora.sysver());
+  DEBUG_STREAM.println(F("  radio --------------------------------"));
 
-  DEBUG_STREAM.println(F("Setting up for listening for another explorer"));
+  DEBUG_STREAM.println(F("  radio Setting up for listening for another explorer"));
   bool join_result = false;
-
 
   // point to point
   if(join_result = myLora.initP2P())  
-  DEBUG_STREAM.println("\u2713 Successfully Activated radio 2 radio");
+  DEBUG_STREAM.println("  radio setupRadio doOneRadio");
 };
 
 void listenRadio() {
-  DEBUG_STREAM.print("\nStart: Listen radio. milis="); DEBUG_STREAM.println(millis());  
+  DEBUG_STREAM.print("Start: listenRadio. milis="); DEBUG_STREAM.println(millis());  
   switch(myLora.listenP2P()) {
     case TX_WITH_RX:
     {
       String received = myLora.getRx();
-      DEBUG_STREAM.print("Received downlink: " + received);
+      DEBUG_STREAM.print("  li Received downlink: " + received);
       
       ReceivedFromRadio = true;
       decoded = myLora.base16decodeBytes(received);
-      SerialUSB.print("base16: ");
+      SerialUSB.print("  li base16: ");
       for(int i = 0; i < radioPacketSize; i++) SerialUSB.print(decoded[i], HEX);
-      SerialUSB.println(".");
+      SerialUSB.println("");
       
-      decodeReply();
-      
+      decodeReply();      
       break;
     }
     case RADIO_LISTEN_WITHOUT_RX:
     { 
-      DEBUG_STREAM.println("Listened timeout but no downlink");
+      DEBUG_STREAM.println("  li Listened timeout but no downlink");
       break;
-    }
-    
- 
+    } 
   }  
-  DEBUG_STREAM.print("\nCompleted: Listen radio. milis="); DEBUG_STREAM.println(millis());
-
+  DEBUG_STREAM.print("  li listenRadio completed. milis="); DEBUG_STREAM.println(millis());
 }
 
 /*
@@ -126,11 +116,12 @@ void listenRadio() {
     bool shouldITalkBack = false;
     uint8_t who = 0b00000000;    
     bool buttonpressedForLoraWan = false;
-void formatRadioPackage(uint8_t *loopbackToData) {  
+    
+void formatRadioPackage(uint8_t *loopbackToData) {    
+  DEBUG_STREAM.print(F("Started: formatRadioPackage"));
     
   uint8_t targetID = 0b00000000; // unknown
-  
-  
+    
   if(didIFire) {    
     loopbackToData[0] = 0b00000001;
     loopbackToData[8] = targetID; // send unknown    
@@ -144,11 +135,10 @@ void formatRadioPackage(uint8_t *loopbackToData) {
     SerialUSB.println(loopbackToData[8], BIN);
   }
   loopbackToData[0] |= MyID << 4;
-  SerialUSB.print("MyID: ");
+  SerialUSB.print("  fo MyID: ");
   SerialUSB.println(loopbackToData[0], BIN);
-
   
-  doGPS(60); // must have a gps - wait up to 10 seconds
+  doGPS(60); // must have a gps - wait up to ?? seconds
 
   // maybe we should make a function for lat lng encoding that doesnt put them to lorawan
   const double shift_lat     =    90. * 10000000.;                 // range shift from -90..90 into 0..180, note: 
@@ -178,7 +168,7 @@ void formatRadioPackage(uint8_t *loopbackToData) {
   // now add a bit for BTN (not implemented)
   loopbackToData[7] = compass_bin;
   #ifdef DEBUG
-  DEBUG_STREAM.print(F("  compass=")); DEBUG_STREAM.print(compass); DEBUG_STREAM.print(F("  deg. compass_bin=")); DEBUG_STREAM.println(compass_bin);
+  DEBUG_STREAM.print(F("  fo compass=")); DEBUG_STREAM.print(compass); DEBUG_STREAM.print(F("  deg. compass_bin=")); DEBUG_STREAM.println(compass_bin);
   #endif
 
   loopbackToData[7] |= buttonPressed;
@@ -191,6 +181,8 @@ void formatRadioPackage(uint8_t *loopbackToData) {
   loopbackToData[2]=packagecounter%0xFF; // headerid
   loopbackToData[3]=0x00; // flags
 }
+
+
 /*
    byte 0          My ID      My ID and message type
         0b0000 0000            
@@ -211,39 +203,41 @@ void formatRadioPackage(uint8_t *loopbackToData) {
     byte 9          Validator  Hash (binary add) on message, GPS date, salt..
     */
     bool therewasaradioreceived = false;
+    
 void decodeReply() {
+  DEBUG_STREAM.print(F("Started: decodeReply"));
     // radiohead compatibility
   for(int i = 0; i < (radioPacketSize-4); i++) decoded[i] = decoded[i+4];
   
   therewasaradioreceived = true;
-  SerialUSB.print("BUF HEX: ");
+  SerialUSB.print("  BUF HEX: ");
   for(byte b=0; b<10; b++)
    {
       SerialUSB.print(decoded[b], HEX);
    }
-   SerialUSB.println(".");
+   SerialUSB.println("");
   bool someoneIsTalkingBackToSomeoneWhoFired = false;
     
   // bytes 0
   if((decoded[0] & 0b00001111) == 0b00000001) {
-    DEBUG_STREAM.println("Radio: Someone says that he fired");
+    DEBUG_STREAM.println("  Radio: Someone has fired");
     didSomeoneElseFire = true;      
   } else if((decoded[0] & 0b00001111) == 0b00000010) {
-      DEBUG_STREAM.println("Radio: Someone talkes back to someone who fired");
+      DEBUG_STREAM.println("  Radio: Someone responds to receiving a fire");
       didSomeoneElseFire = false;
       // did i fire and is he talking to me
       someoneIsTalkingBackToSomeoneWhoFired = true; 
   } else{
     didSomeoneElseFire = false;
   }
-  DEBUG_STREAM.print("That someone has an id of:");
+  DEBUG_STREAM.print("  This someone has an id of: ");
   SerialUSB.print("MyID: ");
   SerialUSB.println(decoded[0], BIN);
   who = (decoded[0] >> 4) & 0b00001111;
   DEBUG_STREAM.println((unsigned int) who,DEC);
   
   // byte 1,2,3 and 4,5,6
-  DEBUG_STREAM.print("His location is: ");
+  DEBUG_STREAM.print("  His location is: ");
 
   // tell lorawan
   myLoraWanData[26] = decoded[1];
@@ -263,26 +257,25 @@ void decodeReply() {
   hitlng2 = _lng;
   
 
-  
   // byte 7
   myLoraWanData[32] = decoded[7];
   uint8_t compass = decoded[7] & 0b01111111; // don't want the hit indicator now    
-  DEBUG_STREAM.print("His compass points to: ");
+  DEBUG_STREAM.print("  His compass points to: ");
   unsigned int _compass = compass*3;
   DEBUG_STREAM.println(_compass);
   hitcompass = _compass;
   
   bool hePressedHisButton = ((decoded[7] >> 7) & 0b00000001) == 0b00000001;
-  if(hePressedHisButton) DEBUG_STREAM.println("He pressed his button");
-  else DEBUG_STREAM.println("He did not press his button");
+  if(hePressedHisButton) DEBUG_STREAM.println("  He pressed his button");
+  else DEBUG_STREAM.println("  He did not press his button");
   
   // byte 8
   bool heWasHit = (decoded[8] & 0b00000001) == 0b00000001;
   if(heWasHit) DEBUG_STREAM.println("He was hit");
-  else DEBUG_STREAM.println("He was not hit - or doesn't know it yet");
+  else DEBUG_STREAM.println("  He was not hit");
   
   uint8_t remoteid = (decoded[8] >> 4) & 0b00001111;
-  DEBUG_STREAM.println("He was talking to id: ");
+  DEBUG_STREAM.println("  He was talking to id: ");
   DEBUG_STREAM.print((int)remoteid,DEC);
 
   myLoraWanData[25] = remoteid << 4;
@@ -290,16 +283,16 @@ void decodeReply() {
   // byte 9 - what is this?
   
   if(didSomeoneElseFire) {
-    SerialUSB.println("Checking was i hit on receive");
+    SerialUSB.println("  Checking was i hit on receive");
     shouldITalkBack = wasIHit();      
   }
 
-  SerialUSB.println("someoneIsTalkingBackToSomeoneWhoFired?");
+  SerialUSB.println("  someoneIsTalkingBackToSomeoneWhoFired?");
   if(someoneIsTalkingBackToSomeoneWhoFired && (negotiateState == 1)) {
-    SerialUSB.println("someoneIsTalkingBackToSomeoneWhoFired!");
-    SerialUSB.print("remoteid: ");
+    SerialUSB.println("  someoneIsTalkingBackToSomeoneWhoFired!");
+    SerialUSB.print("  remoteid: ");
     SerialUSB.println(remoteid);
-    SerialUSB.print("MyID: ");
+    SerialUSB.print("  MyID: ");
     SerialUSB.println(MyID & 0b00001111);
     if((remoteid&0b00001111) == (MyID&0b00001111)) {
       // i fired and i hit!

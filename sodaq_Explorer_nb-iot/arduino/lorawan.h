@@ -3,11 +3,11 @@
 ///////////////////////////////////////////////
 void rn2483_init()
 {
-  DEBUG_STREAM.println("welcome to rn");
+  DEBUG_STREAM.println("rn2483_init");
   loraSerial.begin(57600); //serial port to radio
-  DEBUG_STREAM.println("baudrate");
+  DEBUG_STREAM.println("  rn baudrate");
   //reset rn2483
-  DEBUG_STREAM.println("12 reset");
+  DEBUG_STREAM.println("  rn 12 reset");
   pinMode(LORA_RESET, OUTPUT);
   digitalWrite(LORA_RESET, LOW);
   delay(500);
@@ -18,32 +18,33 @@ void rn2483_init()
   //loraSerial.flush();
 
   //Autobaud the rn2483 module to 9600. The default would otherwise be 57600.
-  DEBUG_STREAM.println("autobaud");
+  DEBUG_STREAM.println("  rn autobaud");
   myLora.autobaud();
 
   //check communication with radio
-  DEBUG_STREAM.println("hweui");
+  DEBUG_STREAM.println("  rn hweui");
   String hweui = myLora.hweui();
   while(hweui.length() != 16)
   {
-    DEBUG_STREAM.println("Communication with RN2xx3 unsuccessful. After programming unplug the usb cable and reconnect.");
+    DEBUG_STREAM.println("  rn Communication with RN2xx3 unsuccessful. After programming unplug the usb cable and reconnect.");
     DEBUG_STREAM.println(hweui);
     delay(10000);
     hweui = myLora.hweui();
   }
 
-  //print out the HWEUI so that we can register it via ttnctl
-  DEBUG_STREAM.println("When using OTAA, register this DevEUI: ");
-  DEBUG_STREAM.println(myLora.hweui());
-  DEBUG_STREAM.println("RN2xx3 firmware version:");
+  //print out the HWEUI so that we can register it via ttnctl  
+  DEBUG_STREAM.print("  rn DevEUI: ");
+  DEBUG_STREAM.print(myLora.hweui());
+  DEBUG_STREAM.println(" (register this when using OTAA)");
+  DEBUG_STREAM.print("  rn RN2xx3 firmware version: ");
   DEBUG_STREAM.println(myLora.sysver());
 
   //configure your keys and join the network
-  DEBUG_STREAM.println("Trying to join TTN");
+  DEBUG_STREAM.println("  rn Trying to join TTN");
   bool join_result = false;
 
   //ABP: initABP(String addr, String AppSKey, String NwkSKey);
-  DEBUG_STREAM.println("init");
+  DEBUG_STREAM.println("  rn myLora.initABP");
   myLora.init(); // come back from radio2radio
   join_result = myLora.initABP(DEVADDR, APPSKEY, NWKSKEY);
 
@@ -52,16 +53,16 @@ void rn2483_init()
 
   while(!join_result)
   {
-    DEBUG_STREAM.println("Unable to join. Are your keys correct, and do you have TTN coverage?");
+    DEBUG_STREAM.println("  rn Unable to join. Are your keys correct, and do you have TTN coverage?");
     
     delay(60000); //delay a minute before retry
     join_result = myLora.init();
   }
-  DEBUG_STREAM.println("Successfully joined TTN");
+  DEBUG_STREAM.println("  rn Successfully joined TTN");
   
 
   // SF is not in the library yet - maybe add it
-  DEBUG_STREAM.println("end rn");
+  DEBUG_STREAM.println("  rn Completed rn2483_init");
 }
 
 void print_myLoraWanData() {
@@ -76,10 +77,9 @@ void print_myLoraWanData() {
 }
 
 void doOneLoraWan() {
-  DEBUG_STREAM.print("\nStart: Do one lora. milis="); DEBUG_STREAM.println(millis());
+  DEBUG_STREAM.print("\nStart: doOneLoraWan. milis="); DEBUG_STREAM.println(millis());
   print_myLoraWanData();
     led_on();
-
     
     DEBUG_STREAM.print("  txLora. milis="); DEBUG_STREAM.println(millis());
     myLora.txBytes(myLoraWanData, PAYLOADSIZE);
@@ -87,7 +87,7 @@ void doOneLoraWan() {
     led_off();
     packagecounter++;
    DEBUG_STREAM.print("  send time delay completed. milis="); DEBUG_STREAM.println(millis());
-  DEBUG_STREAM.print("Completed: Do one lora. milis="); DEBUG_STREAM.println(millis());
+  DEBUG_STREAM.print("  doOneLoraWan completed. milis="); DEBUG_STREAM.println(millis());
 }
 
 void resetSomeLoraValues() {

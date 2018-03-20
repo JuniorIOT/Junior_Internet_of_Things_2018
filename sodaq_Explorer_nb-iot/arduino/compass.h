@@ -86,8 +86,8 @@ unsigned int compassOneValue() {
   return headingDegrees;
 }
 
-
 void put_Compass_and_Btn_into_sendbuffer() {
+  DEBUG_STREAM.print(F("put_Compass_and_Btn_into_sendbuffer started. milis=")); DEBUG_STREAM.println(millis());
   unsigned int compass = readCompass(); // 0..360 deg
   uint8_t compass_bin = compass/3 ;  // rescale 0-360 deg into 0 - 120 values and make sure it is not bigger than one byte
   // now add a bit for BTN (not implemented)

@@ -165,36 +165,13 @@ bool Sodaq_UBlox_GPS::parseLine(const char * line)
     String data = line + 1;
     data.remove(data.length() - 3, 3);  // Strip checksum *<hex><hex>
 
-    if (data.startsWith("GNGGA")) {
-        return parseGPGGA(data);
-    }
-
-    if (data.startsWith("GNGSA")) {
-        return parseGPGSA(data);
-    }
-
-    if (data.startsWith("GNRMC")) {
-        return parseGPRMC(data);
-    }
-
-    if (data.startsWith("GPGSV")) {
-        return parseGPGSV(data);
-    }
-
-    if (data.startsWith("GNGLL")) {
-        return parseGPGLL(data);
-    }
-
-    if (data.startsWith("GNVTG")) {
-        return parseGPVTG(data);
-    }
-
-    if (data.startsWith("$GPTXT")) {
-        return parseGPTXT(data);
-    }
-    
-    
-    
+    if (data.startsWith("GNGGA")) {  return parseGPGGA(data);  }
+    if (data.startsWith("GNGSA")) {  return parseGPGSA(data);  }
+    if (data.startsWith("GNRMC")) {  return parseGPRMC(data);  }
+    if (data.startsWith("GPGSV")) {  return parseGPGSV(data);  }
+    if (data.startsWith("GNGLL")) {  return parseGPGLL(data);  }
+    if (data.startsWith("GNVTG")) {  return parseGPVTG(data);  }
+    if (data.startsWith("$GPTXT")) {  return parseGPTXT(data);  }  
 
     debugPrintLn(String("?? >> ") + line);
     return false;
