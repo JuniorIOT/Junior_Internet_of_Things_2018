@@ -30,7 +30,7 @@ unsigned int readCompass() {
   }
   //Sending the heading value through the Serial Port 
   */
-  SerialUSB.println(headingFiltered,6);
+  DEBUG_STREAM.print(F("headingFiltered = ")); DEBUG_STREAM.println(headingFiltered,6);
   return headingFiltered;
 }
 

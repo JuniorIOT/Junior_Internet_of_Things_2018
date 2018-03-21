@@ -240,25 +240,13 @@ optional:
                                Value=127: no compass value
           1--- ---- MyBtn#1    bit, is my button pressed
           
-    byte 22         myID, dataset:
+    byte 22         myID, dataset:     
         0b0000 0000            
-          ---- -nnn Dataset    Select Value 0-7 to tell which dataset
-          ---- 0000 None       No additional data, this is just a GPS bleep. 
-          ---- 0001 Set#1      Supplying our set#1 'environmental sensor' 
-          ---- 1000 Radio      I have received a radio, sending radio values
-          nnnn ---- MyTeamID   Value 0-31 my team ID
-    byte 23,24         Counter    LoraWan Message counter. Last 2 bytes.
-                               
-    -- OPTIONAL set#1 environmental sensors values (not finalized)
-    byte 25, 26     Moisture   2 bytes, AD measurement directly from AD port
-    byte 27, 28     AirPress   2 bytes, AD measurement directly from AD port
-    byte 29, 30     CO2        2 bytes, AD measurement directly from AD port
-    byte 31, 32     PPM 2.5    2 bytes, AD measurement directly from AD port
-    byte 33, 34     PPM 10     2 bytes, AD measurement directly from AD port
-    byte 35, 36     Audio 1    2 bytes
-    byte 37, 38     Audio 2    2 bytes
-                      
-    -- OPTIONAL radio values 
+          ---- -nnn Dataset    (not needed - to be re-used)    Select Value 0-7 to tell which dataset
+          nnnn ---- MyTeamID        Value 0-31 my team ID
+    byte 23,24         Counter    (not needed - to be re-used)    LoraWan Message counter. Last 2 bytes.
+	                     
+    -- OPTIONAL radio values (leave 00 if not used)
     byte 25         RemoteID   ID of remote team (who shot me)
         0b0000 0000            
           ---- nnnn RadioSSN   Received radio strength 1 
@@ -278,8 +266,17 @@ optional:
                                Value=127: no distance value 
           1--- ---- Am I Hit   My hit status (I was hit?)
                                
-    Game rule: add 2 degrees on each side of this 3 degree segment 
-    A hit is when target is within this range and within 20 meters +/-3 meters
+		Game rule: add 2 degrees on each side of this 3 degree segment 
+		A hit is when target is within this range and within 20 meters +/-3 meters
+		
+    -- OPTIONAL set environmental sensors values ((leave 00 if not used)
+    byte 34, 35     Moisture   2 bytes, AD measurement directly from AD port
+    byte 36, 37     AirPress   2 bytes, AD measurement directly from AD port
+    byte 38, 39     CO2        2 bytes, AD measurement directly from AD port
+    byte 40, 41     PPM 2.5    2 bytes, AD measurement directly from AD port put_PM_into_sendbuffer
+    byte 42, 43     PPM 10     2 bytes, AD measurement directly from AD port
+    byte 44, 45     Audio 1    2 bytes
+    byte 46, 47     Audio 2    2 bytes
 
     THIS BYTE STRING NEEDS A DECODER FUNCTION IN TTN:
     /* * 

@@ -2,9 +2,8 @@
 // JuniorIOTchallenge routines for RN2483 radio 2 radio
 ///////////////////////////////////////////////
 void doOneRadio() {
+  DEBUG_STREAM.print("doOneRadio started. milis="); DEBUG_STREAM.println(millis());  
   String received = "";
-  DEBUG_STREAM.print("\nStart: doOneRadio. milis="); DEBUG_STREAM.println(millis());  
-  
   
   uint8_t radiopacket[radioPacketSize];
   for(int i = 0; i < radioPacketSize; i++) {
@@ -55,7 +54,7 @@ void setupRadio() {
   myLora.autobaud();
 
   DEBUG_STREAM.print("  radio DevEUI= ");DEBUG_STREAM.println(myLora.hweui());
-  DEBUG_STREAM.println("  radio Version= ");DEBUG_STREAM.println(myLora.sysver());
+  DEBUG_STREAM.print("  radio Version= ");DEBUG_STREAM.println(myLora.sysver());
   DEBUG_STREAM.println(F("  radio --------------------------------"));
 
   DEBUG_STREAM.println(F("  radio Setting up for listening for another explorer"));
@@ -67,7 +66,7 @@ void setupRadio() {
 };
 
 void listenRadio() {
-  DEBUG_STREAM.print("Start: listenRadio. milis="); DEBUG_STREAM.println(millis());  
+  DEBUG_STREAM.print("listenRadio started. milis="); DEBUG_STREAM.println(millis());  
   switch(myLora.listenP2P()) {
     case TX_WITH_RX:
     {

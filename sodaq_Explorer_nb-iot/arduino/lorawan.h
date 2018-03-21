@@ -66,18 +66,27 @@ void rn2483_init()
 }
 
 void print_myLoraWanData() {
+  
+  DEBUG_STREAM.print(F("                   ")); 
+  for(int ii=0; ii<48; ii++) {  
+    if (ii < 10) DEBUG_STREAM.print("0"); 
+    DEBUG_STREAM.print(ii); 
+    DEBUG_STREAM.print(F(" "));  
+  }  
+  DEBUG_STREAM.println(F(" "));
+  
   DEBUG_STREAM.print(F("  myLoraWanData = [")); 
-  //DEBUG_STREAM.print((char*)myLoraWanData); DEBUG_STREAM.println("]"); DEBUG_STREAM.print(F("                  [ "));  
-  for(int i=0; i<30; i++) {  
+  for(int i=0; i<48; i++) {  
     if (myLoraWanData[i] < 16) DEBUG_STREAM.print("0"); 
     DEBUG_STREAM.print(myLoraWanData[i], HEX); 
     DEBUG_STREAM.print(F(" "));  
   }  
-  DEBUG_STREAM.println(F(" .. ]"));
+  DEBUG_STREAM.println(F(" ]"));
+  
 }
 
 void doOneLoraWan() {
-  DEBUG_STREAM.print("\nStart: doOneLoraWan. milis="); DEBUG_STREAM.println(millis());
+  DEBUG_STREAM.print("doOneLoraWan started. milis="); DEBUG_STREAM.println(millis());
   print_myLoraWanData();
     led_on();
     

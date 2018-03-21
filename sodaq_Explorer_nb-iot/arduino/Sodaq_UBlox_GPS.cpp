@@ -21,7 +21,7 @@
 #include <Wire.h>
 #include "Sodaq_UBlox_GPS.h"
 
-#define DEBUG 1
+#define xDEBUG 1
 #ifdef DEBUG
 #define debugPrintLn(...) { if (this->_diagStream) this->_diagStream->println(__VA_ARGS__); }
 #define debugPrint(...) { if (this->_diagStream) this->_diagStream->print(__VA_ARGS__); }
@@ -129,14 +129,14 @@ bool Sodaq_UBlox_GPS::scan(bool leave_on, uint32_t timeout)
     }
 
     if (_numSatellites > 0) {
-        debugPrintLn(String("[scan] num sats = ") + _numSatellites);
+        debugPrintLn(String("    [scan] num sats = ") + _numSatellites);
     }
     if (_seenTime) {
-        debugPrintLn(String("[scan] datetime = ") + getDateTimeString());
+        debugPrintLn(String("    [scan] datetime = ") + getDateTimeString());
     }
     if (_seenLatLon) {
-        debugPrintLn(String("[scan] lat = ") + String(_lat, 7));
-        debugPrintLn(String("[scan] lon = ") + String(_lon, 7));
+        debugPrintLn(String("    [scan] lat = ") + String(_lat, 7));
+        debugPrintLn(String("    [scan] lon = ") + String(_lon, 7));
     }
 
     if (!leave_on) {
@@ -175,15 +175,15 @@ bool Sodaq_UBlox_GPS::parseLine(const char * line)
     if (data.startsWith("GNVTG")) {  return parseGPVTG(data);  }
     if (data.startsWith("$GPTXT")) {  return parseGPTXT(data);  }  
 
-    debugPrintLn(String("    unknown string >> ") + line);
-    // unknowns found on NB-IOT shield GPS:
-    //   $GLGSV  //  Satellite information about elevation, azimuth and CNR, $GPGSV is used for GPS satellites, while
+    debugPrintLn(String("    unknown string.") );
+    // unknown string found on NB-IOT shield GPS:
+    //   $GLGSV (not needed)  //  Satellite information about elevation, azimuth and CNR, $GPGSV is used for GPS satellites, while
     //      $GLGSV is used for GLONASS satellites 
-    //   $GNGSA $GPGSA $BDGSA  // Used to represent the ID’s of satellites which are used for position fix. When both GPS and Beidou
+    //   $GNGSA $GPGSA $BDGSA (not needed)  // Used to represent the ID’s of satellites which are used for position fix. When both GPS and Beidou
     //      satellites are used in position solution, a $GNGSA sentence is used for GPS satellites and another
     //      $GNGSA sentence is used for Beidou satellites. When only GPS satellites are used for position fix, a
     //      single $GPGSA sentence is output. When only Beidou satellites are used, a single $BDGSA sentence is output. 
-    //   $GNTXT
+    //   $GNTXT (not needed)
     //
     // NOT IMPLEMENTED
     //    $GPGLL, $GNGLL  Position, time and fix status. ***** TODO  --> done

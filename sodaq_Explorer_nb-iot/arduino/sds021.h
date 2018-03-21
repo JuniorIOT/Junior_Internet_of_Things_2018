@@ -18,7 +18,6 @@
     somepin2 to Yellow (RX into sensor)
 */
 
-
 //#define pm_serial Serial  // hardwareserial on D0, D1  --> werkt niet met shield erop
 //SoftwareSerial pm_serial(pin_PM_TXD_rx, pin_PM_RXD_tx); // RX, TX  --> standaard SofrwareSerial werkt niet op Sodaq Explorer
 //NeoSWSerial pm_serial(pin_PM_TXD_rx, pin_PM_RXD_tx);  // tx, rx
@@ -27,11 +26,13 @@ SoftwareSerial pm_serial(pin_PM_TXD_rx, pin_PM_RXD_tx); // RX, TX  --> samd Soft
 
 float pm25; //2.5um particles detected in ug/m3
 float pm10; //10um particles detected in ug/m3
+unsigned int pm25_bin;
+unsigned int pm10_bin;
 unsigned int deviceID; //Two byte unique ID set by factor
 
 //Scans for incoming packet
 //Times out after 1500 miliseconds
-boolean pm_dataAvailable(void)
+boolean pm_doOneMeasure(void)
 {
   //Spin until we hear meassage header byte
   long startTime = millis();
@@ -72,7 +73,9 @@ boolean pm_dataAvailable(void)
   {
     //Update the global variables
     pm25 = ((float)sensorValue[3] * 256 + sensorValue[2]) / 10;
+    pm25_bin = sensorValue[3] * 256 + sensorValue[2];
     pm10 = ((float)sensorValue[5] * 256 + sensorValue[4]) / 10;
+    pm10_bin = sensorValue[5] * 256 + sensorValue[4];
 
     deviceID = sensorValue[6] * 256 + sensorValue[7];
   }
@@ -167,7 +170,7 @@ void pm_sendCommand(byte commandNumber, byte dataByte2, byte dataByte3)
     pm_serial.write(packet[x]);
 
   //Now look for response
-  pm_dataAvailable();
+  pm_doOneMeasure();
 }
 
 //Print the firmware version
@@ -197,7 +200,7 @@ void setup_pm()
 
 void pm_measure()
 {
-  if (pm_dataAvailable())
+  if (pm_doOneMeasure())
   {
     DEBUG_STREAM.print("  pm Particle Matter [2.5]: ");
     DEBUG_STREAM.print(pm25, 1);
@@ -208,6 +211,25 @@ void pm_measure()
   }
   else
   {
-    DEBUG_STREAM.println("  pm Timeout or CRC error, please check connections");
+    DEBUG_STREAM.print("  pm No PM sensor found or timed-out.");
   }
 }
+
+void put_PM_into_sendbuffer() {
+  DEBUG_STREAM.print(F("put_PM_into_sendbuffer started. milis=")); DEBUG_STREAM.println(millis());
+  // pm25_bin and pm10_bin are 2 byte values
+  //   byte 40, 41     PPM 2.5    2 bytes, AD measurement directly from AD port put_PM_into_sendbuffer
+  //   byte 42, 43     PPM 10     2 bytes, AD measurement directly from AD port
+  
+  myLoraWanData[40] = ( pm25_bin >> 8 ) & 0xFF;
+  myLoraWanData[41] = pm25_bin & 0xFF;
+  
+  myLoraWanData[42] = ( pm10_bin >> 8 ) & 0xFF;
+  myLoraWanData[43] = pm10_bin & 0xFF;
+  
+  #ifdef DEBUG
+  DEBUG_STREAM.print(F("  pm25_bin=")); DEBUG_STREAM.print(pm25_bin); DEBUG_STREAM.print(F("  pm10_bin=")); DEBUG_STREAM.println(pm10_bin);
+  #endif
+}
+
+
