@@ -136,7 +136,7 @@ void IHitSomeone();
 //////////////////////////////////////////////////////////
 //// Sensors lora
 ////////////////////////////////////////////
-void put_Volts_and_Temp_into_sendbuffer();
+void put_Temp_into_sendbuffer();
 void put_Dataset_and_counter_into_sendbuffer();
 bool setupTemperature();
 int readTemperatureFromShield();
@@ -211,8 +211,8 @@ void put_Dataset_and_counter_into_sendbuffer() {
 //    therewasaradioreceived = false;
 //  }
   myLoraWanData[22] |= (MyTeamID & 0b00001111) << 4;
-  myLoraWanData[23] = (packagecounter >> 8) & 0xFF;
-  myLoraWanData[24] = packagecounter & 0xFF;
+//  myLoraWanData[23] = (packagecounter >> 8) & 0xFF;   --> we use this for temp
+//  myLoraWanData[24] = packagecounter & 0xFF;
 }
 
 ///////////////////////////////////////////////
@@ -270,12 +270,13 @@ void setup() {
   // lora package
   packagecounter = 0;
   
-  //sensors
+  // PM sensor
   setup_pm();
   pm_getFirmwareVersion();
   pm_measure();
-  DEBUG_STREAM.print("setup: Particle Matter [2.5]: "); DEBUG_STREAM.print(pm25, 1); DEBUG_STREAM.print("ug/m3 [10]: ");
-  DEBUG_STREAM.print(pm10, 1); DEBUG_STREAM.print("ug/m3"); DEBUG_STREAM.println();
+
+  // temp & hum sensors
+  setupHTS221();
   
   // game parameters
   negotiateState = 0;
@@ -286,14 +287,14 @@ void setup() {
   rn2483_init();
   SerialUSB.println("setup: setupCompass");
   setupCompass();
-  if(!setupTemperature()) {
-    DEBUG_STREAM.println("setup: Could not get temperature sensor");
+  if(!setupHTS221()) {
+    DEBUG_STREAM.println("setup: Could not get shield HTS221 temperature & hum sensor");
   } else  {
-    DEBUG_STREAM.println("setup: temperature sensor found");
+    DEBUG_STREAM.println("setup: shield HTS221 temperature & hum sensor found");
   }
   
   DEBUG_STREAM.print(F("setup: get first measurements. milis=")); DEBUG_STREAM.println(millis());
-  put_Volts_and_Temp_into_sendbuffer();
+  put_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
   
   DEBUG_STREAM.print(F("loop: pm_measure. milis=")); DEBUG_STREAM.println(millis());
@@ -385,7 +386,7 @@ void loop() {
   DEBUG_STREAM.print(F("loop: Collect data needed just before sending a LORAWAN update. milis=")); DEBUG_STREAM.println(millis());
   
   DEBUG_STREAM.print(F("loop: get first measurements. milis=")); DEBUG_STREAM.println(millis());
-  put_Volts_and_Temp_into_sendbuffer();
+  put_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
   
   DEBUG_STREAM.print(F("loop: pm_measure. milis=")); DEBUG_STREAM.println(millis());

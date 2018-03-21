@@ -153,19 +153,19 @@ optional:
 ```  
 ## Pin mapping for Sodaq Explorer & NB-IOT gps shield
 ```
-
-                                                                     ┌───────────────────────┐
-                                                                     │    PM dust sensor     │
-                                                                     │SDS021 42x32x24mm 60mA │
-                                                                     │SDS011 71x70x23mm 220mA│
-                                                                     │RXD TXD GND 5V     misc│
-                             ┌───┐           ┌───┐                   └─┬───┬───┬───┬────┬─┬─┬┘
-                             │  led  ┌───┐   │  push                   │   │   │   │
-   SODAQ                     │   │   │  spk  │  btn                    │   │  gnd  5v
-   EXPLORER   I2c            │   │   │   │   │   │                     │   │    
+                                                ┌───────────────────┐
+                                                │       MH-Z19  18mA│ ┌───────────────────────┐
+                                                │     Co2 sensor    │ │    PM dust sensor     │
+                                                │misc GND 5V RXD TXD│ │SDS021 42x32x24mm 60mA │
+                                                └┬─┬─┬─┬───┬───┬───┬┘ │SDS011 71x70x23mm 220mA│
+                                                       │   │   │   │  │RXD TXD GND 5V     misc│
+                             ┌───┐           ┌───┐    GND 5V   │   │  └┬───┬───┬───┬────┬─┬─┬─┘
+                             │  led  ┌───┐   │  push           │   │   │   │   │   │
+   SODAQ                     │   │   │  spk  │  btn            │   │   │   │  gnd  5v
+   EXPLORER   I2c            │   │   │   │   │   │             │   │   │   │    
    ╔═════════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═╗═══════════════╗ 
    ║RSTBTN  SCL SDA  X  GND D13 D12 D11 D10  D9 D8  - D7  D6  D5  D4  D3  D2  D1  D0 ║           lora║ 
-   ║                        SCK MI  MO  SS                            tx  rx  TX  RX ║            ant║
+   ║                        SCK MI  MO  SS                    tx  rx  tx  rx  TX  RX ║            ant║
    ║    LED-BUILTIN                                                           Serial ║               ║
    ║                   TEMP_SENSOR       LED_RED                                     \\              ║
    │USBCONN             analog           LED_GREEN                                    \\             ║
@@ -179,6 +179,10 @@ optional:
    ║BLE      o  o  o  o                                                     SDA1 SCL1 //             ║
    ║Serial1                  X   X  RES 3.3 5V  GND GND BAT - A0  A1  A2  A3  A4  A5 //              ║
    ╚═════════════════════════╬═══╬═══╬═══╬═══╬═══╬═══╬═══╬═════╬═══╬═══╬═══╬═══╬═══╬═╝═══════════════╝
+   
+   
+   
+   
    
    NB-IOT
    SHIELD     I2c
@@ -244,7 +248,7 @@ optional:
         0b0000 0000            
           ---- -nnn Dataset    (not needed - to be re-used)    Select Value 0-7 to tell which dataset
           nnnn ---- MyTeamID        Value 0-31 my team ID
-    byte 23,24         Counter    (not needed - to be re-used)    LoraWan Message counter. Last 2 bytes.
+    byte 23,24      Temperature 2 bytes  (was: counter, 2 bytes)
 	                     
     -- OPTIONAL radio values (leave 00 if not used)
     byte 25         RemoteID   ID of remote team (who shot me)

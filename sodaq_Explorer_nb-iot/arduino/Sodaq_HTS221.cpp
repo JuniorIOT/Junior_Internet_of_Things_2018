@@ -9,22 +9,19 @@
 #include "Sodaq_HTS221Reg.h"
 #include "Sodaq_HTS221.h"
 
-
-
 static inline bool humidityReady(uint8_t data) {
     return (data & 0x02);
 }
+
 static inline bool temperatureReady(uint8_t data) {
     return (data & 0x01);
 }
-
 
 Sodaq_HTS221::Sodaq_HTS221(void) : _address(HTS221_ADDRESS)
 {
     _temperature = 0.0;
     _humidity    = 0.0;
 }
-
 
 bool Sodaq_HTS221::begin(void)
 {
@@ -196,8 +193,6 @@ Sodaq_HTS221::readHumidity(void)
     return _humidity;
 }
 
-
-
 const double
 Sodaq_HTS221::readTemperature(void)
 {
@@ -228,8 +223,6 @@ Sodaq_HTS221::readTemperature(void)
     return _temperature;
 }
 
-
-
 // Read a single byte from addressToRead and return it as a byte
 byte Sodaq_HTS221::readRegister(byte slaveAddress, byte regToRead)
 {
@@ -258,6 +251,5 @@ bool Sodaq_HTS221::writeRegister(byte slaveAddress, byte regToWrite, byte dataTo
     uint8_t errorNo = Wire.endTransmission(); //Stop transmitting
     return (errorNo == 0);
 }
-
 
 Sodaq_HTS221 hts221;
