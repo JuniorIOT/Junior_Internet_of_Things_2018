@@ -10,9 +10,11 @@ float heading, headingDegrees, headingFiltered, geo_magnetic_declination_deg;
 
 double YclosestToZero = 1; 
 double ZclosestToZero = 1; 
+
 unsigned int readCompass() {
+  DEBUG_STREAM.print(F("readCompass started. milis=")); DEBUG_STREAM.println(millis());
   // because compass doesn't give accurate results if gps has a heading, then rather use that
-  doGPS(1000);
+  doGPS(4);  // was 1000000
   if(sodaq_gps.getCogHeading() != -1) {
     headingFiltered = sodaq_gps.getCogHeading();
     digitalWrite(led_directionfound, HIGH);

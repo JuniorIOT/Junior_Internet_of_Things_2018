@@ -247,7 +247,7 @@ void setup() {
   led_on(); do_flash_led(led_directionfound); delay(500); led_off(); do_flash_led(led_directionfound); delay(500); 
   led_on(); do_flash_led(led_directionfound); delay(200); led_off(); do_flash_led(led_directionfound); delay(200); 
   led_on(); do_flash_led(led_directionfound); delay(200); led_off(); do_flash_led(led_directionfound); delay(200);
-  DEBUG_STREAM.print(F("\nsetup: Leds tested. milis=")); DEBUG_STREAM.println(millis());
+  DEBUG_STREAM.print(F("setup: Leds tested. milis=")); DEBUG_STREAM.println(millis());
   
   // setup and test sound
   pinMode(gnd_buzzer, OUTPUT);
@@ -370,19 +370,22 @@ void loop() {
   // we keep doing this part until it is time to send one LORAWAN TX to the worl
 
   ////////// Collect data needed just before sending a LORAWAN update to the world  ///////////
-  DEBUG_STREAM.print(F("\nloop: Collect data needed just before sending a LORAWAN update. milis=")); DEBUG_STREAM.println(millis());
+  DEBUG_STREAM.print(F("loop: Collect data needed just before sending a LORAWAN update. milis=")); DEBUG_STREAM.println(millis());
   
+  DEBUG_STREAM.print(F("loop: get first measurements. milis=")); DEBUG_STREAM.println(millis());
   put_Volts_and_Temp_into_sendbuffer();
   put_Compass_and_Btn_into_sendbuffer();
+  DEBUG_STREAM.print(F("loop: doGPS_and_put_values_into_lora_sendbuffer. milis=")); DEBUG_STREAM.println(millis());
   doGPS_and_put_values_into_lora_sendbuffer();   
-
+  
+  DEBUG_STREAM.print(F("loop: pm_measure. milis=")); DEBUG_STREAM.println(millis());
   pm_measure(); //hier moeten we nog wat met de resultaten doen
 
   loraDatasetByte(); // what am i doing with the extra bytes - sending radio to lora or sending extra sensors
   
   ////////// Now CHECK IF we need to send a LORAWAN update to the world  ///////////
   
-  DEBUG_STREAM.print(F("\nloop: Collect data needed just before sending a LORAWAN update. milis=")); DEBUG_STREAM.println(millis());
+  DEBUG_STREAM.print(F("loop: Collect data needed just before sending a LORAWAN update. milis=")); DEBUG_STREAM.println(millis());
   if (loraNeedsSendNow
         or (millis() - last_lora_time) > (LORAWAN_TX_INTERVAL_MAX * 1000L)
         or ((abs(l_lat_movement) + abs(l_lon_movement)) > TXTRIGGER_gps_movement) ) {

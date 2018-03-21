@@ -4,15 +4,15 @@
 
 void gps_init() {
   sodaq_gps.init(6);
-  #ifdef DEBUG
+  //#ifdef DEBUG
   sodaq_gps.setDiag(DEBUG_STREAM);
-  #endif
+  //#endif
 
   l_lat = 0; l_lon = 0; l_alt = 678; hdopNumber = 99999;   // the zero position
   l_lat_hist = 0; l_lon_hist = 0; l_lat_movement = 0; l_lon_movement = 0; // movement detection
 
   // First time finding a fix wait ?? seconds at most
-  find_fix(1);  // quickly switch on and leave on so it can continue to find a fix
+  find_fix(4);  // quickly switch on and leave on so it can continue to find a fix
 }
 
 void doGPS(uint32_t delay_until) {
@@ -150,7 +150,7 @@ void put_gpsvalues_into_lora_sendbuffer(bool savePrevious) {
 
 void doGPS_and_put_values_into_lora_sendbuffer() {
   DEBUG_STREAM.print(F("doGPS_and_put_values_into_sendbuffer started. milis=")); DEBUG_STREAM.println(millis());
-  find_fix(20); // find fix in ?? seconds
+  find_fix(4); // find fix in ?? seconds
   // put gps values into send buffer
   put_gpsvalues_into_lora_sendbuffer(false); // don't put this in previous
   

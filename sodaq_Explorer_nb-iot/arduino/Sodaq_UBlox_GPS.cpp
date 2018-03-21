@@ -21,7 +21,7 @@
 #include <Wire.h>
 #include "Sodaq_UBlox_GPS.h"
 
-#define xDEBUG 1
+#define DEBUG 1
 #ifdef DEBUG
 #define debugPrintLn(...) { if (this->_diagStream) this->_diagStream->println(__VA_ARGS__); }
 #define debugPrint(...) { if (this->_diagStream) this->_diagStream->print(__VA_ARGS__); }
@@ -84,7 +84,8 @@ void Sodaq_UBlox_GPS::init(int8_t enable_pin)
 {
     _enablePin = enable_pin;
     Wire.begin();
-    digitalWrite(_enablePin, GPS_ENABLE_OFF);
+   // digitalWrite(_enablePin, GPS_ENABLE_OFF);
+    digitalWrite(_enablePin, GPS_ENABLE_ON);  // marco: allways on for better fix
     pinMode(_enablePin, OUTPUT);
 }
 
@@ -99,7 +100,7 @@ bool Sodaq_UBlox_GPS::scan(bool leave_on, uint32_t timeout)
     resetValues();
 
     on();
-    delay(500);         // TODO Is this needed?
+    delay(100);         // TODO Is this needed? was 500
 
     size_t fix_count = 0;
     while (!is_timedout(start, timeout)) {
@@ -156,7 +157,7 @@ String Sodaq_UBlox_GPS::getDateTimeString()
 
 bool Sodaq_UBlox_GPS::parseLine(const char * line)
 {
-    //debugPrintLn(String("= ") + line);
+    debugPrintLn(String("\n    read ") + line);
     if (!computeCrc(line, false)) {
         // Redo the check, with logging
         computeCrc(line, true);
@@ -170,10 +171,25 @@ bool Sodaq_UBlox_GPS::parseLine(const char * line)
     if (data.startsWith("GNRMC")) {  return parseGPRMC(data);  }
     if (data.startsWith("GPGSV")) {  return parseGPGSV(data);  }
     if (data.startsWith("GNGLL")) {  return parseGPGLL(data);  }
+      if (data.startsWith("GPGLL")) {  return parseGPGLL(data);  }
     if (data.startsWith("GNVTG")) {  return parseGPVTG(data);  }
     if (data.startsWith("$GPTXT")) {  return parseGPTXT(data);  }  
 
-    debugPrintLn(String("?? >> ") + line);
+    debugPrintLn(String("    unknown string >> ") + line);
+    // unknowns found on NB-IOT shield GPS:
+    //   $GLGSV  //  Satellite information about elevation, azimuth and CNR, $GPGSV is used for GPS satellites, while
+    //      $GLGSV is used for GLONASS satellites 
+    //   $GNGSA $GPGSA $BDGSA  // Used to represent the ID’s of satellites which are used for position fix. When both GPS and Beidou
+    //      satellites are used in position solution, a $GNGSA sentence is used for GPS satellites and another
+    //      $GNGSA sentence is used for Beidou satellites. When only GPS satellites are used for position fix, a
+    //      single $GPGSA sentence is output. When only Beidou satellites are used, a single $BDGSA sentence is output. 
+    //   $GNTXT
+    //
+    // NOT IMPLEMENTED
+    //    $GPGLL, $GNGLL  Position, time and fix status. ***** TODO  --> done
+    //    $GNGSA  --> not required
+    //    $GNVTG  Course and speed relative to the ground ***** TODO  --> done
+
     return false;
 }
 
@@ -206,8 +222,8 @@ bool Sodaq_UBlox_GPS::parseLine(const char * line)
  */
 bool Sodaq_UBlox_GPS::parseGPGGA(const String & line)
 {
-    debugPrintLn("parseGPGGA");
-    debugPrintLn(String(">> ") + line);
+    debugPrintLn("    parseGPGGA");
+    debugPrintLn(String("    >> ") + line);
     
     if (getField(line, 6) != "0") {
         _lat = convertDegMinToDecDeg(getField(line, 2));
@@ -234,12 +250,13 @@ bool Sodaq_UBlox_GPS::parseGPGGA(const String & line)
 /*!
  * Parse GPGSA line
  * GNSS DOP and Active Satellites
+ *     $GNGSA,A,3,26,21,27,,,,,,,,,,5.66,3.63,4.35*1F
  */
 bool Sodaq_UBlox_GPS::parseGPGSA(const String & line)
 {
     // Not (yet) used
-//    debugPrintLn("parseGPGSA");
-//    debugPrintLn(String(">> ") + line);
+    debugPrintLn("    parseGPGSA");
+    debugPrintLn(String("    not needed to be implemented ") + line);
     return false;
 }
 
@@ -247,6 +264,8 @@ bool Sodaq_UBlox_GPS::parseGPGSA(const String & line)
  * Read the coordinates using $GPRMC
  * See also section 24.13 of u-blox 7, Receiver Description. Document number: GPS.G7-SW-12001-B
  *
+ *     $GNRMC,194029.00,A,5237.95316,N,00444.31148,E,0.227,,200318,,,A*66
+ *     0      1         2 3          4 5           6 7     8 9       12 13
  * 0    $GPRMC
  * 1    time            hhmmss.ss       UTC time
  * 2    status          char            Status, V = Navigation receiver warning, A = Data valid
@@ -264,8 +283,8 @@ bool Sodaq_UBlox_GPS::parseGPGSA(const String & line)
  */
 bool Sodaq_UBlox_GPS::parseGPRMC(const String & line)
 {
-//    debugPrintLn("parseGPRMC");
-//    debugPrintLn(String(">> ") + line);
+    debugPrintLn("    parseGPRMC");
+    debugPrintLn(String("    >> ") + line);
     
 
     if (getField(line, 2) == "A" && getField(line, 12) != "N") {
@@ -274,7 +293,7 @@ bool Sodaq_UBlox_GPS::parseGPRMC(const String & line)
             _lat = -_lat;
         }
         _lon = convertDegMinToDecDeg(getField(line, 5));
-        if (getField(line, 4) == "W") {
+        if (getField(line, 6) == "W") {
             _lon = -_lon;
         }
         _seenLatLon = true;
@@ -283,11 +302,10 @@ bool Sodaq_UBlox_GPS::parseGPRMC(const String & line)
     String time = getField(line, 1);
     String date = getField(line, 9);
     setDateTime(date, time);
-
     
     String cog = getField(line, 8);
     if(!cog.equals(""))  {
-      debugPrintLn(String(">> Cog:") + cog);
+      debugPrintLn(String("    >> Cog:") + cog);
       _cog_heading = cog.toInt();
     }
 
@@ -312,8 +330,8 @@ bool Sodaq_UBlox_GPS::parseGPRMC(const String & line)
  */
 bool Sodaq_UBlox_GPS::parseGPGSV(const String & line)
 {
-    debugPrintLn("parseGPGSV");
-    debugPrintLn(String(">> ") + line);
+    debugPrintLn("    parseGPGSV");
+    debugPrintLn(String("    >> ") + line);
 
     // We could/should only use msgNum == 1. However, all messages should have
     // the same numSV.
@@ -326,26 +344,81 @@ bool Sodaq_UBlox_GPS::parseGPGSV(const String & line)
 /*!
  * Parse GPGLL line
  * Latitude and longitude, with time of position fix and status
+ *     $GNGLL,5237.95295,N,00444.31115,E,194028.00,A,A*73
+ *      0     1          2  3          4 5         6 7 
+ *     
+ * 0    $GPGLL
+ * 1    lat             ddmm.mmmmm      Latitude (degrees & minutes)
+ * 2    NS              char            North/South
+ * 3    long            dddmm.mmmmm     Longitude (degrees & minutes)
+ * 4    EW              char            East/West
+ * 5    time            hhmmss.ss       UTC time
+ * 6    status          char            Status, V = Navigation receiver warning, A = Data valid
+ * 7    checksum        2 hex digits    Checksum
  */
 bool Sodaq_UBlox_GPS::parseGPGLL(const String & line)
 {
     // Not (yet) used
-//    debugPrintLn("parseGPGLL");
-//    debugPrintLn(String(">> ") + line);
-    return false;
+    debugPrintLn("    parseGPGLL");
+    
+    if (getField(line, 6) == "A" ) {
+        _lat = convertDegMinToDecDeg(getField(line, 1));
+        if (getField(line, 1) == "S") {
+            _lat = -_lat;
+        }
+        _lon = convertDegMinToDecDeg(getField(line, 3));
+        if (getField(line, 4) == "W") {
+            _lon = -_lon;
+        }
+        _seenLatLon = true;
+    }
+
+    String time = getField(line, 5);
+    // setDateTime(date, time);
+
+    return true;  // todo: is this valid enough without time?
 }
 
 /*!
  * Parse GPVTG line
  * Course over ground and Ground speed
+ *     
+ *     $GNVTG,,T,,M,0.227,N,0.421,K,A*3D
+ *     0    1 2 3 4 5     6 7     8 9 10
+ * 0    $GNVTG
+ * 1    cog             num             Course over ground
+ * 2    T
+ * 3    mv              num             Magnetic variation value
+ * 4    M
+ * 5    spd             num             Speed over ground (knots)
+ * 6    N
+ * 7    speed kn\m/h
+ * 8    K
+ * 9    posMode         char            Mode Indicator: 'N' No Fix, 'E' Estimate, 'A' Auto GNSS, 'D' Diff GNSS
+ * 10   checksum        2 hex digits    Checksum
+
+ *     $GNRMC,194029.00,A,5237.95316,N,00444.31148,E,0.227,,200318,,,A*66
+ *     0      1         2 3          4 5           6 7     8 9       12 13
+ * 0    $GPRM
+ * 8    cog             num             Course over ground
+ * 10   mv              num             Magnetic variation value
+ * 11   mvEW            char            Magnetic variation E/W indicator
+ * 12   posMode         char            Mode Indicator: 'N' No Fix, 'E' Estimate, 'A' Auto GNSS, 'D' Diff GNSS
+ * 13   checksum        2 hex digits    Checksum
  */
 bool Sodaq_UBlox_GPS::parseGPVTG(const String & line)
 {
     // Not (yet) used
-//    debugPrintLn("parseGPVTG");
-//    debugPrintLn(String(">> ") + line);
+    debugPrintLn("    parseGPVTG");
+    debugPrintLn(String("    >> ") + line);
     
-    return false;
+    String cog = getField(line, 1);
+    if(!cog.equals(""))  {
+      debugPrintLn(String("    >> Cog:") + cog);
+      _cog_heading = cog.toInt();
+    }
+
+    return true;
 }
 
 /*!
@@ -364,8 +437,8 @@ bool Sodaq_UBlox_GPS::parseGPVTG(const String & line)
  */
 bool Sodaq_UBlox_GPS::parseGPTXT(const String & line)
 {
-    //debugPrintLn("parseGPTXT");
-    //debugPrintLn(String(">> ") + line);
+    //debugPrintLn("    parseGPTXT");
+    //debugPrintLn(String("    >> ") + line);
     debugPrintLn(String("TXT: \"") + getField(line, 4) + "\"");
     return true;
 }

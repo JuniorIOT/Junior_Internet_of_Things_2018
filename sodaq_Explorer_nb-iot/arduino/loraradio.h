@@ -138,7 +138,7 @@ void formatRadioPackage(uint8_t *loopbackToData) {
   SerialUSB.print("  fo MyID: ");
   SerialUSB.println(loopbackToData[0], BIN);
   
-  doGPS(60); // must have a gps - wait up to ?? seconds
+  doGPS(4); // must have a gps - wait up to ?? seconds
 
   // maybe we should make a function for lat lng encoding that doesnt put them to lorawan
   const double shift_lat     =    90. * 10000000.;                 // range shift from -90..90 into 0..180, note: 
