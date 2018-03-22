@@ -96,13 +96,15 @@ optional:
    * pin-out for GPS BN-180/BN-200/BN-220 ==> (led) GND TX RX VCC (batt)
    * pin-out for SDS021 ==> (hole) (1) 5V NC GND Rx Tx (5)
    * pin-out for SDS011 ==> (1) CTL 1umPWM 5V 25umPWM GND Rx Tx (7) (hole)
-   * pin-out for MH-Z19 ==> 2 rows:
-                      (HD)                
-                      (SR)               PWM
-                        Tx               (AoT)
-                        Rx               GND
-         (Vout 3.3V 10 mA)               Vin 5V
-                            side window
+   * pin-out for MH-Z19 ==> 2 rows, and sometimes a 7 pin connector:         
+
+       brown   Vout 3.3  ─   
+       white   (nc)      ─       (HD)                            
+       black   GND       ─       (SR)                      PWM           
+       red     Vin 5v    ─         Tx      (green          (AoT)       
+       blue    Rx        ─         Rx        bottom)       GND          
+       green   Tx        ─   (Vout 3.3V)                   Vin 5V       
+       yellow  (nc)      ─             (side window)  
 
 ```
 ## Pin mapping for Xtra small implementation (project X) on 3.3V SS Beetle

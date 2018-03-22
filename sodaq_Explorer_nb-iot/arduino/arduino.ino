@@ -35,6 +35,8 @@
 #define gnd_directionfound 13
 #define pin_PM_TXD_rx 2
 #define pin_PM_RXD_tx 3
+#define pin_co2_TXD_rx 4
+#define pin_co2_RXD_tx 5
 
  
 #define DEBUG     // if DEBUG is defined, some code is added to display some basic debug info
@@ -44,7 +46,7 @@
 #include <rn2xx3.h>
 #include "keys.h"
 #define loraSerial Serial2
-#define PAYLOADSIZE 34 // The size of the package to be sent
+#define PAYLOADSIZE 48 // The size of the package to be sent
 //create an instance of the rn2xx3 library,
 //giving the software serial as port to use
 rn2xx3 myLora(loraSerial);
@@ -274,6 +276,10 @@ void setup() {
   setup_pm();
   pm_getFirmwareVersion();
   pm_measure();
+  
+//  // Co2 sensor
+//  setup_co2();
+//  co2_measure();
 
   // temp & hum sensors
   setupHTS221();
@@ -300,6 +306,9 @@ void setup() {
   DEBUG_STREAM.print(F("loop: pm_measure. milis=")); DEBUG_STREAM.println(millis());
   pm_measure();
   put_PM_into_sendbuffer();  
+  
+//  // Co2 sensor
+//  co2_measure();
 
   put_Dataset_and_counter_into_sendbuffer();
   

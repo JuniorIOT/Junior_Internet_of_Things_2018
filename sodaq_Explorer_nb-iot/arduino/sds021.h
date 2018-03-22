@@ -211,7 +211,7 @@ void pm_measure()
   }
   else
   {
-    DEBUG_STREAM.print("  pm No PM sensor found or timed-out.");
+    DEBUG_STREAM.println("  pm No PM sensor found or timed-out.");
   }
 }
 
